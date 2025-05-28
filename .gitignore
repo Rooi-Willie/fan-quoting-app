@@ -1,3 +1,17 @@
+# Docker
+.dockerignore
+docker-compose.yml # Sometimes people commit this, sometimes not. If it contains secrets, no.
+                   # If it's just for local dev setup, it can be versioned.
+                   # For now, let's version it but keep secrets out.
+
+# VS Code
+.vscode/
+
+# Other
+*.sqlite3 # If you use sqlite for quick local testing
+*.db
+
+# ========= DEFAULT GITIGNORE FOR PYTHON PROJECTS =========
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

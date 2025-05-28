@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15 # Or your preferred version
+    container_name: quoting_db_dev
+    restart: always
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data/
+    ports: # Map local port for external tools like DBeaver
+      - "5433:5432" # Local 5433 maps to container 5432
+    env_file:
+      - .env # Load environment variables from .env
+
+  api:
+    container_name: quoting_api_dev
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    volumes:
+      - ./api/app:/app/app # Mount local code for live reload
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  ui:
+    container_name: quoting_ui_dev
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    volumes:
+      - ./ui:/app # Mount local code for live reload
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  postgres_data_dev: # Define a named volume for DB persistence
