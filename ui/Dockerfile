@@ -6,7 +6,11 @@ COPY ./requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# COPY ./app.py /app/app.py # Remove this line for development
+# Remove this line for development
+COPY ./app.py /app/app.py 
+
+# Dont know if this should be added??
+# COPY ./.streamlit ./.streamlit
 
 # Expose the port Streamlit will run on
 EXPOSE 8501
