@@ -12,6 +12,8 @@ st.title("Fan Quoting App UI")
 st.write(f"Attempting to connect to API at: {API_BASE_URL}")
 
 st.write(f"Hello there!")
+st.write(f"Lekker!")
+st.write(f"Lekker2!")
 
 try:
     response = requests.get(f"{API_BASE_URL}/")
