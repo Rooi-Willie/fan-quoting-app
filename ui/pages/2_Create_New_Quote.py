@@ -76,4 +76,5 @@ with tab_review:
     review_quote_tab.display_tab() # This tab module will import from config.py
 
 st.sidebar.divider()
+st.write("Hello")
 st.sidebar.json(st.session_state.quote_data, expanded=False) # For debugging
