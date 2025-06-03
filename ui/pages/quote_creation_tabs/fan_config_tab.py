@@ -3,44 +3,84 @@ import os
 import pandas as pd # Keep for potential future use, though not strictly needed if not building DF here
 from config import COMPONENT_ORDER, COMPONENT_IMAGES, ROW_DEFINITIONS, IMAGE_FOLDER_PATH
 
+def _update_quote_data_top_level_key(qd_top_level_key, widget_sstate_key):
+    """
+    Callback to update a key in st.session_state.quote_data
+    from a widget's state in st.session_state.
+    """
+    if widget_sstate_key in st.session_state:
+        st.session_state.quote_data[qd_top_level_key] = st.session_state[widget_sstate_key]
+
+def _update_component_detail_from_widget_state(component_name, detail_key, widget_sstate_key):
+    """
+    Callback to update a specific detail for a component in
+    st.session_state.quote_data["component_details"].
+    """
+    qd = st.session_state.quote_data
+    # Ensure component_details and the specific component dictionary exist
+    component_dict = qd.setdefault("component_details", {}).setdefault(component_name, {})
+
+    if widget_sstate_key in st.session_state:
+        component_dict[detail_key] = st.session_state[widget_sstate_key]
+
 def display_tab():
     st.header("3. Fan Configuration Details")
+
+    # Ensure quote_data is initialized in session_state.
+    # Ideally, the calling page (e.g., 2_Create_New_Quote.py) should do this.
+    if "quote_data" not in st.session_state:
+        st.warning("quote_data not found in session_state. Initializing to empty dictionary. "
+                   "Consider initializing in the parent page for better state management.")
+        st.session_state.quote_data = {}
+
     qd = st.session_state.quote_data # Shorthand for quote_data
     cd = qd.setdefault("component_details", {}) # Shorthand for component_details, ensuring it exists
 
     # --- Base Fan Parameters ---
-    st.subheader("Base Fan Parameters")
-    cols_base = st.columns(3)
-    with cols_base[0]:
+    with st.sidebar:
+        st.subheader("Base Fan Parameters")
         fan_id_options = [570, 620, 762, 915, 1016, 1200, 1400, 1600]
-        qd["fan_id"] = st.selectbox(
+        st.selectbox(
             "Fan ID (mm)", options=fan_id_options,
             index=fan_id_options.index(qd.get("fan_id", 570)),
-            key="fc_fan_id"
+            key="widget_fc_fan_id",
+            on_change=_update_quote_data_top_level_key,
+            args=("fan_id", "widget_fc_fan_id")
         )
-    with cols_base[1]:
+
         fan_hub_options = [400, 472, 625, 685, 914, 850]
-        qd["fan_hub"] = st.selectbox(
+        st.selectbox(
             "Fan Hub (mm)", options=fan_hub_options,
             index=fan_hub_options.index(qd.get("fan_hub", 400)),
-            key="fc_fan_hub"
+            key="widget_fc_fan_hub",
+            on_change=_update_quote_data_top_level_key,
+            args=("fan_hub", "widget_fc_fan_hub")
         )
-    with cols_base[2]:
-        qd["blade_sets"] = st.number_input(
+
+        st.number_input(
             "Blade Sets", min_value=1, step=1,
             value=int(qd.get("blade_sets", 1)),
-            key="fc_blade_sets"
+            key="widget_fc_blade_sets",
+            on_change=_update_quote_data_top_level_key,
+            args=("blade_sets", "widget_fc_blade_sets")
         )
-    st.divider()
+        st.divider()
 
-    # --- Component Selection ---
-    st.subheader("Fan Components Selection & Configuration")
-    qd["selected_components_unordered"] = st.multiselect(
-        "Select Fan Components (order will be fixed below)",
-        options=COMPONENT_ORDER,
-        default=qd.get("selected_components_unordered", []),
-        key="fc_multiselect_components"
-    )
+        # --- Component Selection ---
+        st.subheader("Fan Components Selection")
+        st.multiselect(
+            "Select Fan Components",
+            options=COMPONENT_ORDER,
+            default=qd.get("selected_components_unordered", []),
+            key="widget_fc_multiselect_components",
+            on_change=_update_quote_data_top_level_key,
+            args=("selected_components_unordered", "widget_fc_multiselect_components"),
+            help="Components will be ordered automatically in the main view."
+        )
+        st.divider()
+
+    # --- Main Tab Display Area ---
+    st.subheader("Configure Selected Fan Components")
 
     # Derive the ordered list for processing
     ordered_selected_components = [
@@ -48,7 +88,7 @@ def display_tab():
     ]
 
     if not ordered_selected_components:
-        st.info("Select fan components above to configure them.")
+        st.info("Select fan components from the sidebar to configure them.")
         # Clean up details for components that are no longer selected
         keys_to_remove = [k for k in cd if k not in ordered_selected_components]
         for k_rem in keys_to_remove:
@@ -75,7 +115,7 @@ def display_tab():
     header_cols = st.columns(column_layout_config)
     with header_cols[0]: st.markdown("**Parameter**")
     for i, comp_name in enumerate(ordered_selected_components):
-        with header_cols[i + 1]: st.markdown(f"**{comp_name}**")
+        with header_cols[i + 1]: st.markdown(f"**{comp_name}**", help=comp_name) # Use help for full name if truncated
     st.divider()
 
     # --- Data Input/Display Area ---
@@ -132,9 +172,17 @@ def display_tab():
                         step=step_val,
                         format=fmt_str,
                         key=widget_key_unique,
+                        on_change=_update_component_detail_from_widget_state,
+                        args=(comp_name, row_label, widget_key_unique)
                     )
-                    cd[comp_name][row_label] = user_value # Update session state
-    # Clean up details for components that are no longer selected (important!)
-    keys_to_remove = [k for k in cd if k not in ordered_selected_components]
-    for k_rem in keys_to_remove:
-        del cd[k_rem]
+                    # Value is now updated in session state via the callback
+
+    # Clean up details for components that are no longer selected (can be done here or at start)
+    # keys_to_remove_at_end = [k for k in cd if k not in ordered_selected_components]
+    # for k_rem_end in keys_to_remove_at_end:
+    #     del cd[k_rem_end]
+    # Note: The cleanup is already present at the beginning if no components are selected.
+    # Consider if a second cleanup here is always necessary or if the initial one covers all cases.
+    # For now, the initial cleanup when `not ordered_selected_components` and the implicit removal
+    # by not processing unselected components should suffice. If issues arise with stale data
+    # for deselected components while others remain, this end-cleanup can be reinstated.

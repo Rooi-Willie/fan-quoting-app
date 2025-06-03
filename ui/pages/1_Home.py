@@ -10,6 +10,12 @@ if not st.session_state.get("logged_in"):
         st.switch_page("login_page.py") # Path relative to the main app script
     st.stop()
 
+# --- Sidebar for Home Page ---
+st.sidebar.title(f"Welcome, {st.session_state.get('username', 'User')}!")
+st.sidebar.divider()
+st.sidebar.markdown("You are on the Home page.")
+# Add any other home-specific sidebar items or links here if needed.
+
 st.title("Home")
 st.write(f"Welcome to the {APP_TITLE}, {st.session_state.get('username', 'User')}!")
 st.divider()
