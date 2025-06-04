@@ -23,21 +23,21 @@ def _update_component_detail_from_widget_state(component_name, detail_key, widge
     if widget_sstate_key in st.session_state:
         component_dict[detail_key] = st.session_state[widget_sstate_key]
 
-def display_tab():
-    st.header("3. Fan Configuration Details")
+def render_sidebar_widgets():
+    """Renders the specific sidebar widgets for Fan Configuration."""
 
     # Ensure quote_data is initialized in session_state.
-    # Ideally, the calling page (e.g., 2_Create_New_Quote.py) should do this.
+    # This check might be redundant if 2_Create_New_Quote.py handles it robustly,
+    # but it's safe to keep.
     if "quote_data" not in st.session_state:
         st.warning("quote_data not found in session_state. Initializing to empty dictionary. "
                    "Consider initializing in the parent page for better state management.")
         st.session_state.quote_data = {}
 
     qd = st.session_state.quote_data # Shorthand for quote_data
-    cd = qd.setdefault("component_details", {}) # Shorthand for component_details, ensuring it exists
 
-    # --- Base Fan Parameters ---
-    with st.sidebar:
+    # These widgets will be added to st.sidebar by the calling page's context
+    with st.sidebar: # This ensures these are added to the sidebar
         st.subheader("Base Fan Parameters")
         fan_id_options = [570, 620, 762, 915, 1016, 1200, 1400, 1600]
         st.selectbox(
@@ -78,6 +78,19 @@ def display_tab():
             help="Components will be ordered automatically in the main view."
         )
         st.divider()
+
+def render_main_content():
+    """Renders the main content area for the Fan Configuration tab."""
+    st.header("3. Fan Configuration Details")
+
+    if "quote_data" not in st.session_state:
+        # This should ideally be handled by the main page (2_Create_New_Quote.py)
+        st.error("Quote data not initialized. Please start a new quote or refresh.")
+        st.session_state.quote_data = {} # Basic fallback
+        # return # Optionally stop if quote_data is critical and missing
+
+    qd = st.session_state.quote_data # Shorthand for quote_data
+    cd = qd.setdefault("component_details", {}) # Shorthand for component_details
 
     # --- Main Tab Display Area ---
     st.subheader("Configure Selected Fan Components")

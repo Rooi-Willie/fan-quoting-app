@@ -1,7 +1,6 @@
 import streamlit as st
 from config import CURRENCY_SYMBOL
-
-def display_tab():
+def render_main_content():
     st.header("4. Buy-out Items / Additional Costs")
     qd = st.session_state.quote_data
     # Ensure 'buy_out_items_list' exists and is a list

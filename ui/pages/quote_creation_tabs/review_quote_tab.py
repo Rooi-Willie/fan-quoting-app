@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np # For np.nan
 from config import ROW_DEFINITIONS, CURRENCY_SYMBOL, COMPONENT_ORDER # For ordering if needed
 
-def display_tab():
+def render_main_content():
     st.header("5. Review & Finalize Quote")
     qd = st.session_state.quote_data
     cd = qd.get("component_details", {})

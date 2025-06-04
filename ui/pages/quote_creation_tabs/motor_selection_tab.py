@@ -9,7 +9,7 @@ def _update_quote_data_top_level_key(qd_top_level_key, widget_sstate_key):
     if widget_sstate_key in st.session_state:
         st.session_state.quote_data[qd_top_level_key] = st.session_state[widget_sstate_key]
 
-def display_tab():
+def render_main_content():
     st.header("2. Motor Selection")
     qd = st.session_state.quote_data
 
