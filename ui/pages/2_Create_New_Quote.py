@@ -42,9 +42,6 @@ if "quote_data" not in st.session_state:
         "buy_out_items_list": [], # List of dicts: {'description': '', 'cost': 0.0, 'quantity': 1}
         # Review & Quote Summary will be derived from the above
     }
-    # Initialize active tab state using a dedicated key for st.tabs
-    if "active_quote_tab_key" not in st.session_state: # Renamed key
-        st.session_state.active_quote_tab_key = tab_titles[0]
 
 elif st.sidebar.button("🔄 Start New Quote / Reset Form", use_container_width=True):
     # Reset specific quote data, keep login info
@@ -62,22 +59,17 @@ elif st.sidebar.button("🔄 Start New Quote / Reset Form", use_container_width=
         "component_details": {},
         "buy_out_items_list": [],
     }
-    st.session_state.active_quote_tab_key = tab_titles[0] # Reset using the new key
     st.success("Quote form has been reset.")
     st.rerun()
-
-# --- Sidebar Rendering Logic ---
-# This section runs on every rerun.
-# Read the active tab directly from the session state key associated with st.tabs.
-# This key is updated by Streamlit *before* this part of the script reruns due to a tab change.
-current_selected_tab_label = st.session_state.get("active_quote_tab_key", tab_titles[0])
-
-if current_selected_tab_label == "3. Fan Configuration":
-    fan_config_tab.render_sidebar_widgets() # Call the specific sidebar function
 
 # Common sidebar elements (like the JSON dump for debugging) can go here,
 # after the conditional block for tab-specific items.
 st.sidebar.divider() # Placed after potential fan_config_tab sidebar content
+st.sidebar.json(st.session_state.quote_data, expanded=False) # For debugging
+
+# This section now renders the same sidebar content regardless of the active tab.
+fan_config_tab.render_sidebar_widgets() # Always render fan config widgets in sidebar
+st.sidebar.divider()
 st.sidebar.json(st.session_state.quote_data, expanded=False) # For debugging
 
 
@@ -89,23 +81,18 @@ tab_project, tab_motor, tab_fan_config, tab_buyout, tab_review = st.tabs(
 )
 
 with tab_project:
-    st.session_state.active_quote_tab_key = "1. Project Info"
     project_info_tab.render_main_content()
 
 with tab_motor:
-    st.session_state.active_quote_tab_key = "2. Motor Selection"
     motor_selection_tab.render_main_content()
 
 with tab_fan_config:
-    st.session_state.active_quote_tab_key = "3. Fan Configuration"
     fan_config_tab.render_main_content()
 
 with tab_buyout:
-    st.session_state.active_quote_tab_key = "4. Buy-out Items"
     buyout_items_tab.render_main_content()
 
 with tab_review:
-    st.session_state.active_quote_tab_key = "5. Review & Finalize"
     review_quote_tab.render_main_content()
 
 # The "Start New Quote / Reset Form" button is already in the sidebar from earlier.
