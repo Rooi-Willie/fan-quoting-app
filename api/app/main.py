@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 import os
 from dotenv import load_dotenv
-from models import FanConfiguration # Import your Pydantic model
-from fan_config_data import FAN_CONFIGS, FAN_ID_MAP # Import your fan configuration data
+from typing import List, Literal
+from .models import FanConfiguration # Import your Pydantic model
+from .fan_config_data import FAN_CONFIGS, FAN_ID_MAP # Import your fan configuration data
 
 load_dotenv() # To load .env if running locally outside Docker for some reason
 

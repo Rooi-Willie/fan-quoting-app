@@ -1,6 +1,6 @@
 # fan_data.py
 from typing import List, Dict
-from models import FanConfiguration # Import your Pydantic model
+from .models import FanConfiguration # Import your Pydantic model
 
 # Hardcoded data using Pydantic models
 # This is loaded once when the application starts.
