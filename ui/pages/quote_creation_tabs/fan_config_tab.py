@@ -136,6 +136,7 @@ def render_sidebar_widgets():
     qd = st.session_state.quote_data # Shorthand for quote_data
 
     with st.sidebar:
+        st.divider()
         st.subheader("Base Fan Parameters")
 
         # 1. Fan ID Selectbox (API Driven)
@@ -158,15 +159,17 @@ def render_sidebar_widgets():
             on_change=_handle_fan_id_change
         )
 
-        # 2. Fan Hub (Display Only - Derived from Fan ID)
         fan_config = st.session_state.get("current_fan_config")
-        fan_hub_display = str(fan_config.get('hub_size_mm', "N/A")) if fan_config else str(qd.get("fan_hub", "N/A"))
-        st.text_input(
-            "Fan Hub (mm)",
-            value=fan_hub_display,
-            disabled=True,
-            key="display_fc_fan_hub" # Not directly tied to quote_data top-level via simple callback
-        )
+
+        # # 2. Fan Hub (Display Only - Derived from Fan ID)
+        # fan_config = st.session_state.get("current_fan_config")
+        # fan_hub_display = str(fan_config.get('hub_size_mm', "N/A")) if fan_config else str(qd.get("fan_hub", "N/A"))
+        # st.text_input(
+        #     "Fan Hub (mm)",
+        #     value=fan_hub_display,
+        #     disabled=True,
+        #     key="display_fc_fan_hub" # Not directly tied to quote_data top-level via simple callback
+        # )
 
         # 3. Blade Sets (Blade Quantity - API Driven, dependent on Fan ID)
         blade_qty_select_options = ["N/A"]
@@ -191,6 +194,26 @@ def render_sidebar_widgets():
             disabled=blade_qty_disabled,
             help="Options populated after selecting a Fan ID."
         )
+        if fan_config:
+            # Display the fetched data in a more structured way
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric(label="Fan Size (mm)", value=fan_config.get('fan_size_mm', 'N/A'))
+                st.text_input("Available Blade Counts", value=", ".join(map(str, fan_config.get('different_blade_qty', []))), disabled=True)   
+                st.metric(label="Motor Pole", value=fan_config.get('pole', 'N/A'))
+            with col2:
+                st.metric(label="Hub Size (mm)", value=fan_config.get('hub_size_mm', 'N/A'))
+                # st.metric(label="Stator Blade Qty", value=fan_config.get('stator_blade_qty', 'N/A'))
+                st.text_input("Blade Name and Material", value=fan_config.get('blade_name_and_material', 'N/A'), disabled=True)
+                st.text_input("Available Motor kW", value=", ".join(map(str, fan_config.get('motor_kw_range', []))), disabled=True)
+            
+            # Optionally, show the raw JSON data for debugging
+            with st.expander("Show Raw API Response"):
+                st.json(fan_config)
+
+        else:
+            st.info("Select a Fan ID to view its configuration details.")
+
         st.divider()
 
         # --- Component Selection ---
