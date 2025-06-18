@@ -45,9 +45,6 @@ FAN_CONFIGS: List[FanConfiguration] = [
         blade_name_and_material="Orange-Ali-Trimmed",
         motor_kw_range=[55, 75, 90, 110],
     ),
-    # IMPORTANT: I'm omitting the incomplete 'Ø1400-Ø?' and 'Ø1600-Ø?' entries
-    # because they lack crucial information. If you want to include them,
-    # you would need to make fields Optional as shown in models.py comments.
 ]
 
 # For faster lookups by fan_id, create a dictionary from the list once at startup.
