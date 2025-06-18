@@ -7,6 +7,10 @@ services:
     restart: always
     volumes:
       - postgres_data_dev:/var/lib/postgresql/data/
+      # Mounts the SQL scripts to be run on first-time initialization
+      - ./database/init-scripts:/docker-entrypoint-initdb.d
+      # Mounts the CSV data to a location accessible by the COPY command
+      - ./database/data:/csv_data
     ports: # Map local port for external tools like DBeaver
       - "5433:5432" # Local 5433 maps to container 5432
     env_file:

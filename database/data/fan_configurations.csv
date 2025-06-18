@@ -1,0 +1,5 @@
+uid,fan_size_mm,hub_size_mm,available_blade_qtys,stator_blade_qty,blade_name,blade_material,mass_per_blade_kg,available_motor_kw,motor_pole,available_components,auto_selected_components
+Ø762-Ø472,762,472,"{8,10,12}",13,Yellow,Steel,3.1,"{22,30,37,45}",2,"{1,2,3,4,5,6,7,8,9,10,11,12,13,14}","{2,7,8,9}"
+Ø915-Ø625,915,625,"{8,10,12}",13,Yellow,Steel,3.1,"{45,55,75}",2,"{1,2,3,4,5,6,7,8,9,10,11,12,13,14}","{2,7,8,9}"
+Ø1016-Ø625,1016,625,"{6,8,10}",11,Green,Steel,3.1,"{45,55,75}",2,"{1,2,3,4,5,6,7,8,9,10,11,12,13,14}","{2,7,8,9}"
+Ø1200-Ø685,1200,685,"{6,10,14}",15,Orange,Aluminium,3.26,"{55,75,90,110}",4,"{1,2,3,4,5,6,7,8,9,10,11,12,13,14}","{2,7,8,9}"

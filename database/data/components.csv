@@ -1,0 +1,41 @@
+id,name,code,order_by
+1,Screen Inlet Outside,screen_inlet_outside,c
+2,Screen Inlet Inside,screen_inlet_inside,d
+3,Conical Inlet,conical_inlet,e
+4,Silencer 1D Inlet,silencer_1d_inlet,f
+5,Silencer 1.5D Inlet,silencer_1_5d_inlet,g
+6,Silencer 2D Inlet,silencer_2d_inlet,h
+7,Inlet-Track,inlet_track,i
+8,Rotor,rotor,j
+9,Motor Barrel,motor_barrel,k
+10,Silencer 1D Outlet,silencer_1d_outlet,l
+11,Silencer 1.5D Outlet,silencer_1_5d_outlet,m
+12,Silencer 2D Outlet,silencer_2d_outlet,n
+13,SCD - Self Closing Door,scd,o
+14,Diffuser,diffuser,p
+15,Flex Duct,flex_duct,q
+16,1D-7° Diffuser,1d_7deg_diffuser,r
+17,1.5D 1016 Diffuser,1_5d_1016_diffuser,s
+18,1.5D 1200 Diffuser,1_5d_1200_diffuser,t
+19,1.5D 1400 Diffuser,1_5d_1400_diffuser,u
+20,1D Straight Duct,1d_straight_duct,v
+21,Support Frame,support_frame,w
+22,Jet Conical Inlet,jet_conical_inlet,x
+23,Jet Nozzle,jet_nozzle,y
+24,Jet Skid Frame,jet_skid_frame,z
+25,Bellow,bellow,cc
+26,Inlet Trans 15° 1200-1016,inlet_trans_15deg_1200_1016,dd
+27,Inlet Trans 30° 1200-1400,inlet_trans_30deg_1200_1400,ee
+28,Outlet Trans 30° 1200-1016 ,outlet_trans_30deg_1200_1016,ff
+29,Outlet Trans 15° 1200-1400 ,outlet_trans_15deg_1200_1400,gg
+30,1.5D 1600 Diffuser,1_5d_1600_diffuser,hh
+31,Cast in Collar,cast_in_collar,ii
+32,ASU,asu,jj
+33,Inlet Trans 15° 1400-1200,inlet_trans_15deg_1400_1200,kk
+34,Inlet Trans 30° 1400-1600,inlet_trans_30deg_1400_1600,ll
+35,Outlet Trans 30° 1400-1200 ,outlet_trans_30deg_1400_1200,mm
+36,Outlet Trans 15° 1400-1600 ,outlet_trans_15deg_1400_1600,nn
+37,Inlet Trans 15° 1600-1400,inlet_trans_15deg_1600_1400,oo
+38,Inlet Trans 30° 1600-1800,inlet_trans_30deg_1600_1800,pp
+39,Outlet Trans 30° 1600-1400 ,outlet_trans_30deg_1600_1400,qq
+40,Outlet Trans 15° 1600-1800 ,outlet_trans_15deg_1600_1800,rr
