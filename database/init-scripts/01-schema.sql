@@ -55,19 +55,22 @@ CREATE TABLE motor_prices (
     currency VARCHAR(3) DEFAULT 'ZAR', 
     UNIQUE(motor_id, date_effective) 
 );
-CREATE TABLE motors_staging ( 
-    supplier_name VARCHAR(100), 
-    product_range VARCHAR(100), 
-    part_number VARCHAR(50), 
-    poles SMALLINT, 
-    rated_output NUMERIC(7, 2), 
-    speed INTEGER, 
-    frame_size VARCHAR(20), 
-    shaft_diameter NUMERIC(5, 1), 
-    foot_price NUMERIC(12, 2), 
-    flange_price NUMERIC(12, 2), 
-    currency VARCHAR(3), 
-    date_effective DATE 
+CREATE TABLE motors_staging (
+    supplier_name VARCHAR(100),
+    product_range VARCHAR(100),
+    part_number VARCHAR(50),
+    poles SMALLINT,
+    rated_output NUMERIC(7, 2),
+    rated_output_unit VARCHAR(10),  
+    speed INTEGER,
+    speed_unit VARCHAR(10),         
+    frame_size VARCHAR(20),
+    shaft_diameter NUMERIC(5, 1),
+    shaft_diameter_unit VARCHAR(10),
+    foot_price NUMERIC(12, 2),
+    flange_price NUMERIC(12, 2),
+    currency VARCHAR(3),
+    date_effective DATE
 );
 
 -- ======================= QUOTING LOGIC TABLES =============================
@@ -100,11 +103,13 @@ CREATE TABLE component_parameters (
     component_id INT UNIQUE NOT NULL REFERENCES components(id),
     default_thickness_mm NUMERIC(10, 2),
     default_fabrication_waste_factor NUMERIC(10, 4),
+    -- Formula identifiers
     diameter_formula_type VARCHAR(50),
     length_formula_type VARCHAR(50),
     stiffening_formula_type VARCHAR(50),
     mass_formula_type VARCHAR(50) NOT NULL,
-    cost_formula_type VARCHAR(50) NOT NULL
+    cost_formula_type VARCHAR(50) NOT NULL,
+    length_multiplier NUMERIC(10, 2)
 );
 
 CREATE TABLE fan_component_parameters (
