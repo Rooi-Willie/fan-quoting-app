@@ -12,6 +12,13 @@ def get_fan_configurations(db: Session):
     """
     return db.query(models.FanConfiguration).order_by(models.FanConfiguration.fan_size_mm).all()
 
+def get_fan_configuration(db: Session, fan_config_id: int):
+    """
+    Retrieve a single fan configuration by its primary key ID.
+    """
+    return db.query(models.FanConfiguration).filter(models.FanConfiguration.id == fan_config_id).first()
+
+
 def get_available_components(db: Session, fan_config_id: int):
     """
     Retrieve the components available for a specific fan configuration,

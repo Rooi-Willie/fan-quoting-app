@@ -20,6 +20,16 @@ def read_fan_configurations(db: Session = Depends(get_db)):
     fan_configs = crud.get_fan_configurations(db)
     return fan_configs
 
+@router.get("/{fan_config_id}", response_model=schemas.FanConfiguration)
+def read_fan_configuration(fan_config_id: int, db: Session = Depends(get_db)):
+    """
+    Retrieve a single fan configuration by its integer ID.
+    """
+    db_fan_config = crud.get_fan_configuration(db, fan_config_id=fan_config_id)
+    if db_fan_config is None:
+        raise HTTPException(status_code=404, detail="Fan configuration not found")
+    return db_fan_config
+
 @router.get("/{fan_config_id}/components", response_model=List[schemas.Component])
 def read_available_components(fan_config_id: int, db: Session = Depends(get_db)):
     """
