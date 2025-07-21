@@ -1,8 +1,9 @@
 # This file contains SQLAlchemy ORM models, which are Python classes that map
 # directly to your database tables. Each class represents a table, and instances
 # of that class represent rows in that table.
-
-from sqlalchemy import ARRAY, Column, Integer, Numeric, String
+from sqlalchemy import (ARRAY, Column, Date, ForeignKey, Integer, Numeric,
+                        SmallInteger, String)
+from sqlalchemy.orm import relationship
 from .database import Base
 
 
@@ -42,3 +43,43 @@ class Component(Base):
     name = Column(String, unique=True, nullable=False, comment="The human-readable name of the component (e.g., 'Inlet Cone').")
     code = Column(String, unique=True, nullable=False, comment="A unique code for identifying the component.")
     order_by = Column(String, comment="A field to specify the sorting order for display purposes in the UI.")
+
+
+class Motor(Base):
+    """
+    Represents a motor's core specifications, mapping to the 'motors' table.
+    """
+    __tablename__ = "motors"
+
+    id = Column(Integer, primary_key=True, index=True)
+    supplier_name = Column(String(100), nullable=False)
+    product_range = Column(String(100), nullable=False)
+    part_number = Column(String(50))
+    poles = Column(SmallInteger, nullable=False)
+    rated_output = Column(Numeric(7, 2), nullable=False)
+    rated_output_unit = Column(String(10))
+    speed = Column(Integer, nullable=False)
+    speed_unit = Column(String(10))
+    frame_size = Column(String(20))
+    shaft_diameter = Column(Numeric(5, 1))
+    shaft_diameter_unit = Column(String(10))
+
+    # Relationship to link a motor to its various prices over time
+    prices = relationship("MotorPrice", back_populates="motor", cascade="all, delete-orphan")
+
+
+class MotorPrice(Base):
+    """
+    Represents a price record for a motor at a specific point in time.
+    Maps to the 'motor_prices' table.
+    """
+    __tablename__ = "motor_prices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    motor_id = Column(Integer, ForeignKey("motors.id"), nullable=False)
+    date_effective = Column(Date, nullable=False)
+    foot_price = Column(Numeric(12, 2))
+    flange_price = Column(Numeric(12, 2))
+    currency = Column(String(3), default="ZAR")
+
+    motor = relationship("Motor", back_populates="prices")

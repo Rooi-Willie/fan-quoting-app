@@ -1,8 +1,8 @@
 # This file defines Pydantic schemas that determine the shape of data for API
 # requests and responses. They provide data validation, serialization, and
 # documentation for the API endpoints.
-
-from typing import List
+from datetime import date
+from typing import List, Optional
 from pydantic import BaseModel, ConfigDict
 
 
@@ -19,6 +19,31 @@ class Component(BaseModel):
     order_by: str | None = None  # A field to specify the sorting order for display purposes.
 
     # This tells Pydantic to read data from ORM model attributes.
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MotorWithLatestPrice(BaseModel):
+    """
+    Schema for representing a motor with its most recent price information.
+    This is a flattened structure, ideal for API responses.
+    """
+    id: int
+    supplier_name: str
+    product_range: str
+    part_number: Optional[str] = None
+    poles: int
+    rated_output: float  # Pydantic handles conversion from Decimal
+    speed: int
+    frame_size: Optional[str] = None
+    shaft_diameter: Optional[float] = None
+
+    # Fields from the latest price record
+    latest_price_date: Optional[date] = None
+    foot_price: Optional[float] = None
+    flange_price: Optional[float] = None
+    currency: Optional[str] = None
+
+    # Enable ORM mode to allow creating this schema from model instances
     model_config = ConfigDict(from_attributes=True)
 
 
