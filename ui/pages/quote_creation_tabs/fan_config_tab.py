@@ -39,90 +39,69 @@ def _update_component_detail_from_widget_state(component_name, detail_key, widge
 
 # --- API Helper Functions with Caching ---
 @st.cache_data
-def get_fan_ids() -> Optional[List[str]]:
+def get_all_fan_configs() -> Optional[List[Dict]]:
     """
-    Fetches the list of all available Fan IDs from the API.
-    Returns a list of strings on success, None on failure.
+    Fetches the list of all available fan configurations from the API.
+    Each item in the list is a dictionary representing a fan configuration.
+    Returns a list of dictionaries on success, None on failure.
     """
     try:
-        response = requests.get(f"{API_BASE_URL}/fan_ids")
-        response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        st.error(f"API Error: Could not fetch Fan IDs. {e}")
-        return None
-
-@st.cache_data
-def get_fan_config(fan_id: str) -> Optional[Dict]:
-    """
-    Fetches the full configuration for a specific Fan ID from the API.
-    Returns a dictionary on success, None on failure.
-    """
-    if not fan_id:
-        return None
-    try:
-        response = requests.get(f"{API_BASE_URL}/fan_config/{fan_id}")
+        # The new endpoint returns a list of full fan configuration objects
+        response = requests.get(f"{API_BASE_URL}/fans/")
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        st.error(f"API Error: Could not fetch config for Fan ID '{fan_id}'. {e}")
+        st.error(f"API Error: Could not fetch fan configurations. {e}")
         return None
+
+# Note: The get_fan_config(fan_id) function is no longer needed.
+# We now fetch all configurations at once and find the selected one
+# from the cached list, which is more efficient.
 
 def _handle_fan_id_change():
     """Callback to handle changes in Fan ID selection."""
     qd = st.session_state.quote_data
-    selected_fan_id_from_widget = st.session_state.get("widget_fc_fan_id")
-    previous_fan_id_in_qd = qd.get("fan_id")
+    # The widget now provides the UID of the selected fan
+    selected_fan_uid = st.session_state.get("widget_fc_fan_id")
 
-    if selected_fan_id_from_widget and selected_fan_id_from_widget != "--- Please select a Fan ID ---":
-        if previous_fan_id_in_qd != selected_fan_id_from_widget: # Fan ID actually changed
-            qd["fan_id"] = selected_fan_id_from_widget
-            fan_config = get_fan_config(selected_fan_id_from_widget)
-            st.session_state.current_fan_config = fan_config
+    # Get all fan configurations from the cached API call
+    all_configs = get_all_fan_configs()
+    if not all_configs:
+        # Error is already shown by the helper function, just clear state
+        st.session_state.current_fan_config = None
+        qd.update({"fan_config_id": None, "fan_uid": None, "fan_hub": None, "blade_sets": None})
+        return
 
-            if fan_config:
-                qd["fan_hub"] = fan_config.get('hub_size_mm')
-                api_blade_qty = fan_config.get('different_blade_qty', [])
-                str_api_blade_qty = [str(bq) for bq in api_blade_qty] if api_blade_qty else []
-                
-                if str_api_blade_qty:
-                    # Preserve current blade_sets if valid, else default to first new option
-                    current_blade_set_in_qd = str(qd.get("blade_sets")) if qd.get("blade_sets") is not None else None
-                    if current_blade_set_in_qd in str_api_blade_qty:
-                        qd["blade_sets"] = current_blade_set_in_qd
-                    else:
-                        qd["blade_sets"] = str_api_blade_qty[0]
-                else:
-                    qd["blade_sets"] = None # No blade options
-            else: # Failed to fetch fan_config
-                qd["fan_hub"] = None
-                qd["blade_sets"] = None
-        # Case: Fan ID in widget is same as in qd, but current_fan_config might be lost (e.g., page refresh)
-        elif st.session_state.get("current_fan_config") is None and qd.get("fan_id"):
-            fan_config = get_fan_config(qd["fan_id"]) # Re-fetch
-            st.session_state.current_fan_config = fan_config
-            if fan_config:
-                qd["fan_hub"] = fan_config.get('hub_size_mm') # Re-affirm hub
-                api_blade_qty = fan_config.get('different_blade_qty', [])
-                str_api_blade_qty = [str(bq) for bq in api_blade_qty] if api_blade_qty else []
-                current_blade_set_in_qd = str(qd.get("blade_sets")) if qd.get("blade_sets") is not None else None
+    # Find the full configuration for the selected UID
+    selected_config = next((c for c in all_configs if c['uid'] == selected_fan_uid), None)
 
-                if str_api_blade_qty:
-                    if current_blade_set_in_qd not in str_api_blade_qty:
-                        qd["blade_sets"] = str_api_blade_qty[0] # Reset if invalid
-                else:
-                    qd["blade_sets"] = None
-            else: # Re-fetch failed
-                qd["fan_hub"] = None
-                qd["blade_sets"] = None
+    # If user selects the placeholder or the selection is invalid, clear everything
+    if not selected_config:
+        st.session_state.current_fan_config = None
+        qd.update({"fan_config_id": None, "fan_uid": None, "fan_hub": None, "blade_sets": None})
+        return
 
-    elif selected_fan_id_from_widget == "--- Please select a Fan ID ---":
-        if previous_fan_id_in_qd is not None: # Changed to placeholder
-            qd["fan_id"] = None
-            qd["fan_hub"] = None
-            qd["blade_sets"] = None
-            st.session_state.current_fan_config = None
-    # If selected_fan_id_from_widget is None (initial state), do nothing until user selects.
+    # A valid fan was selected. Update session state.
+    st.session_state.current_fan_config = selected_config
+
+    # We store the integer 'id' for future API calls and the 'uid' for display.
+    qd["fan_config_id"] = selected_config.get('id')
+    qd["fan_uid"] = selected_config.get('uid')
+    qd["fan_hub"] = selected_config.get('hub_size_mm')
+
+    # Update blade quantity options based on the new fan
+    available_blades = selected_config.get('available_blade_qtys', [])
+    str_available_blades = [str(b) for b in available_blades]
+
+    if str_available_blades:
+        # If the currently selected blade quantity is not valid for the new fan,
+        # default to the first available option.
+        current_blade_set = str(qd.get("blade_sets")) if qd.get("blade_sets") is not None else None
+        if current_blade_set not in str_available_blades:
+            qd["blade_sets"] = str_available_blades[0]
+    else:
+        # No blade options for this fan
+        qd["blade_sets"] = None
 
 def render_sidebar_widgets():
     """Renders the specific sidebar widgets for Fan Configuration."""
@@ -139,45 +118,42 @@ def render_sidebar_widgets():
         st.divider()
         st.subheader("Base Fan Parameters")
 
-        # 1. Fan ID Selectbox (API Driven)
-        api_fan_ids = get_fan_ids()
-        fan_id_select_options = ["--- Please select a Fan ID ---"]
-        if api_fan_ids:
-            fan_id_select_options.extend(api_fan_ids)
+        # 1. Fan ID Selectbox (API Driven by full fan configs)
+        all_fan_configs = get_all_fan_configs()
+        # The options for the selectbox are the user-friendly UIDs
+        fan_uid_options = ["--- Please select a Fan ID ---"]
+        if all_fan_configs:
+            # Sort by fan size for a consistent, logical order in the dropdown
+            sorted_configs = sorted(all_fan_configs, key=lambda c: c['fan_size_mm'])
+            fan_uid_options.extend([c['uid'] for c in sorted_configs])
         else:
-            st.caption("Could not load Fan IDs from API.") # Error already shown by get_fan_ids
+            st.caption("Could not load Fan IDs from API.") # Error is already shown by get_all_fan_configs
 
-        current_fan_id_val = str(qd.get("fan_id")) if qd.get("fan_id") is not None else None
-        fan_id_idx = 0
-        if current_fan_id_val and current_fan_id_val in fan_id_select_options:
-            fan_id_idx = fan_id_select_options.index(current_fan_id_val)
+        # The selectbox should display the currently selected fan UID
+        current_fan_uid = qd.get("fan_uid")
+        fan_uid_idx = 0
+        if current_fan_uid and current_fan_uid in fan_uid_options:
+            fan_uid_idx = fan_uid_options.index(current_fan_uid)
         
         st.selectbox(
-            "Fan ID", options=fan_id_select_options,
-            index=fan_id_idx,
+            "Fan ID", options=fan_uid_options,
+            index=fan_uid_idx,
             key="widget_fc_fan_id",
             on_change=_handle_fan_id_change
         )
 
         fan_config = st.session_state.get("current_fan_config")
 
-        # # 2. Fan Hub (Display Only - Derived from Fan ID)
-        # fan_config = st.session_state.get("current_fan_config")
-        # fan_hub_display = str(fan_config.get('hub_size_mm', "N/A")) if fan_config else str(qd.get("fan_hub", "N/A"))
-        # st.text_input(
-        #     "Fan Hub (mm)",
-        #     value=fan_hub_display,
-        #     disabled=True,
-        #     key="display_fc_fan_hub" # Not directly tied to quote_data top-level via simple callback
-        # )
+        # Note: The Fan Hub is now displayed below in the st.metric widget
+        # when a fan configuration is selected.
 
         # 3. Blade Sets (Blade Quantity - API Driven, dependent on Fan ID)
         blade_qty_select_options = ["N/A"]
         blade_qty_disabled = True
         blade_qty_idx = 0
         
-        if fan_config and fan_config.get('different_blade_qty'):
-            blade_qty_select_options = [str(bq) for bq in fan_config.get('different_blade_qty')]
+        if fan_config and fan_config.get('available_blade_qtys'):
+            blade_qty_select_options = [str(bq) for bq in fan_config.get('available_blade_qtys')]
             blade_qty_disabled = False
             current_blade_sets_val = str(qd.get("blade_sets")) if qd.get("blade_sets") is not None else None
             if current_blade_sets_val and current_blade_sets_val in blade_qty_select_options:
@@ -199,13 +175,10 @@ def render_sidebar_widgets():
             col1, col2 = st.columns(2)
             with col1:
                 st.metric(label="Fan Size (mm)", value=fan_config.get('fan_size_mm', 'N/A'))
-                st.text_input("Available Blade Counts", value=", ".join(map(str, fan_config.get('different_blade_qty', []))), disabled=True)   
-                st.metric(label="Motor Pole", value=fan_config.get('pole', 'N/A'))
+                st.text_input("Available Blade Counts", value=", ".join(map(str, fan_config.get('available_blade_qtys', []))), disabled=True)
             with col2:
                 st.metric(label="Hub Size (mm)", value=fan_config.get('hub_size_mm', 'N/A'))
-                # st.metric(label="Stator Blade Qty", value=fan_config.get('stator_blade_qty', 'N/A'))
-                st.text_input("Blade Name and Material", value=fan_config.get('blade_name_and_material', 'N/A'), disabled=True)
-                st.text_input("Available Motor kW", value=", ".join(map(str, fan_config.get('motor_kw_range', []))), disabled=True)
+                st.text_input("Available Motor kW", value=", ".join(map(str, fan_config.get('available_motor_kw', []))), disabled=True)
             
             # Optionally, show the raw JSON data for debugging
             with st.expander("Show Raw API Response"):
