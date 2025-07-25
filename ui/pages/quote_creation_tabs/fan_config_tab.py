@@ -58,6 +58,23 @@ def get_all_fan_configs() -> Optional[List[Dict]]:
 # We now fetch all configurations at once and find the selected one
 # from the cached list, which is more efficient.
 
+@st.cache_data
+def get_available_components(fan_config_id: int) -> Optional[List[Dict]]:
+    """
+    Fetches the list of components available for a specific fan configuration ID.
+    Returns a list of component dictionaries on success, None on failure.
+    """
+    if not fan_config_id:
+        return [] # No components if no fan is selected
+
+    try:
+        response = requests.get(f"{API_BASE_URL}/fans/{fan_config_id}/components")
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        st.error(f"API Error: Could not fetch available components for fan ID {fan_config_id}. {e}")
+        return None
+
 def _handle_fan_id_change():
     """Callback to handle changes in Fan ID selection."""
     qd = st.session_state.quote_data
@@ -69,7 +86,7 @@ def _handle_fan_id_change():
     if not all_configs:
         # Error is already shown by the helper function, just clear state
         st.session_state.current_fan_config = None
-        qd.update({"fan_config_id": None, "fan_uid": None, "fan_hub": None, "blade_sets": None})
+        qd.update({"fan_config_id": None, "fan_uid": None, "fan_hub": None, "blade_sets": None, "selected_components_unordered": []})
         return
 
     # Find the full configuration for the selected UID
@@ -78,7 +95,7 @@ def _handle_fan_id_change():
     # If user selects the placeholder or the selection is invalid, clear everything
     if not selected_config:
         st.session_state.current_fan_config = None
-        qd.update({"fan_config_id": None, "fan_uid": None, "fan_hub": None, "blade_sets": None})
+        qd.update({"fan_config_id": None, "fan_uid": None, "fan_hub": None, "blade_sets": None, "selected_components_unordered": []})
         return
 
     # A valid fan was selected. Update session state.
@@ -102,6 +119,22 @@ def _handle_fan_id_change():
     else:
         # No blade options for this fan
         qd["blade_sets"] = None
+
+    # --- Auto-select default components for the new fan ---
+    auto_select_ids = selected_config.get('auto_selected_components', [])
+    if auto_select_ids:
+        # We need the names of the components, not just their IDs.
+        # Fetch all available components for this fan to create a lookup map.
+        available_components = get_available_components(qd["fan_config_id"])
+        if available_components:
+            id_to_name_map = {comp['id']: comp['name'] for comp in available_components}
+            # Translate the auto-select IDs to names, preserving order if needed (though not critical here)
+            auto_selected_names = [id_to_name_map[id] for id in auto_select_ids if id in id_to_name_map]
+            qd["selected_components_unordered"] = auto_selected_names
+        else:
+            qd["selected_components_unordered"] = [] # API call failed or no components
+    else:
+        qd["selected_components_unordered"] = [] # No auto-select components defined
 
 def render_sidebar_widgets():
     """Renders the specific sidebar widgets for Fan Configuration."""
@@ -191,14 +224,33 @@ def render_sidebar_widgets():
 
         # --- Component Selection ---
         st.subheader("Fan Components Selection")
+
+        component_options = []
+        is_disabled = True
+        
+        if fan_config:
+            fan_config_id = fan_config.get('id')
+            # Fetch components available for the selected fan
+            available_components = get_available_components(fan_config_id)
+            if available_components:
+                # The API returns components pre-sorted by 'order_by'. We just extract the names.
+                component_options = [comp['name'] for comp in available_components]
+                is_disabled = False
+
+        # Ensure the default selection is valid for the current fan's available components
+        current_selection = qd.get("selected_components_unordered", [])
+        valid_selection = [comp for comp in current_selection if comp in component_options]
+        qd["selected_components_unordered"] = valid_selection # Update state with only valid items
+
         st.multiselect(
             "Select Fan Components",
-            options=COMPONENT_ORDER,
-            default=qd.get("selected_components_unordered", []),
+            options=component_options,
+            default=valid_selection,
             key="widget_fc_multiselect_components",
             on_change=_update_quote_data_top_level_key,
             args=("selected_components_unordered", "widget_fc_multiselect_components"),
-            help="Components will be ordered automatically in the main view. Select Fan ID first."
+            help="Select a Fan ID to populate this list.",
+            disabled=is_disabled
         )
         st.divider()
 
