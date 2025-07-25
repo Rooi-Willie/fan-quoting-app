@@ -2,6 +2,77 @@ import math
 from sqlalchemy.orm import Session
 from .. import crud, schemas, models
 
+"""
+1.) A BaseCalculator Class: A simple parent class to hold any shared helper methods.
+2.) Specific Calculator Classes: A separate class for each unique mass_formula_type from your database 
+    (e.g., CylinderSurfaceCalculator, RotorEmpiricalCalculator). Each class will know how to perform 
+    one specific set of calculations.
+3.) A get_calculator() Factory Function: A simple dispatcher that takes a mass_formula_type 
+    string and returns an instance of the correct calculator class.
+4.) An Orchestrator Function calculate_full_quote(): The main public function that the API 
+    endpoint will call. It fetches all the data, loops through the requested components, uses 
+    the factory to get the right calculator for each, and aggregates the results."""
+
+# ==============================================================================
+# PART 0: THE "PRE-CALCULATION" HELPER FUNCTION
+# ==============================================================================
+
+def _resolve_formulaic_parameters(hub_size: float, fan_size: float, params: dict) -> dict:
+    """
+    Takes raw parameters and resolves any formula-based values into concrete numbers.
+    This function modifies the 'params' dictionary in place.
+    """
+    # --- Resolve Diameter ---
+    # The 'start_diameter_mm' is a new key we add for clarity in cone calculations.
+    # The 'diameter_mm' is the primary diameter used for cylindrical calculations.
+    if params.get('diameter_formula_type') == 'HUB_DIAMETER_X_1_35':
+        params['diameter_mm'] = hub_size * 1.35
+        params['start_diameter_mm'] = hub_size # For cones, start is hub
+        params['end_diameter_mm'] = hub_size * 1.35
+    elif params.get('diameter_formula_type') == 'HUB_DIAMETER_X_1_25':
+        params['diameter_mm'] = hub_size * 1.25 # This is the larger diameter of the cone
+        params['start_diameter_mm'] = hub_size
+        params['end_diameter_mm'] = hub_size * 1.25
+    elif params.get('diameter_formula_type') == 'CONICAL_60_DEG':
+        # Excel: =2*(TAN((60/2)*PI()/180)*0.25*$B$2)+$B$2
+        # This is the larger diameter of the inlet cone.
+        # radial_expansion = math.tan(math.radians(30)) * (0.25 * hub_size)
+        # params['end_diameter_mm'] = hub_size + 2 * radial_expansion
+        # The Excel formula seems complex. Let's use a simpler interpretation from the other spreadsheets.
+        # For the Ø762 fan, the conical inlet goes from 762 to 982. Let's model that relationship.
+        # It's usually based on the length, which is also calculated.
+        # This indicates a dependency we need to resolve first.
+        params['start_diameter_mm'] = hub_size
+        params['end_diameter_mm'] = hub_size * 1.288 # Approximated ratio from Ø762 data (982/762)
+        params['diameter_mm'] = (params['start_diameter_mm'] + params['end_diameter_mm']) / 2
+    elif params.get('diameter_formula_type') == 'HUB_PLUS_CONSTANT': # For Silencers
+        params['diameter_mm'] = fan_size + 75 * 2 # Silencer OD is fan size + 75mm wall * 2
+    else: # Default is HUB_DIAMETER
+        params['diameter_mm'] = hub_size
+        params['start_diameter_mm'] = hub_size
+        params['end_diameter_mm'] = hub_size
+
+    # --- Resolve Length (if it's a formula) ---
+    # Note: 'length_mm' can be NULL from the db if it's formulaic
+    if params.get('length_mm') is None:
+        if params.get('length_formula_type') == 'CONICAL_15_DEG':
+            # Excel: =(0.16*$B$2/2)/(TAN(15*PI()/180))
+            params['length_mm'] = (0.08 * hub_size) / math.tan(math.radians(15))
+        elif params.get('length_formula_type') == 'CONICAL_3_5_DEG':
+            # Excel: =(0.25*$B$2/2)/(TAN(3.5*PI()/180))
+            params['length_mm'] = (0.125 * hub_size) / math.tan(math.radians(3.5))
+        elif params.get('length_formula_type') == 'LENGTH_D_X_MULTIPLIER':
+            # The length is the Fan Size (not hub) times a multiplier
+            params['length_mm'] = fan_size * params['length_multiplier']
+
+    # --- Resolve Stiffening Factor (if it's a formula) ---
+    if params.get('stiffening_factor') is None:
+        if params.get('stiffening_formula_type') == 'LINEAR_HUB_SCALING_A':
+            # Excel: =(0.115*$B$2-124)/100
+            params['stiffening_factor'] = (0.115 * hub_size - 124) / 100
+    
+    return params
+
 # ==============================================================================
 # PART 1: THE CALCULATOR CLASSES
 # ==============================================================================
@@ -18,7 +89,7 @@ class CylinderSurfaceCalculator(BaseCalculator):
         Calculates properties for a simple cylindrical component.
         """
         # --- 1. Gather Inputs ---
-        hub_size = request_params['hub_size_mm']
+        # hub_size = request_params['hub_size_mm']
         steel_density = rates_settings['steel_density_kg_m3']
 
         # Get values using the helper to respect overrides
@@ -28,10 +99,11 @@ class CylinderSurfaceCalculator(BaseCalculator):
         # Get fixed or formula-driven values
         length = component_params['length_mm']
         stiffening_factor = component_params['stiffening_factor']
+        diameter = component_params['diameter_mm']
         
         # --- 2. Perform Calculations (from Excel) ---
         # Diameter: (e.g., for Screen Inlet Inside) Excel: = $B$2
-        diameter = hub_size
+        # diameter = hub_size
         
         # Ideal Mass: Excel: = PI() * Diameter * Thickness * Length * SteelDensity / 10^9
         ideal_mass = (math.pi * diameter * length * thickness * steel_density) / 1e9
@@ -230,20 +302,28 @@ def calculate_full_quote(db: Session, request: schemas.QuoteRequest) -> schemas.
         if not params_for_this_comp:
             continue # Or raise an error
 
+        # Resolve all formula-based geometry before passing to the calculator
+        resolved_params = _resolve_formulaic_parameters(
+            hub_size=fan_config.hub_size_mm,
+            fan_size=fan_config.fan_size_mm,
+            params=params_for_this_comp
+        )
+
         # Get the correct calculator instance using the factory
         calculator = get_calculator(params_for_this_comp['mass_formula_type'])
         
         # Build the dictionary of request-specific parameters needed by the calculator
         request_params = {
-            "hub_size_mm": fan_config.hub_size_mm,
-            "fan_size_mm": fan_config.fan_size_mm,
+            ## Pass only what the calculators might need from the original request
+            # "hub_size_mm": fan_config.hub_size_mm,
+            # "fan_size_mm": fan_config.fan_size_mm,
             "blade_quantity": request.blade_quantity,
             "mass_per_blade_kg": fan_config.mass_per_blade_kg,
             "overrides": comp_request.model_dump()
         }
 
-        # Execute the calculation
-        result = calculator.calculate(request_params, params_for_this_comp, rates_and_settings)
+        # Execute the calculation with the fully resolved parameters
+        result = calculator.calculate(request_params, resolved_params, rates_and_settings)
         
         # --- 3. Aggregate results ---
         calculated_components.append(result)
