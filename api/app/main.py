@@ -1,7 +1,7 @@
 # We simplify main.py to be the central point that ties everything together.
 
 from fastapi import FastAPI
-from .routers import fans, motors
+from .routers import fans, motors, quotes
 
 app = FastAPI(
     title="Fan Quoting API",
@@ -12,6 +12,7 @@ app = FastAPI(
 # Include the routers
 app.include_router(fans.router)
 app.include_router(motors.router)
+app.include_router(quotes.router)
 
 @app.get("/", tags=["Root"])
 def read_root():
