@@ -2,8 +2,8 @@
 
 from decimal import Decimal
 from typing import List, Optional
-from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy.orm import Session, aliased
+from sqlalchemy import func, select
 from . import models, schemas
 
 def get_fan_configurations(db: Session):
@@ -91,3 +91,107 @@ def get_motors(db: Session, available_kw: Optional[List[int]] = None, poles: Opt
         motors_with_prices.append(schemas.MotorWithLatestPrice.model_validate(motor_data))
 
     return motors_with_prices
+
+
+def get_rates_and_settings(db: Session) -> dict:
+    """
+    Fetches all global settings, material costs, and labor rates from the
+    database and consolidates them into a single flat dictionary for the
+    calculation engine.
+
+    NOTE: This function assumes the existence of `GlobalSetting`, `Material`,
+    and `LabourRate` models that are not defined in the provided context.
+    """
+    rates = {}
+
+    # 1. Fetch Global Settings (e.g., steel density, default markup)
+    # Assumes a `GlobalSetting` model with columns: `setting_name` (str),
+    # `setting_value` (str), and `value_type` (str, e.g., 'float', 'int').
+    try:
+        global_settings = db.query(models.GlobalSetting).all()
+        for setting in global_settings:
+            value = setting.setting_value
+            if setting.value_type == 'float':
+                value = float(value)
+            elif setting.value_type == 'int':
+                value = int(value)
+            rates[setting.setting_name] = value
+    except Exception:
+        # Table might not exist yet, proceed without global settings
+        pass
+
+    # 2. Fetch Material Costs
+    # Assumes a `Material` model with columns: `name` (str, e.g., "Steel S355JR"),
+    # `cost_per_unit` (Numeric), and `unit` (str, e.g., "kg").
+    try:
+        materials = db.query(models.Material).all()
+        for material in materials:
+            # Creates a key like 'steel_s355jr_cost_per_kg'
+            key = f"{material.name.lower().replace(' ', '_').replace('-', '_')}_cost_per_{material.unit}"
+            rates[key] = float(material.cost_per_unit)
+    except Exception:
+        pass # Table might not exist yet
+
+    # 3. Fetch Labour Rates
+    # Assumes a `LabourRate` model with `rate_name` (str) and `rate_per_unit` (Numeric).
+    # The calculation engine specifically needs a 'labour_per_kg' key.
+    try:
+        # Fetch the specific rate needed by the calculation engine.
+        labour_rate = db.query(models.LabourRate).filter(models.LabourRate.rate_name == "Default Labour Per Kg").first()
+        if labour_rate:
+            rates['labour_per_kg'] = float(labour_rate.rate_per_unit)
+    except Exception:
+        pass # Table might not exist yet
+
+    return rates
+
+
+def get_parameters_for_calculation(db: Session, fan_config_id: int, component_ids: List[int]) -> List[dict]:
+    """
+    Retrieves consolidated parameters for a list of components for a specific fan.
+    It joins `components`, `component_parameters` (for default values), and
+    `fan_component_parameters` (for fan-specific overrides). It returns a list
+    of flat dictionaries ready for the calculation engine.
+    NOTE: This function assumes the existence of `ComponentParameter` and
+    `FanComponentParameter` models that are not defined in the provided context.
+    """
+    try:
+        # Alias for the fan-specific parameters table to make the LEFT JOIN clear
+        fcp_alias = aliased(models.FanComponentParameter)
+        # Define shortcuts for the models for readability
+        Comp = models.Component
+        CompParam = models.ComponentParameter
+        FanCompParam = fcp_alias
+        # Construct the query to join the three tables
+        query = db.query(
+            Comp.id.label("component_id"),
+            Comp.name,
+            # --- Default parameters from component_parameters ---
+            CompParam.mass_formula_type,
+            CompParam.diameter_formula_type,
+            CompParam.length_formula_type,
+            CompParam.stiffening_formula_type,
+            CompParam.default_thickness_mm,
+            CompParam.default_fabrication_waste_factor,
+            CompParam.length_multiplier,
+            # --- Fan-specific overrides from fan_component_parameters (can be NULL) ---
+            FanCompParam.length_mm,
+            FanCompParam.stiffening_factor
+        ).join(
+            CompParam, Comp.id == CompParam.component_id
+        ).outerjoin(
+            FanCompParam,
+            (FanCompParam.component_id == Comp.id) &
+            (FanCompParam.fan_config_id == fan_config_id)
+        ).filter(
+            Comp.id.in_(component_ids)
+        )
+        results = query.all()
+        # The query returns a list of Row objects. We convert them to a list of dictionaries.
+        # The `_mapping` attribute provides a dict-like view of the row's data.
+        return [dict(row._mapping) for row in results]
+    except Exception as e:
+        # This will likely fail until the ComponentParameter and FanComponentParameter models are defined.
+        # In a real application, you would want to log this error.
+        print(f"An error occurred while fetching component parameters: {e}")
+        return []
