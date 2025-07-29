@@ -65,3 +65,53 @@ class FanConfiguration(BaseModel):
 
     # This tells Pydantic to read data from ORM model attributes.
     model_config = ConfigDict(from_attributes=True)
+
+
+# --- Schemas for Quote Calculation ---
+
+class ComponentQuoteRequest(BaseModel):
+    """
+    Defines the structure for a single component within a quote request.
+    Includes the component's ID and any user-defined overrides.
+    """
+    component_id: int
+    # Optional overrides for calculation parameters
+    thickness_mm_override: Optional[float] = None
+    fabrication_waste_factor_override: Optional[float] = None
+    # Add other potential overrides here as the calculation engine evolves.
+
+
+class QuoteRequest(BaseModel):
+    """
+    Defines the structure for an incoming quote calculation request.
+    This is the main input to the calculation engine endpoint.
+    """
+    fan_configuration_id: int
+    blade_quantity: int
+    components: List[ComponentQuoteRequest]
+    markup_override: Optional[float] = None
+
+
+class CalculatedComponent(BaseModel):
+    """
+    Represents the calculated cost and mass for a single component in the response.
+    """
+    name: str
+    real_mass_kg: float
+    material_cost: float
+    labour_cost: float
+    total_cost: float
+
+
+class QuoteResponse(BaseModel):
+    """
+    Defines the structure of the final quote response returned by the API.
+    """
+    fan_uid: str
+    total_mass_kg: float
+    total_material_cost: float
+    total_labour_cost: float
+    subtotal_cost: float
+    markup_applied: float
+    final_price: float
+    components: List[CalculatedComponent]
