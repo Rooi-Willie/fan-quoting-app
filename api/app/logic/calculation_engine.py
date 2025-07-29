@@ -278,53 +278,57 @@ def calculate_full_quote(db: Session, request: schemas.QuoteRequest) -> schemas.
     """
     Main orchestrator to perform a full quote calculation.
     """
-    # --- 1. Fetch ALL required data from the database in bulk ---
+    # --- 1. Fetch all required data from the database in bulk ---
     fan_config = crud.get_fan_configuration(db, request.fan_configuration_id)
+    if not fan_config:
+        # In a real API, you would raise an HTTPException here.
+        raise ValueError(f"Fan configuration with ID {request.fan_configuration_id} not found.")
+
     component_ids = [c.component_id for c in request.components]
-    
-    # This is a new CRUD function you will need to create
+
+    # Fetch all component parameters and global rates/settings using the new CRUD functions.
     all_component_params = crud.get_parameters_for_calculation(db, fan_config.id, component_ids)
-    
-    # This is another new CRUD function
     rates_and_settings = crud.get_rates_and_settings(db)
-    
+
     calculated_components = []
     total_mass = 0.0
     total_material_cost = 0.0
     total_labour_cost = 0.0
 
-    # --- 2. Loop through each component and calculate ---
+    # --- 2. Loop through each component, resolve parameters, and calculate ---
     for comp_request in request.components:
         component_id = comp_request.component_id
-        
+
         # Find the parameters for this specific component from the bulk fetch
         params_for_this_comp = next((p for p in all_component_params if p['component_id'] == component_id), None)
         if not params_for_this_comp:
-            continue # Or raise an error
+            # This might happen if a component_id is invalid. Skip it for now.
+            print(f"Warning: Parameters for component ID {component_id} not found. Skipping.")
+            continue
 
-        # Resolve all formula-based geometry before passing to the calculator
+        # Resolve all formula-based geometry before passing to the calculator.
+        # This function modifies the dictionary in place.
         resolved_params = _resolve_formulaic_parameters(
             hub_size=fan_config.hub_size_mm,
             fan_size=fan_config.fan_size_mm,
             params=params_for_this_comp
         )
 
-        # Get the correct calculator instance using the factory
-        calculator = get_calculator(params_for_this_comp['mass_formula_type'])
-        
+        # Get the correct calculator instance using the factory based on the resolved formula type
+        calculator = get_calculator(resolved_params['mass_formula_type'])
+
         # Build the dictionary of request-specific parameters needed by the calculator
         request_params = {
-            ## Pass only what the calculators might need from the original request
-            # "hub_size_mm": fan_config.hub_size_mm,
-            # "fan_size_mm": fan_config.fan_size_mm,
+            "hub_size_mm": fan_config.hub_size_mm,
+            "fan_size_mm": fan_config.fan_size_mm,
             "blade_quantity": request.blade_quantity,
-            "mass_per_blade_kg": fan_config.mass_per_blade_kg,
+            "mass_per_blade_kg": float(fan_config.mass_per_blade_kg), # Ensure it's a float
             "overrides": comp_request.model_dump()
         }
 
         # Execute the calculation with the fully resolved parameters
         result = calculator.calculate(request_params, resolved_params, rates_and_settings)
-        
+
         # --- 3. Aggregate results ---
         calculated_components.append(result)
         total_mass += result['real_mass_kg']
@@ -333,17 +337,18 @@ def calculate_full_quote(db: Session, request: schemas.QuoteRequest) -> schemas.
 
     # --- 4. Perform final total calculations ---
     subtotal = total_material_cost + total_labour_cost
-    markup = request.markup_override if request.markup_override is not None else rates_and_settings['default_markup']
+    # Use markup override if provided, otherwise use the default from settings, with a fallback.
+    markup = request.markup_override if request.markup_override is not None else rates_and_settings.get('default_markup', 1.0)
     final_price = subtotal * markup
-    
+
     # --- 5. Assemble the final response object ---
     return schemas.QuoteResponse(
         fan_uid=fan_config.uid,
-        total_mass_kg=total_mass,
-        total_material_cost=total_material_cost,
-        total_labour_cost=total_labour_cost,
-        subtotal_cost=subtotal,
+        total_mass_kg=round(total_mass, 2),
+        total_material_cost=round(total_material_cost, 2),
+        total_labour_cost=round(total_labour_cost, 2),
+        subtotal_cost=round(subtotal, 2),
         markup_applied=markup,
-        final_price=final_price,
+        final_price=round(final_price, 2),
         components=[schemas.CalculatedComponent(**c) for c in calculated_components]
     )
