@@ -91,10 +91,8 @@ class CylinderSurfaceCalculator(BaseCalculator):
         # --- 1. Gather Inputs ---
         # hub_size = request_params['hub_size_mm']
         steel_density = rates_settings['steel_density_kg_m3']
-
-        # Get values using the helper to respect overrides
-        thickness = self.get_value(component_params['default_thickness_mm'], request_params['overrides']['thickness_mm_override'])
-        waste_factor = self.get_value(component_params['default_fabrication_waste_factor'], request_params['overrides']['fabrication_waste_factor_override'])
+        thickness = self.get_value(component_params['default_thickness_mm'], request_params['overrides'].get('thickness_mm_override'))
+        waste_factor = self.get_value(component_params['default_fabrication_waste_factor'], request_params['overrides'].get('fabrication_waste_factor_override'))
         
         # Get fixed or formula-driven values
         length = component_params['length_mm']
@@ -114,14 +112,22 @@ class CylinderSurfaceCalculator(BaseCalculator):
         # Feedstock & Cost
         feedstock_mass = real_mass * (1 + waste_factor)
         material_cost = feedstock_mass * rates_settings['steel_s355jr_cost_per_kg']
-        labour_cost = real_mass * rates_settings['labour_per_kg'] # Assuming labour is per kg of final mass
+        labour_cost = real_mass * rates_settings['labour_per_kg']
+        total_cost_before_markup = material_cost + labour_cost
 
         return {
             "name": component_params['name'],
+            "material_thickness_mm": thickness,
+            "fabrication_waste_percentage": waste_factor * 100,
+            "overall_diameter_mm": diameter,
+            "total_length_mm": length,
+            "ideal_mass_kg": ideal_mass,
             "real_mass_kg": real_mass,
+            "feedstock_mass_kg": feedstock_mass,
             "material_cost": material_cost,
             "labour_cost": labour_cost,
-            "total_cost": material_cost + labour_cost
+            "total_cost_before_markup": total_cost_before_markup,
+            "stiffening_factor": stiffening_factor,
         }
 
 class ScdMassCalculator(BaseCalculator):
@@ -132,10 +138,8 @@ class ScdMassCalculator(BaseCalculator):
         # --- 1. Gather Inputs ---
         hub_size = request_params['hub_size_mm']
         steel_density = rates_settings['steel_density_kg_m3']
-
-        thickness = self.get_value(component_params['default_thickness_mm'], request_params['overrides']['thickness_mm_override'])
-        waste_factor = self.get_value(component_params['default_fabrication_waste_factor'], request_params['overrides']['fabrication_waste_factor_override'])
-        
+        thickness = self.get_value(component_params['default_thickness_mm'], request_params['overrides'].get('thickness_mm_override'))
+        waste_factor = self.get_value(component_params['default_fabrication_waste_factor'], request_params['overrides'].get('fabrication_waste_factor_override'))
         length = component_params['length_mm']
         stiffening_factor = component_params['stiffening_factor']
         
@@ -147,19 +151,25 @@ class ScdMassCalculator(BaseCalculator):
         cylinder_area = math.pi * diameter * length
         end_plate_area = (math.pi / 4) * (diameter ** 2)
         ideal_mass = ((cylinder_area + end_plate_area) * thickness * steel_density) / 1e9
-        
         real_mass = ideal_mass * (1 + stiffening_factor)
-        
         feedstock_mass = real_mass * (1 + waste_factor)
         material_cost = feedstock_mass * rates_settings['steel_s355jr_cost_per_kg']
         labour_cost = real_mass * rates_settings['labour_per_kg']
+        total_cost_before_markup = material_cost + labour_cost
 
         return {
             "name": component_params['name'],
+            "material_thickness_mm": thickness,
+            "fabrication_waste_percentage": waste_factor * 100,
+            "overall_diameter_mm": diameter,
+            "total_length_mm": length,
+            "ideal_mass_kg": ideal_mass,
             "real_mass_kg": real_mass,
+            "feedstock_mass_kg": feedstock_mass,
             "material_cost": material_cost,
             "labour_cost": labour_cost,
-            "total_cost": material_cost + labour_cost
+            "total_cost_before_markup": total_cost_before_markup,
+            "stiffening_factor": stiffening_factor,
         }
 
 class RotorEmpiricalCalculator(BaseCalculator):
@@ -186,15 +196,23 @@ class RotorEmpiricalCalculator(BaseCalculator):
         cost_part4 = (blade_qty * mass_per_blade) * rates_settings['ali_blades_cost_per_kg'] # Assumes Ali is Rates!B18
         cost_part5 = 4226 * hub_scaling_factor
         material_cost = cost_part1 + cost_part2 + cost_part3 + cost_part4 + cost_part5
-
         labour_cost = real_mass * rates_settings['labour_per_kg']
-        
+        total_cost_before_markup = material_cost + labour_cost
+
+        # Rotor is empirical, so some values are not applicable or are implicitly included.
         return {
             "name": component_params['name'],
+            "material_thickness_mm": 0, # N/A for this component
+            "fabrication_waste_percentage": 0, # N/A
+            "overall_diameter_mm": hub_size, # Use hub size as representative diameter
+            "total_length_mm": None, # N/A
+            "ideal_mass_kg": real_mass, # For empirical, ideal and real are the same
             "real_mass_kg": real_mass,
+            "feedstock_mass_kg": real_mass, # N/A
             "material_cost": material_cost,
             "labour_cost": labour_cost,
-            "total_cost": material_cost + labour_cost
+            "total_cost_before_markup": total_cost_before_markup,
+            "stiffening_factor": None, # N/A
         }
 
 class ConeSurfaceCalculator(BaseCalculator):
@@ -213,10 +231,8 @@ class ConeSurfaceCalculator(BaseCalculator):
         """
         # --- 1. Gather Inputs ---
         steel_density = rates_settings['steel_density_kg_m3']
-
-        # Get values using the helper to respect user overrides
-        thickness = self.get_value(component_params['default_thickness_mm'], request_params['overrides']['thickness_mm_override'])
-        waste_factor = self.get_value(component_params['default_fabrication_waste_factor'], request_params['overrides']['fabrication_waste_factor_override'])
+        thickness = self.get_value(component_params['default_thickness_mm'], request_params['overrides'].get('thickness_mm_override'))
+        waste_factor = self.get_value(component_params['default_fabrication_waste_factor'], request_params['overrides'].get('fabrication_waste_factor_override'))
         
         # Get pre-calculated geometric values and fixed parameters
         start_diameter = component_params['start_diameter_mm']
@@ -238,13 +254,21 @@ class ConeSurfaceCalculator(BaseCalculator):
         feedstock_mass = real_mass * (1 + waste_factor)
         material_cost = feedstock_mass * rates_settings['steel_s355jr_cost_per_kg']
         labour_cost = real_mass * rates_settings['labour_per_kg']
+        total_cost_before_markup = material_cost + labour_cost
 
         return {
             "name": component_params['name'],
+            "material_thickness_mm": thickness,
+            "fabrication_waste_percentage": waste_factor * 100,
+            "overall_diameter_mm": end_diameter, # Use the larger diameter as the overall
+            "total_length_mm": length,
+            "ideal_mass_kg": ideal_mass,
             "real_mass_kg": real_mass,
+            "feedstock_mass_kg": feedstock_mass,
             "material_cost": material_cost,
             "labour_cost": labour_cost,
-            "total_cost": material_cost + labour_cost
+            "total_cost_before_markup": total_cost_before_markup,
+            "stiffening_factor": stiffening_factor,
         }
     
 # ... Add other additional classes for other surfaces if neccesary, etc., following the same pattern ...
@@ -290,20 +314,16 @@ def calculate_full_quote(db: Session, request: schemas.QuoteRequest) -> schemas.
     all_component_params = crud.get_parameters_for_calculation(db, fan_config.id, component_ids)
     rates_and_settings = crud.get_rates_and_settings(db)
 
-    calculated_components = []
-    total_mass = 0.0
-    total_material_cost = 0.0
-    total_labour_cost = 0.0
+    # Use markup override if provided, otherwise use the default from settings
+    markup = request.markup_override if request.markup_override is not None else rates_and_settings.get('default_markup', 1.0)
 
+    calculated_components_details = []
+    
     # --- 2. Loop through each component, resolve parameters, and calculate ---
     for comp_request in request.components:
-        component_id = comp_request.component_id
-
-        # Find the parameters for this specific component from the bulk fetch
-        params_for_this_comp = next((p for p in all_component_params if p['component_id'] == component_id), None)
+        params_for_this_comp = next((p for p in all_component_params if p['component_id'] == comp_request.component_id), None)
         if not params_for_this_comp:
-            # This might happen if a component_id is invalid. Skip it for now.
-            print(f"Warning: Parameters for component ID {component_id} not found. Skipping.")
+            print(f"Warning: Parameters for component ID {comp_request.component_id} not found. Skipping.")
             continue
 
         # Resolve all formula-based geometry before passing to the calculator.
@@ -322,26 +342,26 @@ def calculate_full_quote(db: Session, request: schemas.QuoteRequest) -> schemas.
             "hub_size_mm": fan_config.hub_size_mm,
             "fan_size_mm": fan_config.fan_size_mm,
             "blade_quantity": request.blade_quantity,
-            "mass_per_blade_kg": float(fan_config.mass_per_blade_kg), # Ensure it's a float
+            "mass_per_blade_kg": float(fan_config.mass_per_blade_kg),
             "overrides": comp_request.model_dump()
         }
 
-        # Execute the calculation with the fully resolved parameters
-        result = calculator.calculate(request_params, resolved_params, rates_and_settings)
+        # Execute the calculation to get the detailed dictionary
+        result_dict = calculator.calculate(request_params, resolved_params, rates_and_settings)
 
-        # --- 3. Aggregate results ---
-        calculated_components.append(result)
-        total_mass += result['real_mass_kg']
-        total_material_cost += result['material_cost']
-        total_labour_cost += result['labour_cost']
+        # Add the final markup calculation to the dictionary
+        result_dict["total_cost_after_markup"] = result_dict["total_cost_before_markup"] * markup
+        
+        calculated_components_details.append(result_dict)
 
-    # --- 4. Perform final total calculations ---
+    # --- 3. Aggregate final totals from the detailed list ---
+    total_mass = sum(c['real_mass_kg'] for c in calculated_components_details)
+    total_material_cost = sum(c['material_cost'] for c in calculated_components_details)
+    total_labour_cost = sum(c['labour_cost'] for c in calculated_components_details)
     subtotal = total_material_cost + total_labour_cost
-    # Use markup override if provided, otherwise use the default from settings, with a fallback.
-    markup = request.markup_override if request.markup_override is not None else rates_and_settings.get('default_markup', 1.0)
     final_price = subtotal * markup
 
-    # --- 5. Assemble the final response object ---
+    # --- 4. Assemble the final response object using Pydantic models ---
     return schemas.QuoteResponse(
         fan_uid=fan_config.uid,
         total_mass_kg=round(total_mass, 2),
@@ -350,5 +370,5 @@ def calculate_full_quote(db: Session, request: schemas.QuoteRequest) -> schemas.
         subtotal_cost=round(subtotal, 2),
         markup_applied=markup,
         final_price=round(final_price, 2),
-        components=[schemas.CalculatedComponent(**c) for c in calculated_components]
+        components=[schemas.CalculatedComponent(**c) for c in calculated_components_details]
     )
