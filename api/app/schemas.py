@@ -94,13 +94,33 @@ class QuoteRequest(BaseModel):
 
 class CalculatedComponent(BaseModel):
     """
-    Represents the calculated cost and mass for a single component in the response.
+    Represents the detailed calculated values for a single component in the response.
+    This includes geometry, mass, costs, and the parameters used for the calculation.
     """
+    # Identity
     name: str
+
+    # Input Parameters (including overrides)
+    material_thickness_mm: float
+    fabrication_waste_percentage: float
+
+    # Calculated Geometry
+    overall_diameter_mm: Optional[float] = None # May not apply to all components
+    total_length_mm: Optional[float] = None # May not apply to all components
+
+    # Calculated Mass
+    ideal_mass_kg: float
     real_mass_kg: float
+    feedstock_mass_kg: float
+
+    # Calculated Costs
     material_cost: float
     labour_cost: float
-    total_cost: float
+    total_cost_before_markup: float
+    total_cost_after_markup: float
+
+    # Other Factors
+    stiffening_factor: Optional[float] = None # May not apply to all components
 
 
 class QuoteResponse(BaseModel):
