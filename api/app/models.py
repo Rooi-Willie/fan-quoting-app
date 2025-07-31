@@ -101,11 +101,8 @@ class GlobalSetting(Base):
     markup, steel density, etc.
     """
     __tablename__ = "global_settings"
-    id = Column(Integer, primary_key=True, index=True)
-    setting_name = Column(String, unique=True, nullable=False, index=True, comment="The unique key for the setting (e.g., 'default_markup').")
-    setting_value = Column(String, nullable=False, comment="The value of the setting, stored as a string.")
-    value_type = Column(String(20), nullable=False, comment="The data type for casting (e.g., 'float', 'int', 'str').")
-    description = Column(String, comment="A description of what the setting is for.")
+    setting_name = Column(String(50), primary_key=True, comment="The unique key for the setting (e.g., 'default_markup').")
+    setting_value = Column(String(255), nullable=False, comment="The value of the setting, stored as a string.")
 
 
 class Material(Base):
@@ -114,20 +111,24 @@ class Material(Base):
     """
     __tablename__ = "materials"
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, nullable=False, index=True, comment="The name of the material (e.g., 'Steel S355JR').")
-    cost_per_unit = Column(Numeric(10, 4), nullable=False, comment="The cost for one unit of this material.")
-    unit = Column(String(10), nullable=False, comment="The unit of measurement (e.g., 'kg', 'l', 'item').")
+    name = Column(String, nullable=False, comment="The name of the material (e.g., 'Steel S355JR').")
+    description = Column(String, comment="A description of the material.")
+    cost_per_unit = Column(Numeric(12, 2), nullable=False, comment="The cost for one unit of this material.")
+    min_cost_per_unit = Column(Numeric(12, 2), comment="The minimum cost per unit.")
+    max_cost_per_unit = Column(Numeric(12, 2), comment="The maximum cost per unit.")
+    cost_unit = Column(String(10), comment="The unit of measurement (e.g., 'kg', 'l', 'item').")
+    currency = Column(String(3), default="ZAR", comment="The currency for the cost.")
 
 
 class LabourRate(Base):
     """
     Stores cost rates for different types of labour.
     """
-    __tablename__ = "labour_rates"
+    __tablename__ = "labor_rates"
     id = Column(Integer, primary_key=True, index=True)
-    rate_name = Column(String, unique=True, nullable=False, index=True, comment="The name of the labour rate (e.g., 'Default Labour Per Kg').")
-    rate_per_unit = Column(Numeric(10, 4), nullable=False, comment="The cost for one unit of this labour type.")
-    unit = Column(String(20), nullable=False, comment="The unit of measurement (e.g., 'per_kg', 'per_hour').")
+    rate_name = Column(String(100), unique=True, nullable=False, comment="The name of the labour rate (e.g., 'Default Labour Per Kg').")
+    rate_per_hour = Column(Numeric(10, 2), nullable=False, comment="The hourly rate for this labour type.")
+    currency = Column(String(3), default="ZAR", comment="The currency for the rate.")
 
 
 # --- Enums for Formula Types ---
@@ -166,14 +167,17 @@ class ComponentParameter(Base):
     id = Column(Integer, primary_key=True, index=True)
     component_id = Column(Integer, ForeignKey("components.id"), unique=True, nullable=False)
 
-    mass_formula_type = Column(SQLAlchemyEnum(MassFormulaType), nullable=False)
-    diameter_formula_type = Column(SQLAlchemyEnum(DiameterFormulaType), nullable=True)
-    length_formula_type = Column(SQLAlchemyEnum(LengthFormulaType), nullable=True)
-    stiffening_formula_type = Column(SQLAlchemyEnum(StiffeningFormulaType), nullable=True)
-
-    default_thickness_mm = Column(Numeric(6, 2), nullable=False)
-    default_fabrication_waste_factor = Column(Numeric(5, 3), nullable=False)
-    length_multiplier = Column(Numeric(8, 4), nullable=True)
+    default_thickness_mm = Column(Numeric(10, 2))
+    default_fabrication_waste_factor = Column(Numeric(10, 4))
+    
+    # Formula identifiers as strings
+    diameter_formula_type = Column(String(50))
+    length_formula_type = Column(String(50))
+    stiffening_formula_type = Column(String(50))
+    mass_formula_type = Column(String(50), nullable=False)
+    cost_formula_type = Column(String(50), nullable=False)
+    
+    length_multiplier = Column(Numeric(10, 2))
 
     component = relationship("Component", back_populates="parameters")
 
@@ -185,7 +189,7 @@ class FanComponentParameter(Base):
     """
     __tablename__ = "fan_component_parameters"
     id = Column(Integer, primary_key=True, index=True)
-    fan_config_id = Column(Integer, ForeignKey("fan_configurations.id"), nullable=False, index=True)
+    fan_configuration_id = Column(Integer, ForeignKey("fan_configurations.id"), nullable=False, index=True)
     component_id = Column(Integer, ForeignKey("components.id"), nullable=False, index=True)
 
     # Overrideable values (nullable because they are optional)

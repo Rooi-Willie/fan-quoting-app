@@ -105,16 +105,28 @@ def get_rates_and_settings(db: Session) -> dict:
     rates = {}
 
     # 1. Fetch Global Settings (e.g., steel density, default markup)
-    # Assumes a `GlobalSetting` model with columns: `setting_name` (str),
-    # `setting_value` (str), and `value_type` (str, e.g., 'float', 'int').
+    # Handling both the case with and without value_type column
     try:
         global_settings = db.query(models.GlobalSetting).all()
         for setting in global_settings:
             value = setting.setting_value
-            if setting.value_type == 'float':
-                value = float(value)
-            elif setting.value_type == 'int':
-                value = int(value)
+            # Attempt to convert values to appropriate types based on common settings
+            try:
+                # For settings known to be numeric, attempt to convert to float
+                if setting.setting_name in ['steel_density_kg_m3', 'default_markup']:
+                    value = float(value)
+                # Add other known numeric settings here as needed
+                
+                # If model has value_type field, use it (backwards compatibility)
+                if hasattr(setting, 'value_type'):
+                    if setting.value_type == 'float':
+                        value = float(value)
+                    elif setting.value_type == 'int':
+                        value = int(value)
+            except (ValueError, TypeError):
+                # Keep as string if conversion fails
+                pass
+                
             rates[setting.setting_name] = value
     except Exception:
         # Table might not exist yet, proceed without global settings
@@ -133,13 +145,13 @@ def get_rates_and_settings(db: Session) -> dict:
         pass # Table might not exist yet
 
     # 3. Fetch Labour Rates
-    # Assumes a `LabourRate` model with `rate_name` (str) and `rate_per_unit` (Numeric).
+    # Assumes a `LabourRate` model with `rate_name` (str) and `rate_per_hour` (Numeric).
     # The calculation engine specifically needs a 'labour_per_kg' key.
     try:
         # Fetch the specific rate needed by the calculation engine.
         labour_rate = db.query(models.LabourRate).filter(models.LabourRate.rate_name == "Default Labour Per Kg").first()
         if labour_rate:
-            rates['labour_per_kg'] = float(labour_rate.rate_per_unit)
+            rates['labour_per_kg'] = float(labour_rate.rate_per_hour)
     except Exception:
         pass # Table might not exist yet
 
@@ -156,12 +168,11 @@ def get_parameters_for_calculation(db: Session, fan_config_id: int, component_id
     `FanComponentParameter` models that are not defined in the provided context.
     """
     try:
-        # Alias for the fan-specific parameters table to make the LEFT JOIN clear
-        fcp_alias = aliased(models.FanComponentParameter)
         # Define shortcuts for the models for readability
         Comp = models.Component
         CompParam = models.ComponentParameter
-        FanCompParam = fcp_alias
+        FanCompParam = models.FanComponentParameter
+        
         # Construct the query to join the three tables
         query = db.query(
             Comp.id.label("component_id"),
@@ -175,14 +186,14 @@ def get_parameters_for_calculation(db: Session, fan_config_id: int, component_id
             CompParam.default_fabrication_waste_factor,
             CompParam.length_multiplier,
             # --- Fan-specific overrides from fan_component_parameters (can be NULL) ---
-            FanCompParam.length_mm,
-            FanCompParam.stiffening_factor
+            models.FanComponentParameter.length_mm,
+            models.FanComponentParameter.stiffening_factor
         ).join(
             CompParam, Comp.id == CompParam.component_id
         ).outerjoin(
-            FanCompParam,
-            (FanCompParam.component_id == Comp.id) &
-            (FanCompParam.fan_config_id == fan_config_id)
+            models.FanComponentParameter,
+            (models.FanComponentParameter.component_id == Comp.id) &
+            (models.FanComponentParameter.fan_configuration_id == fan_config_id)
         ).filter(
             Comp.id.in_(component_ids)
         )
