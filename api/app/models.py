@@ -3,7 +3,7 @@
 # of that class represent rows in that table.
 import enum
 from sqlalchemy import (ARRAY, Column, Date, ForeignKey, Integer, Numeric,
-                        SmallInteger, String, Enum as SQLAlchemyEnum)
+                        SmallInteger, String, Enum as SQLAlchemyEnum, Text, UniqueConstraint)
 from sqlalchemy.orm import relationship
 from .database import Base
 
@@ -18,14 +18,14 @@ class FanConfiguration(Base):
     __tablename__ = "fan_configurations"
 
     id = Column(Integer, primary_key=True, index=True)
-    uid = Column(String, unique=True, index=True, comment="A unique identifier for the fan configuration.")
+    uid = Column(String(50), unique=True, index=True, comment="A unique identifier for the fan configuration.")
     fan_size_mm = Column(Integer, nullable=False, comment="The diameter of the fan in millimeters.")
     hub_size_mm = Column(Integer, nullable=False, comment="The diameter of the fan hub in millimeters.")
     available_blade_qtys = Column(ARRAY(Integer), nullable=False, comment="A list of possible blade quantities for this fan configuration.")
     stator_blade_qty = Column(Integer, nullable=False, comment="The number of stator blades.")
-    blade_name = Column(String, comment="The name or model of the blade.")
-    blade_material = Column(String, comment="The material the blades are made of (e.g., 'Aluminum', 'Steel').")
-    mass_per_blade_kg = Column(Numeric, nullable=False, comment="The mass of a single blade in kilograms.")
+    blade_name = Column(String(50), comment="The name or model of the blade.")
+    blade_material = Column(String(50), comment="The material the blades are made of (e.g., 'Aluminum', 'Steel').")
+    mass_per_blade_kg = Column(Numeric(10, 2), nullable=False, comment="The mass of a single blade in kilograms.")
     available_motor_kw = Column(ARRAY(Integer), nullable=False, comment="A list of available motor power ratings in kilowatts.")
     motor_pole = Column(Integer, nullable=False, comment="The number of poles in the motor (e.g., 2, 4, 6).")
     available_components = Column(ARRAY(Integer), comment="A list of foreign key IDs to the 'components' table for parts that can be used with this fan.")
@@ -44,9 +44,9 @@ class Component(Base):
     __tablename__ = "components"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, nullable=False, comment="The human-readable name of the component (e.g., 'Inlet Cone').")
-    code = Column(String, unique=True, nullable=False, comment="A unique code for identifying the component.")
-    order_by = Column(String, comment="A field to specify the sorting order for display purposes in the UI.")
+    name = Column(String(100), unique=True, nullable=False, comment="The human-readable name of the component (e.g., 'Inlet Cone').")
+    code = Column(String(50), unique=True, nullable=False, comment="A unique code for identifying the component.")
+    order_by = Column(String(10), comment="A field to specify the sorting order for display purposes in the UI.")
 
     # Relationship to its default parameters (one-to-one)
     parameters = relationship("ComponentParameter", uselist=False, back_populates="component", cascade="all, delete-orphan")
@@ -75,6 +75,8 @@ class Motor(Base):
     # Relationship to link a motor to its various prices over time
     prices = relationship("MotorPrice", back_populates="motor", cascade="all, delete-orphan")
 
+    __table_args__ = (UniqueConstraint('supplier_name', 'product_range', 'poles', 'rated_output', 'speed', 'frame_size', name='_motor_uc'),)
+
 
 class MotorPrice(Base):
     """
@@ -91,6 +93,8 @@ class MotorPrice(Base):
     currency = Column(String(3), default="ZAR")
 
     motor = relationship("Motor", back_populates="prices")
+
+    __table_args__ = (UniqueConstraint('motor_id', 'date_effective', name='_motor_price_uc'),)
 
 
 # --- Models for Calculation Engine ---
@@ -111,8 +115,8 @@ class Material(Base):
     """
     __tablename__ = "materials"
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False, comment="The name of the material (e.g., 'Steel S355JR').")
-    description = Column(String, comment="A description of the material.")
+    name = Column(String(255), nullable=False, comment="The name of the material (e.g., 'Steel S355JR').")
+    description = Column(Text, comment="A description of the material.")
     cost_per_unit = Column(Numeric(12, 2), nullable=False, comment="The cost for one unit of this material.")
     min_cost_per_unit = Column(Numeric(12, 2), comment="The minimum cost per unit.")
     max_cost_per_unit = Column(Numeric(12, 2), comment="The maximum cost per unit.")
@@ -194,7 +198,9 @@ class FanComponentParameter(Base):
 
     # Overrideable values (nullable because they are optional)
     length_mm = Column(Numeric(10, 2), nullable=True)
-    stiffening_factor = Column(Numeric(8, 4), nullable=True)
+    stiffening_factor = Column(Numeric(10, 4), nullable=True)
 
     fan_configuration = relationship("FanConfiguration", back_populates="fan_specific_parameters")
     component = relationship("Component", back_populates="fan_specific_parameters")
+
+    __table_args__ = (UniqueConstraint('fan_configuration_id', 'component_id', name='_fan_component_uc'),)

@@ -2,8 +2,49 @@
 # requests and responses. They provide data validation, serialization, and
 # documentation for the API endpoints.
 from datetime import date
+from decimal import Decimal
 from typing import List, Optional
 from pydantic import BaseModel, ConfigDict
+
+
+# ============================= CORE API SCHEMAS =============================
+
+class Material(BaseModel):
+    """
+    Schema for representing a material in API responses.
+    """
+    id: int
+    name: str
+    description: Optional[str] = None
+    cost_per_unit: Decimal
+    min_cost_per_unit: Optional[Decimal] = None
+    max_cost_per_unit: Optional[Decimal] = None
+    cost_unit: Optional[str] = None
+    currency: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LabourRate(BaseModel):
+    """
+    Schema for representing a labour rate in API responses.
+    """
+    id: int
+    rate_name: str
+    rate_per_hour: Decimal
+    currency: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class GlobalSetting(BaseModel):
+    """
+    Schema for representing a global setting in API responses.
+    """
+    setting_name: str
+    setting_value: str
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Component(BaseModel):
@@ -16,7 +57,7 @@ class Component(BaseModel):
     id: int  # The unique identifier for the component.
     name: str  # The human-readable name of the component.
     code: str  # A unique code for identifying the component.
-    order_by: str | None = None  # A field to specify the sorting order for display purposes.
+    order_by: Optional[str] = None  # A field to specify the sorting order for display purposes.
 
     # This tells Pydantic to read data from ORM model attributes.
     model_config = ConfigDict(from_attributes=True)
@@ -33,9 +74,12 @@ class MotorWithLatestPrice(BaseModel):
     part_number: Optional[str] = None
     poles: int
     rated_output: float  # Pydantic handles conversion from Decimal
+    rated_output_unit: Optional[str] = None
     speed: int
+    speed_unit: Optional[str] = None
     frame_size: Optional[str] = None
     shaft_diameter: Optional[float] = None
+    shaft_diameter_unit: Optional[str] = None
 
     # Fields from the latest price record
     latest_price_date: Optional[date] = None
@@ -54,20 +98,25 @@ class FanConfiguration(BaseModel):
     Used for reading fan configuration data from the database and returning it
     through the API.
     """
-    id: int  # The unique identifier for the fan configuration.
-    uid: str  # A unique string identifier for the fan configuration.
-    fan_size_mm: int  # The diameter of the fan in millimeters.
-    hub_size_mm: int  # The diameter of the fan hub in millimeters.
-    available_blade_qtys: List[int]  # A list of possible blade quantities for this configuration.
-    available_motor_kw: List[int]  # A list of available motor power ratings in kilowatts.
-    available_components: List[int] | None = None  # A list of component IDs that can be used with this fan.
-    auto_selected_components: List[int] | None = None  # A list of component IDs that are automatically selected.
+    id: int
+    uid: str
+    fan_size_mm: int
+    hub_size_mm: int
+    available_blade_qtys: List[int]
+    stator_blade_qty: int
+    blade_name: Optional[str] = None
+    blade_material: Optional[str] = None
+    mass_per_blade_kg: float  # Pydantic handles conversion from Decimal
+    available_motor_kw: List[int]
+    motor_pole: int
+    available_components: Optional[List[int]] = None
+    auto_selected_components: Optional[List[int]] = None
 
     # This tells Pydantic to read data from ORM model attributes.
     model_config = ConfigDict(from_attributes=True)
 
 
-# --- Schemas for Quote Calculation ---
+# ======================= SCHEMAS FOR QUOTE CALCULATION ======================
 
 class ComponentQuoteRequest(BaseModel):
     """
