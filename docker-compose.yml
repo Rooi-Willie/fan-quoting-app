@@ -46,5 +46,18 @@ services:
       - api
     restart: unless-stopped
 
+  database-test:
+    image: postgres:13
+    container_name: fan-quoting-app-database-test
+    environment:
+      POSTGRES_DB: test_db
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+    ports:
+      - "5431:5431"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+
 volumes:
   postgres_data_dev: # Define a named volume for DB persistence
+  postgres_test_data: # Define a named volume for test DB persistence
