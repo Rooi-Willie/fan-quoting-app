@@ -47,14 +47,15 @@ services:
     restart: unless-stopped
 
   database-test:
-    image: postgres:13
-    container_name: fan-quoting-app-database-test
-    environment:
-      POSTGRES_DB: test_db
-      POSTGRES_USER: test_user
-      POSTGRES_PASSWORD: test_password
+    image: postgres:15
+    container_name: quoting_db_test
+    restart: always
     ports:
-      - "5431:5431"
+      - "5431:5432" # Local 5431 maps to container 5432
+    environment:
+      POSTGRES_USER: ${POSTGRES_TEST_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_TEST_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_TEST_DB}
     volumes:
       - postgres_test_data:/var/lib/postgresql/data
 

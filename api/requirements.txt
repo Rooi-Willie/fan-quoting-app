@@ -6,3 +6,4 @@ python-dotenv
 requests # If API needs to call other services, or for testing
 pandas
 scipy
+pytest

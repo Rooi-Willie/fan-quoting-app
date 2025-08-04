@@ -2,6 +2,7 @@
 import os
 import pytest
 from sqlalchemy import create_engine
+from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker, Session
 from typing import Generator
 
@@ -15,14 +16,29 @@ from app.database import Base
 # --- Database Configuration ---
 
 # Connection string for the source (development) database
-DEV_DATABASE_URL = os.getenv("DATABASE_URL")
+DEV_DATABASE_URL = os.getenv("PYTEST_DATABASE_URL")
 # Connection string for the destination (test) database
-TEST_DATABASE_URL = os.getenv("DATABASE_TEST_URL")
+TEST_DATABASE_URL = os.getenv("PYTEST_DATABASE_TEST_URL")
 
 if not DEV_DATABASE_URL or not TEST_DATABASE_URL:
     raise Exception("DATABASE_URL and DATABASE_TEST_URL must be set in your .env file")
 
 # --- SQLAlchemy Engines and Session Factories ---
+try:
+    dev_engine = create_engine(DEV_DATABASE_URL)
+    # Attempt to connect to the development database
+    with dev_engine.connect() as connection:
+        connection.execute(text("SELECT 1"))
+except Exception as e:
+    raise Exception(f"Could not connect to the development database at {DEV_DATABASE_URL}. Error: {e}")
+
+try:
+    test_engine = create_engine(TEST_DATABASE_URL)
+    # Attempt to connect to the test database
+    with test_engine.connect() as connection:
+        connection.execute(text("SELECT 1"))
+except Exception as e:
+    raise Exception(f"Could not connect to the test database at {TEST_DATABASE_URL}. Error: {e}")
 
 dev_engine = create_engine(DEV_DATABASE_URL)
 test_engine = create_engine(TEST_DATABASE_URL)
@@ -50,12 +66,13 @@ def db_session(setup_test_database) -> Generator[Session, None, None]:
 
     This fixture will:
     1. Connect to the development database to read the data.
-    2. Copy all data from relevant tables into the test database.
+    2. Copy all data from relevant tables into the test database within a transaction.
     3. Yield a session connected to the test database for the test to use.
     4. Rollback the transaction to ensure the next test starts with a fresh copy.
     """
     dev_db = DevSessionLocal()
     test_db = TestingSessionLocal()
+    transaction = test_db.begin()
 
     try:
         # List of all models to copy data from
@@ -75,14 +92,14 @@ def db_session(setup_test_database) -> Generator[Session, None, None]:
             # Convert records to dictionaries to detach them from the dev session
             records_as_dicts = [record.__dict__ for record in records]
             for r_dict in records_as_dicts:
-                r_dict.pop('_sa_instance_state', None) # Remove SQLAlchemy state
+                r_dict.pop('_sa_instance_state', None)  # Remove SQLAlchemy state
 
             # Bulk insert the data into the test database
             test_db.bulk_insert_mappings(model, records_as_dicts)
-        
-        test_db.commit()
+
         yield test_db
     finally:
+        transaction.rollback()
         test_db.close()
         dev_db.close()
 
