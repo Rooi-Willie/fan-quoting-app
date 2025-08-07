@@ -298,6 +298,52 @@ def get_calculator(mass_formula_type: str) -> BaseCalculator:
 # PART 4: THE MAIN ORCHESTRATOR FUNCTION
 # ==============================================================================
 
+def calculate_single_component_details(db: Session, request: schemas.ComponentCalculationRequest) -> schemas.CalculatedComponent:
+    """
+    Orchestrator to perform a detailed calculation for a single component.
+    """
+    # 1. Fetch required data
+    fan_config = crud.get_fan_configuration(db, request.fan_configuration_id)
+    if not fan_config:
+        raise ValueError("Fan configuration not found.")
+
+    params_for_comp = crud.get_parameters_for_calculation(db, fan_config.id, [request.component_id])[0]
+    if not params_for_comp:
+        raise ValueError("Parameters for component not found.")
+
+    rates_and_settings = crud.get_rates_and_settings(db)
+    markup = rates_and_settings.get('default_markup', 1.0)
+
+    # 2. Resolve formulaic parameters
+    resolved_params = _resolve_formulaic_parameters(
+        hub_size=fan_config.hub_size_mm,
+        fan_size=fan_config.fan_size_mm,
+        params=params_for_comp
+    )
+
+    # 3. Get the correct calculator
+    calculator = get_calculator(resolved_params['mass_formula_type'])
+
+    # 4. Build request parameters for the calculator
+    request_params = {
+        "hub_size_mm": fan_config.hub_size_mm,
+        "fan_size_mm": fan_config.fan_size_mm,
+        "blade_quantity": request.blade_quantity,
+        "mass_per_blade_kg": float(fan_config.mass_per_blade_kg),
+        "overrides": {
+            "thickness_mm_override": request.thickness_mm_override,
+            "fabrication_waste_factor_override": request.fabrication_waste_factor_override
+        }
+    }
+
+    # 5. Execute calculation
+    result_dict = calculator.calculate(request_params, resolved_params, rates_and_settings)
+
+    # 6. Apply markup and format response
+    result_dict["total_cost_after_markup"] = result_dict["total_cost_before_markup"] * markup
+    
+    return schemas.CalculatedComponent(**result_dict)
+
 def calculate_full_quote(db: Session, request: schemas.QuoteRequest) -> schemas.QuoteResponse:
     """
     Main orchestrator to perform a full quote calculation.

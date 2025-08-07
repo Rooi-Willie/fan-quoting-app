@@ -171,6 +171,18 @@ class CalculatedComponent(BaseModel):
     # Other Factors
     stiffening_factor: Optional[float] = None # May not apply to all components
 
+class ComponentCalculationRequest(BaseModel):
+    """
+    Defines the structure for a single component calculation request.
+    This will be the input for our new endpoint.
+    """
+    fan_configuration_id: int
+    component_id: int
+    blade_quantity: int # Required for the Rotor calculator
+    
+    # Optional user-defined overrides
+    thickness_mm_override: Optional[float] = None
+    fabrication_waste_factor_override: Optional[float] = None
 
 class QuoteResponse(BaseModel):
     """
