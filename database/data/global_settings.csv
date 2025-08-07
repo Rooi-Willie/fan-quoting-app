@@ -1,3 +1,4 @@
 setting_name,setting_value
 steel_density_kg_m3,7850
 default_markup,1.4
+working_hours_per_day,8

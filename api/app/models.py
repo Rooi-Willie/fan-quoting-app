@@ -128,10 +128,11 @@ class LabourRate(Base):
     """
     Stores cost rates for different types of labour.
     """
-    __tablename__ = "labor_rates"
+    __tablename__ = "labour_rates"
     id = Column(Integer, primary_key=True, index=True)
     rate_name = Column(String(100), unique=True, nullable=False, comment="The name of the labour rate (e.g., 'Default Labour Per Kg').")
     rate_per_hour = Column(Numeric(10, 2), nullable=False, comment="The hourly rate for this labour type.")
+    productivity_kg_per_day = Column(Numeric(10, 2), comment="The productivity of this labour type in kg per day.")
     currency = Column(String(3), default="ZAR", comment="The currency for the rate.")
 
 
