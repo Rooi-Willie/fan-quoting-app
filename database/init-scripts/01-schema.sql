@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS fan_configurations;
 DROP TABLE IF EXISTS motor_prices;
 DROP TABLE IF EXISTS motors_staging;
 DROP TABLE IF EXISTS motors;
-DROP TABLE IF EXISTS labor_rates;
+DROP TABLE IF EXISTS labour_rates;
 DROP TABLE IF EXISTS materials;
 
 
@@ -25,10 +25,11 @@ CREATE TABLE materials (
     cost_unit VARCHAR(10), 
     currency VARCHAR(3) DEFAULT 'ZAR' 
 );
-CREATE TABLE labor_rates ( 
+CREATE TABLE labour_rates ( 
     id SERIAL PRIMARY KEY, 
     rate_name VARCHAR(100) NOT NULL UNIQUE, 
     rate_per_hour NUMERIC(10, 2) NOT NULL, 
+    productivity_kg_per_day NUMERIC(10, 2),
     currency VARCHAR(3) DEFAULT 'ZAR' 
 );
 CREATE TABLE motors ( 

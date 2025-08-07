@@ -2,6 +2,8 @@ name,description,cost_per_unit,min_cost_per_unit,max_cost_per_unit,cost_unit,cur
 S355JR,Raw plate costs,25,19,25,kg,ZAR
 Rockwool,,25,,,l,ZAR
 Aluminium Blades Set (Orange),,730,,,kg,ZAR
+Steel Blades Set,,258.1,,,kg,ZAR
 EN8 Machine,,242.7,,,kg,ZAR
+Strenx700 Laser,High-strength steel,90.6,,,kg,ZAR
 Taperlock bush 40x40x80,,1100,,,item,ZAR
 Self closing doors items and Vesconite,Machined parts and buy out 1400[mm],11530,,,item,ZAR

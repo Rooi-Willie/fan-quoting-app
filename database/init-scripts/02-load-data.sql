@@ -2,7 +2,7 @@
 
 -- Load core data
 COPY materials(name, description, cost_per_unit, min_cost_per_unit, max_cost_per_unit, cost_unit, currency) FROM '/csv_data/materials.csv' WITH (FORMAT csv, HEADER true);
-COPY labor_rates(rate_name, rate_per_hour, currency) FROM '/csv_data/labour_rates.csv' WITH (FORMAT csv, HEADER true);
+COPY labour_rates(rate_name, rate_per_hour, productivity_kg_per_day, currency) FROM '/csv_data/labour_rates.csv' WITH (FORMAT csv, HEADER true);
 
 -- Motor data workflow
 COPY motors_staging FROM '/csv_data/motors_master.csv' WITH (FORMAT csv, HEADER true);
