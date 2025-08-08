@@ -190,10 +190,10 @@ class RotorEmpiricalCalculator(BaseCalculator):
         
         # Cost: =(19.5)*($B$2/665)^2*Rates!B16*2+4*Rates!B14+Rates!B20+$B$4*$C$4*Rates!$B$18+(4226)*($B$2/665)^2
         # This requires specific material rates. We'll need a good way to fetch these by name.
-        cost_part1 = (19.5 * hub_scaling_factor * 2) * rates_settings['en8_machine_cost_per_kg']  # Assumes EN8 is Rates!B16
-        cost_part2 = 4 * rates_settings['taperlock_bush_cost_per_item']  # Assumes Taperlock is Rates!B14
-        cost_part3 = rates_settings['scd_items_cost_per_item'] # Placeholder for Rates!B20
-        cost_part4 = (blade_qty * mass_per_blade) * rates_settings['ali_blades_cost_per_kg'] # Assumes Ali is Rates!B18
+        cost_part1 = (19.5 * hub_scaling_factor * 2) * rates_settings['strenx_700_laser_cost_per_kg']  # Strenx700 Laser
+        cost_part2 = 4 * rates_settings['en8_machine_cost_per_kg']  # EN8 Machine
+        cost_part3 = rates_settings['taperlock_bush_cost_per_item'] # Taperlock Bush
+        cost_part4 = (blade_qty * mass_per_blade) * rates_settings['steel_blade_cost_per_kg'] # Steel Blade
         cost_part5 = 4226 * hub_scaling_factor
         material_cost = cost_part1 + cost_part2 + cost_part3 + cost_part4 + cost_part5
         labour_cost = real_mass * rates_settings['actual/abf_rate_per_kg']
@@ -337,6 +337,11 @@ def calculate_single_component_details(db: Session, request: schemas.ComponentCa
     }
 
     # 5. Execute calculation
+    print("--- Data sent to calculator ---")
+    print(f"Request Params: {request_params}")
+    print(f"Component Params: {resolved_params}")
+    print(f"Rates/Settings: {rates_and_settings}")
+    print("---------------------------------")
     result_dict = calculator.calculate(request_params, resolved_params, rates_and_settings)
 
     # 6. Apply markup and format response

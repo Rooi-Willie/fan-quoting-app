@@ -1,0 +1,235 @@
+[
+  {
+    "test_name": "Test Screen Inlet Outside for Ø1016 Fan",
+    "request_payload": {
+      "fan_configuration_id": 3,
+      "component_id": 1,
+      "overrides": {}
+    },
+    "expected_response": {
+      "name": "Screen Inlet Outside",
+      "calculated_values": {
+        "overall_diameter_mm": 1371.6,
+        "total_length_mm": 160.0,
+        "thickness_mm": 6.0,
+        "stiffening_factor": -0.07,
+        "ideal_mass_kg": 24.1,
+        "real_mass_kg": 22.3,
+        "fabrication_waste_factor": 0.25,
+        "feedstock_mass_kg": 27.9,
+        "material_cost": 697.86,
+        "labour_cost": 913.02,
+        "total_cost": 1610.88
+      }
+    }
+  },
+  {
+    "test_name": "Test Screen Inlet Inside for Ø1016 Fan",
+    "request_payload": {
+      "fan_configuration_id": 3,
+      "component_id": 2,
+      "overrides": {}
+    },
+    "expected_response": {
+      "name": "Screen Inlet Inside",
+      "calculated_values": {
+        "overall_diameter_mm": 1016.0,
+        "total_length_mm": 50.0,
+        "thickness_mm": 6.0,
+        "stiffening_factor": 0.71,
+        "ideal_mass_kg": 7.5,
+        "real_mass_kg": 12.9,
+        "fabrication_waste_factor": 0.25,
+        "feedstock_mass_kg": 16.1,
+        "material_cost": 401.68,
+        "labour_cost": 525.52,
+        "total_cost": 927.20
+      }
+    }
+  },
+  {
+    "test_name": "Test Conical Inlet for Ø1016 Fan",
+    "request_payload": {
+      "fan_configuration_id": 3,
+      "component_id": 3,
+      "overrides": {}
+    },
+    "expected_response": {
+      "name": "Conical Inlet",
+      "calculated_values": {
+        "overall_diameter_mm": 1309.3,
+        "total_length_mm": 303.0,
+        "thickness_mm": 6.0,
+        "stiffening_factor": 0.70,
+        "ideal_mass_kg": 49.3,
+        "real_mass_kg": 83.7,
+        "fabrication_waste_factor": 0.25,
+        "feedstock_mass_kg": 104.7,
+        "material_cost": 2616.49,
+        "labour_cost": 3423.18,
+        "total_cost": 6039.67
+      }
+    }
+  },
+  {
+    "test_name": "Test Silencer 1D Inlet for Ø1016 Fan",
+    "request_payload": {
+      "fan_configuration_id": 3,
+      "component_id": 4,
+      "overrides": {}
+    },
+    "expected_response": {
+      "name": "Silencer 1D Inlet",
+      "calculated_values": {
+        "overall_diameter_mm": 1166.0,
+        "total_length_mm": 1016.0,
+        "thickness_mm": 6.0,
+        "stiffening_factor": 0.46,
+        "ideal_mass_kg": 152.7,
+        "real_mass_kg": 223.0,
+        "fabrication_waste_factor": 0.25,
+        "feedstock_mass_kg": 278.8,
+        "material_cost": 13498.19,
+        "labour_cost": 9117.44,
+        "total_cost": 22615.63
+      }
+    }
+  },
+  {
+    "test_name": "Test Inlet-Track for Ø1016 Fan",
+    "request_payload": {
+      "fan_configuration_id": 3,
+      "component_id": 7,
+      "overrides": {}
+    },
+    "expected_response": {
+      "name": "Inlet-Track",
+      "calculated_values": {
+        "overall_diameter_mm": 1016.0,
+        "total_length_mm": 470.0,
+        "thickness_mm": 8.0,
+        "stiffening_factor": 0.37,
+        "ideal_mass_kg": 94.4,
+        "real_mass_kg": 129.3,
+        "fabrication_waste_factor": 0.25,
+        "feedstock_mass_kg": 161.6,
+        "material_cost": 4033.40,
+        "labour_cost": 5278.96,
+        "total_cost": 9312.36
+      }
+    }
+  },
+  {
+    "test_name": "Test Rotor for Ø1016 Fan",
+    "request_payload": {
+      "fan_configuration_id": 3,
+      "component_id": 8,
+      "overrides": {}
+    },
+    "expected_response": {
+      "name": "Rotor",
+      "calculated_values": {
+        "real_mass_kg": 86.7,
+        "material_cost": 18524.75,
+        "labour_cost": 3544.32,
+        "total_cost": 22069.07
+      }
+    }
+  },
+  {
+    "test_name": "Test Motor Barrel for Ø1016 Fan",
+    "request_payload": {
+      "fan_configuration_id": 3,
+      "component_id": 9,
+      "overrides": {}
+    },
+    "expected_response": {
+      "name": "Motor Barrel",
+      "calculated_values": {
+        "overall_diameter_mm": 1016.0,
+        "total_length_mm": 940.0,
+        "thickness_mm": 8.0,
+        "stiffening_factor": 1.50,
+        "ideal_mass_kg": 141.3,
+        "real_mass_kg": 353.3,
+        "fabrication_waste_factor": 0.25,
+        "feedstock_mass_kg": 441.6,
+        "material_cost": 11040.34,
+        "labour_cost": 14444.22,
+        "total_cost": 25484.56
+      }
+    }
+  },
+    {
+    "test_name": "Test Silencer 1D Outlet for Ø1016 Fan",
+    "request_payload": {
+      "fan_configuration_id": 3,
+      "component_id": 10,
+      "overrides": {}
+    },
+    "expected_response": {
+      "name": "Silencer 1D Outlet",
+      "calculated_values": {
+        "overall_diameter_mm": 1166.0,
+        "total_length_mm": 1016.0,
+        "thickness_mm": 6.0,
+        "stiffening_factor": 0.46,
+        "ideal_mass_kg": 152.7,
+        "real_mass_kg": 223.0,
+        "fabrication_waste_factor": 0.25,
+        "feedstock_mass_kg": 278.8,
+        "material_cost": 13498.19,
+        "labour_cost": 9117.44,
+        "total_cost": 22615.63
+      }
+    }
+  },
+  {
+    "test_name": "Test SCD for Ø1016 Fan",
+    "request_payload": {
+      "fan_configuration_id": 3,
+      "component_id": 13,
+      "overrides": {}
+    },
+    "expected_response": {
+      "name": "SCD - Self Closing Door",
+      "calculated_values": {
+        "overall_diameter_mm": 1016.0,
+        "total_length_mm": 640.0,
+        "thickness_mm": 6.0,
+        "stiffening_factor": 0.48,
+        "ideal_mass_kg": 134.4,
+        "real_mass_kg": 198.9,
+        "fabrication_waste_factor": 1.15,
+        "feedstock_mass_kg": 427.7,
+        "material_cost": 10691.59,
+        "labour_cost": 8132.53,
+        "total_cost": 18824.12
+      }
+    }
+  },
+  {
+    "test_name": "Test Diffuser for Ø1016 Fan",
+    "request_payload": {
+      "fan_configuration_id": 3,
+      "component_id": 14,
+      "overrides": {}
+    },
+    "expected_response": {
+      "name": "Diffuser",
+      "calculated_values": {
+        "overall_diameter_mm": 1270.0,
+        "total_length_mm": 2076.4,
+        "thickness_mm": 6.0,
+        "stiffening_factor": 0.21,
+        "ideal_mass_kg": 351.2,
+        "real_mass_kg": 423.2,
+        "fabrication_waste_factor": 0.25,
+        "feedstock_mass_kg": 529.0,
+        "material_cost": 13224.27,
+        "labour_cost": 17301.49,
+        "total_cost": 30525.76
+      }
+    }
+  }
+]
