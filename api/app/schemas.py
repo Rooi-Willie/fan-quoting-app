@@ -32,6 +32,7 @@ class LabourRate(BaseModel):
     id: int
     rate_name: str
     rate_per_hour: Decimal
+    productivity_kg_per_day: Optional[Decimal] = None
     currency: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)

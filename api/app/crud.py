@@ -135,13 +135,23 @@ def get_rates_and_settings(db: Session) -> dict:
     except Exception:
         pass
 
-    # 3. Fetch Labour Rates
+    # 3. Fetch Labour Rates and Calculate Per-KG Rates
     try:
         labour_rates = get_labour_rates(db)
+        workday_hours = rates.get('working_hours_per_day', 8) # Default to 8 if not in settings
+
         for rate in labour_rates:
-            key = f"{rate.rate_name.lower().replace(' ', '_').replace('-', '_')}_per_hour"
-            rates[key] = float(rate.rate_per_hour)
-    except Exception:
+            # Add the hourly rate
+            key_hourly = f"{rate.rate_name.lower().replace('/', '_').replace(' ', '_').replace('-', '_')}_per_hour"
+            rates[key_hourly] = float(rate.rate_per_hour)
+
+            # If productivity is available, calculate and add the per-kg rate
+            if rate.productivity_kg_per_day and rate.productivity_kg_per_day > 0:
+                key_per_kg = f"{rate.rate_name.lower().replace('/', '_').replace(' ', '_').replace('-', '_')}_rate_per_kg"
+                rates[key_per_kg] = (float(rate.rate_per_hour) * workday_hours) / float(rate.productivity_kg_per_day)
+
+    except Exception as e:
+        print(f"Error processing labour rates: {e}")
         pass
 
     return rates

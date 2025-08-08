@@ -111,8 +111,8 @@ class CylinderSurfaceCalculator(BaseCalculator):
         
         # Feedstock & Cost
         feedstock_mass = real_mass * (1 + waste_factor)
-        material_cost = feedstock_mass * rates_settings['steel_s355jr_cost_per_kg']
-        labour_cost = real_mass * rates_settings['labour_per_kg']
+        material_cost = feedstock_mass * rates_settings['s355jr_cost_per_kg']
+        labour_cost = real_mass * rates_settings['actual/abf_rate_per_kg']
         total_cost_before_markup = material_cost + labour_cost
 
         return {
@@ -153,8 +153,8 @@ class ScdMassCalculator(BaseCalculator):
         ideal_mass = ((cylinder_area + end_plate_area) * thickness * steel_density) / 1e9
         real_mass = ideal_mass * (1 + stiffening_factor)
         feedstock_mass = real_mass * (1 + waste_factor)
-        material_cost = feedstock_mass * rates_settings['steel_s355jr_cost_per_kg']
-        labour_cost = real_mass * rates_settings['labour_per_kg']
+        material_cost = feedstock_mass * rates_settings['s355jr_cost_per_kg']
+        labour_cost = real_mass * rates_settings['actual/abf_rate_per_kg']
         total_cost_before_markup = material_cost + labour_cost
 
         return {
@@ -196,7 +196,7 @@ class RotorEmpiricalCalculator(BaseCalculator):
         cost_part4 = (blade_qty * mass_per_blade) * rates_settings['ali_blades_cost_per_kg'] # Assumes Ali is Rates!B18
         cost_part5 = 4226 * hub_scaling_factor
         material_cost = cost_part1 + cost_part2 + cost_part3 + cost_part4 + cost_part5
-        labour_cost = real_mass * rates_settings['labour_per_kg']
+        labour_cost = real_mass * rates_settings['actual/abf_rate_per_kg']
         total_cost_before_markup = material_cost + labour_cost
 
         # Rotor is empirical, so some values are not applicable or are implicitly included.
@@ -252,8 +252,8 @@ class ConeSurfaceCalculator(BaseCalculator):
         
         # Feedstock & Cost
         feedstock_mass = real_mass * (1 + waste_factor)
-        material_cost = feedstock_mass * rates_settings['steel_s355jr_cost_per_kg']
-        labour_cost = real_mass * rates_settings['labour_per_kg']
+        material_cost = feedstock_mass * rates_settings['s355jr_cost_per_kg']
+        labour_cost = real_mass * rates_settings['actual/abf_rate_per_kg']
         total_cost_before_markup = material_cost + labour_cost
 
         return {
