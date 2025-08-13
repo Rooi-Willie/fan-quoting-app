@@ -1,4 +1,5 @@
 import math
+import decimal
 from sqlalchemy.orm import Session
 from .. import crud, schemas, models
 
@@ -26,41 +27,41 @@ def _resolve_formulaic_parameters(hub_size: float, fan_size: float, params: dict
     # The 'start_diameter_mm' is a new key we add for clarity in cone calculations.
     # The 'diameter_mm' is the primary diameter used for cylindrical calculations.
     if params.get('diameter_formula_type') == 'HUB_DIAMETER_X_1_35':
-        params['diameter_mm'] = hub_size * 1.35
-        params['start_diameter_mm'] = hub_size # For cones, start is hub
-        params['end_diameter_mm'] = hub_size * 1.35
+        params['diameter_mm'] = fan_size * 1.35
+        params['start_diameter_mm'] = fan_size # For cones, start is hub
+        params['end_diameter_mm'] = fan_size * 1.35
     elif params.get('diameter_formula_type') == 'HUB_DIAMETER_X_1_25':
-        params['diameter_mm'] = hub_size * 1.25 # This is the larger diameter of the cone
-        params['start_diameter_mm'] = hub_size
-        params['end_diameter_mm'] = hub_size * 1.25
+        params['diameter_mm'] = fan_size * 1.25 # This is the larger diameter of the cone
+        params['start_diameter_mm'] = fan_size
+        params['end_diameter_mm'] = fan_size * 1.25
     elif params.get('diameter_formula_type') == 'CONICAL_60_DEG':
         # Excel: =2*(TAN((60/2)*PI()/180)*0.25*$B$2)+$B$2
         # This is the larger diameter of the inlet cone.
-        # radial_expansion = math.tan(math.radians(30)) * (0.25 * hub_size)
-        # params['end_diameter_mm'] = hub_size + 2 * radial_expansion
+        # radial_expansion = math.tan(math.radians(30)) * (0.25 * fan_size)
+        # params['end_diameter_mm'] = fan_size + 2 * radial_expansion
         # The Excel formula seems complex. Let's use a simpler interpretation from the other spreadsheets.
         # For the Ø762 fan, the conical inlet goes from 762 to 982. Let's model that relationship.
         # It's usually based on the length, which is also calculated.
         # This indicates a dependency we need to resolve first.
-        params['start_diameter_mm'] = hub_size
-        params['end_diameter_mm'] = hub_size * 1.288 # Approximated ratio from Ø762 data (982/762)
+        params['start_diameter_mm'] = fan_size
+        params['end_diameter_mm'] = fan_size * 1.288 # Approximated ratio from Ø762 data (982/762)
         params['diameter_mm'] = (params['start_diameter_mm'] + params['end_diameter_mm']) / 2
     elif params.get('diameter_formula_type') == 'HUB_PLUS_CONSTANT': # For Silencers
         params['diameter_mm'] = fan_size + 75 * 2 # Silencer OD is fan size + 75mm wall * 2
     else: # Default is HUB_DIAMETER
-        params['diameter_mm'] = hub_size
-        params['start_diameter_mm'] = hub_size
-        params['end_diameter_mm'] = hub_size
+        params['diameter_mm'] = fan_size
+        params['start_diameter_mm'] = fan_size
+        params['end_diameter_mm'] = fan_size
 
     # --- Resolve Length (if it's a formula) ---
     # Note: 'length_mm' can be NULL from the db if it's formulaic
     if params.get('length_mm') is None:
         if params.get('length_formula_type') == 'CONICAL_15_DEG':
             # Excel: =(0.16*$B$2/2)/(TAN(15*PI()/180))
-            params['length_mm'] = (0.08 * hub_size) / math.tan(math.radians(15))
+            params['length_mm'] = (0.08 * fan_size) / math.tan(math.radians(15))
         elif params.get('length_formula_type') == 'CONICAL_3_5_DEG':
             # Excel: =(0.25*$B$2/2)/(TAN(3.5*PI()/180))
-            params['length_mm'] = (0.125 * hub_size) / math.tan(math.radians(3.5))
+            params['length_mm'] = (0.125 * fan_size) / math.tan(math.radians(3.5))
         elif params.get('length_formula_type') == 'LENGTH_D_X_MULTIPLIER':
             # The length is the Fan Size (not hub) times a multiplier
             params['length_mm'] = fan_size * params['length_multiplier']
@@ -69,8 +70,8 @@ def _resolve_formulaic_parameters(hub_size: float, fan_size: float, params: dict
     if params.get('stiffening_factor') is None:
         if params.get('stiffening_formula_type') == 'LINEAR_HUB_SCALING_A':
             # Excel: =(0.115*$B$2-124)/100
-            params['stiffening_factor'] = (0.115 * hub_size - 124) / 100
-    
+            params['stiffening_factor'] = round((0.115 * fan_size - 124) / 100, 2)
+
     return params
 
 # ==============================================================================
@@ -112,7 +113,7 @@ class CylinderSurfaceCalculator(BaseCalculator):
         # Feedstock & Cost
         feedstock_mass = real_mass * (1 + waste_factor)
         material_cost = feedstock_mass * rates_settings['s355jr_cost_per_kg']
-        labour_cost = real_mass * rates_settings['actual/abf_rate_per_kg']
+        labour_cost = real_mass * rates_settings['actual_abf_rate_per_kg']
         total_cost_before_markup = material_cost + labour_cost
 
         return {
@@ -154,7 +155,7 @@ class ScdMassCalculator(BaseCalculator):
         real_mass = ideal_mass * (1 + stiffening_factor)
         feedstock_mass = real_mass * (1 + waste_factor)
         material_cost = feedstock_mass * rates_settings['s355jr_cost_per_kg']
-        labour_cost = real_mass * rates_settings['actual/abf_rate_per_kg']
+        labour_cost = real_mass * rates_settings['actual_abf_rate_per_kg']
         total_cost_before_markup = material_cost + labour_cost
 
         return {
@@ -196,7 +197,7 @@ class RotorEmpiricalCalculator(BaseCalculator):
         cost_part4 = (blade_qty * mass_per_blade) * rates_settings['steel_blade_cost_per_kg'] # Steel Blade
         cost_part5 = 4226 * hub_scaling_factor
         material_cost = cost_part1 + cost_part2 + cost_part3 + cost_part4 + cost_part5
-        labour_cost = real_mass * rates_settings['actual/abf_rate_per_kg']
+        labour_cost = real_mass * rates_settings['actual_abf_rate_per_kg']
         total_cost_before_markup = material_cost + labour_cost
 
         # Rotor is empirical, so some values are not applicable or are implicitly included.
@@ -253,7 +254,7 @@ class ConeSurfaceCalculator(BaseCalculator):
         # Feedstock & Cost
         feedstock_mass = real_mass * (1 + waste_factor)
         material_cost = feedstock_mass * rates_settings['s355jr_cost_per_kg']
-        labour_cost = real_mass * rates_settings['actual/abf_rate_per_kg']
+        labour_cost = real_mass * rates_settings['actual_abf_rate_per_kg']
         total_cost_before_markup = material_cost + labour_cost
 
         return {
@@ -315,6 +316,10 @@ def calculate_single_component_details(db: Session, request: schemas.ComponentCa
     markup = rates_and_settings.get('default_markup', 1.0)
 
     # 2. Resolve formulaic parameters
+    for key, value in params_for_comp.items():
+        if isinstance(value, decimal.Decimal):
+            params_for_comp[key] = float(value)
+            
     resolved_params = _resolve_formulaic_parameters(
         hub_size=fan_config.hub_size_mm,
         fan_size=fan_config.fan_size_mm,
