@@ -32,3 +32,16 @@ def calculate_quote(request: schemas.QuoteRequest, db: Session = Depends(get_db)
     except Exception as e:
         # Catch any other unexpected errors during calculation.
         raise HTTPException(status_code=500, detail=f"An internal error occurred during quote calculation: {e}")
+    
+@router.post("/components/calculate-details", response_model=schemas.CalculatedComponent)
+def calculate_component_details(request: schemas.ComponentCalculationRequest, db: Session = Depends(get_db)):
+    """
+    Calculates the detailed breakdown for a single component in real-time.
+    """
+    try:
+        calculated_component = calculation_engine.calculate_single_component_details(db=db, request=request)
+        return calculated_component
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An internal error occurred during component calculation: {e}")

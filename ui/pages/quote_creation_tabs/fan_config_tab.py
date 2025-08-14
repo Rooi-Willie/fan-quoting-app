@@ -76,24 +76,23 @@ def get_available_components(fan_config_id: int) -> Optional[List[Dict]]:
         return None
 
 @st.cache_data
-def get_component_calculations(request_payload_tuple: tuple) -> Optional[Dict]:
+def get_component_details(request_payload_tuple: tuple) -> Optional[Dict]:
     """
-    Posts the quote request to the calculation endpoint and returns the detailed results.
+    Posts a request to the single-component calculation endpoint.
     The request body dictionary is passed as a tuple to make it hashable for caching.
     """
     if not request_payload_tuple:
         return None
 
-    # Convert the tuple back to a dictionary for the JSON payload
     request_payload = dict(request_payload_tuple)
 
     try:
-        response = requests.post(f"{API_BASE_URL}/quotes/calculate", json=request_payload)
+        # Note the new endpoint URL
+        response = requests.post(f"{API_BASE_URL}/quotes/components/calculate-details", json=request_payload)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        st.error(f"API Error: Could not calculate quote. {e}")
-        # Display detailed validation errors from the API if available
+        st.error(f"API Error: Could not calculate component details for {request_payload.get('component_id')}. {e}")
         try:
             st.json(response.json())
         except:
