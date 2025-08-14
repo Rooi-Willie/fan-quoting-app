@@ -1,5 +1,6 @@
 import pytest
 import json
+import glob
 from pathlib import Path
 from sqlalchemy.orm import Session
 from app import crud, schemas
@@ -8,9 +9,14 @@ from app.logic.calculation_engine import calculate_single_component_details
 # Get the directory of the current test file
 TEST_DIR = Path(__file__).parent
 
-# Load the test data from the JSON file
-with open(TEST_DIR / "test_data/1016_fan_component_cases.json") as f:
-    test_cases = json.load(f)
+# Find all JSON files in the test_data directory
+json_files = glob.glob(str(TEST_DIR / "test_data/*.json"))
+
+# Load all test cases from all JSON files
+test_cases = []
+for file in json_files:
+    with open(file) as f:
+        test_cases.extend(json.load(f))
 
 @pytest.mark.parametrize("test_case", test_cases)
 def test_calculate_single_component_details(db_session: Session, test_case):

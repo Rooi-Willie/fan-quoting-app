@@ -1,0 +1,235 @@
+[
+  {
+    "test_name": "Test Screen Inlet Outside for Ø762 Fan",
+    "request_payload": {
+      "fan_configuration_id": 1,
+      "component_id": 1,
+      "overrides": {}
+    },
+    "expected_response": {
+      "name": "Screen Inlet Outside",
+      "calculated_values": {
+        "overall_diameter_mm": 1028.7,
+        "total_length_mm": 160.0,
+        "thickness_mm": 6.0,
+        "stiffening_factor": -0.36,
+        "ideal_mass_kg": 18.0,
+        "real_mass_kg": 11.5,
+        "fabrication_waste_factor": 0.25,
+        "feedstock_mass_kg": 14.3,
+        "material_cost": 358.72,
+        "labour_cost": 469.32,
+        "total_cost_before_markup": 828.04
+      }
+    }
+  },
+  {
+    "test_name": "Test Screen Inlet Inside for Ø762 Fan",
+    "request_payload": {
+      "fan_configuration_id": 1,
+      "component_id": 2,
+      "overrides": {}
+    },
+    "expected_response": {
+      "name": "Screen Inlet Inside",
+      "calculated_values": {
+        "overall_diameter_mm": 762.0,
+        "total_length_mm": 50.0,
+        "thickness_mm": 6.0,
+        "stiffening_factor": 0.69,
+        "ideal_mass_kg": 5.6,
+        "real_mass_kg": 9.5,
+        "fabrication_waste_factor": 0.25,
+        "feedstock_mass_kg": 11.9,
+        "material_cost": 297.74,
+        "labour_cost": 389.53,
+        "total_cost_before_markup": 687.27
+      }
+    }
+  },
+  {
+    "test_name": "Test Conical Inlet for Ø762 Fan",
+    "request_payload": {
+      "fan_configuration_id": 1,
+      "component_id": 3,
+      "overrides": {}
+    },
+    "expected_response": {
+      "name": "Conical Inlet",
+      "calculated_values": {
+        "overall_diameter_mm": 982.0,
+        "total_length_mm": 228.0,
+        "thickness_mm": 6.0,
+        "stiffening_factor": 0.70,
+        "ideal_mass_kg": 27.7,
+        "real_mass_kg": 47.1,
+        "fabrication_waste_factor": 0.25,
+        "feedstock_mass_kg": 58.9,
+        "material_cost": 1471.77,
+        "labour_cost": 1925.54,
+        "total_cost_before_markup": 3397.31
+      }
+    }
+  },
+  {
+    "test_name": "Test Silencer 1D Inlet for Ø762 Fan",
+    "request_payload": {
+      "fan_configuration_id": 1,
+      "component_id": 4,
+      "overrides": {}
+    },
+    "expected_response": {
+      "name": "Silencer 1D Inlet",
+      "calculated_values": {
+        "overall_diameter_mm": 912.0,
+        "total_length_mm": 762.0,
+        "thickness_mm": 6.0,
+        "stiffening_factor": 0.20,
+        "ideal_mass_kg": 85.9,
+        "real_mass_kg": 103.1,
+        "fabrication_waste_factor": 0.25,
+        "feedstock_mass_kg": 128.9,
+        "material_cost": 6978.82,
+        "labour_cost": 4215.25,
+        "total_cost_before_markup": 11194.07
+      }
+    }
+  },
+  {
+    "test_name": "Test Inlet-Track for Ø762 Fan",
+    "request_payload": {
+      "fan_configuration_id": 1,
+      "component_id": 7,
+      "overrides": {}
+    },
+    "expected_response": {
+      "name": "Inlet-Track",
+      "calculated_values": {
+        "overall_diameter_mm": 762.0,
+        "total_length_mm": 350.0,
+        "thickness_mm": 8.0,
+        "stiffening_factor": 0.41,
+        "ideal_mass_kg": 52.6,
+        "real_mass_kg": 74.2,
+        "fabrication_waste_factor": 0.25,
+        "feedstock_mass_kg": 92.7,
+        "material_cost": 2318.47,
+        "labour_cost": 3033.29,
+        "total_cost_before_markup": 5351.76
+      }
+    }
+  },
+  {
+    "test_name": "Test Rotor for Ø762 Fan",
+    "request_payload": {
+      "fan_configuration_id": 1,
+      "component_id": 8,
+      "overrides": {}
+    },
+    "expected_response": {
+      "name": "Rotor",
+      "calculated_values": {
+        "real_mass_kg": 70.0,
+        "material_cost": 15094.40,
+        "labour_cost": 2860.56,
+        "total_cost_before_markup": 17954.96
+      }
+    }
+  },
+  {
+    "test_name": "Test Motor Barrel for Ø762 Fan",
+    "request_payload": {
+      "fan_configuration_id": 1,
+      "component_id": 9,
+      "overrides": {}
+    },
+    "expected_response": {
+      "name": "Motor Barrel",
+      "calculated_values": {
+        "overall_diameter_mm": 762.0,
+        "total_length_mm": 1300.0,
+        "thickness_mm": 8.0,
+        "stiffening_factor": 0.69,
+        "ideal_mass_kg": 195.4,
+        "real_mass_kg": 330.3,
+        "fabrication_waste_factor": 0.25,
+        "feedstock_mass_kg": 412.9,
+        "material_cost": 10321.54,
+        "labour_cost": 13503.81,
+        "total_cost_before_markup": 23825.35
+      }
+    }
+  },
+  {
+    "test_name": "Test Silencer 1D Outlet for Ø762 Fan",
+    "request_payload": {
+      "fan_configuration_id": 1,
+      "component_id": 10,
+      "overrides": {}
+    },
+    "expected_response": {
+      "name": "Silencer 1D Outlet",
+      "calculated_values": {
+        "overall_diameter_mm": 912.0,
+        "total_length_mm": 762.0,
+        "thickness_mm": 6.0,
+        "stiffening_factor": 0.20,
+        "ideal_mass_kg": 85.9,
+        "real_mass_kg": 103.1,
+        "fabrication_waste_factor": 0.25,
+        "feedstock_mass_kg": 128.9,
+        "material_cost": 6978.82,
+        "labour_cost": 4215.25,
+        "total_cost_before_markup": 11194.07
+      }
+    }
+  },
+  {
+    "test_name": "Test SCD for Ø762 Fan",
+    "request_payload": {
+      "fan_configuration_id": 1,
+      "component_id": 13,
+      "overrides": {}
+    },
+    "expected_response": {
+      "name": "SCD - Self Closing Door",
+      "calculated_values": {
+        "overall_diameter_mm": 762.0,
+        "total_length_mm": 580.0,
+        "thickness_mm": 6.0,
+        "stiffening_factor": 0.48,
+        "ideal_mass_kg": 86.9,
+        "real_mass_kg": 128.6,
+        "fabrication_waste_factor": 1.15,
+        "feedstock_mass_kg": 276.4,
+        "material_cost": 6910.96,
+        "labour_cost": 5256.81,
+        "total_cost_before_markup": 12167.77
+      }
+    }
+  },
+  {
+    "test_name": "Test Diffuser for Ø762 Fan",
+    "request_payload": {
+      "fan_configuration_id": 1,
+      "component_id": 14,
+      "overrides": {}
+    },
+    "expected_response": {
+      "name": "Diffuser",
+      "calculated_values": {
+        "overall_diameter_mm": 952.5,
+        "total_length_mm": 1557.3,
+        "thickness_mm": 6.0,
+        "stiffening_factor": 0.205,
+        "ideal_mass_kg": 197.5,
+        "real_mass_kg": 238.0,
+        "fabrication_waste_factor": 0.25,
+        "feedstock_mass_kg": 297.5,
+        "material_cost": 7438.65,
+        "labour_cost": 9732.09,
+        "total_cost_before_markup": 17170.74
+      }
+    }
+  }
+]
