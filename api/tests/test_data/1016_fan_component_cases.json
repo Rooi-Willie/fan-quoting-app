@@ -157,13 +157,13 @@
         "total_length_mm": 940.0,
         "material_thickness_mm": 8.0,
         "stiffening_factor": 1.50,
-        "ideal_mass_kg": 141.3,
-        "real_mass_kg": 353.3,
+        "ideal_mass_kg": 188.4,
+        "real_mass_kg": 471.1,
         "fabrication_waste_percentage": 25.0,
-        "feedstock_mass_kg": 441.6,
-        "material_cost": 11040.34,
-        "labour_cost": 14444.22,
-        "total_cost_before_markup": 25484.56
+        "feedstock_mass_kg": 588.8,
+        "material_cost": 14720.45,
+        "labour_cost": 19258.97,
+        "total_cost_before_markup": 33979.42
       }
     }
   },
@@ -231,7 +231,7 @@
         "overall_diameter_mm": 1270.0,
         "total_length_mm": 2076.4,
         "material_thickness_mm": 6.0,
-        "stiffening_factor": 0.21,
+        "stiffening_factor": 0.205,
         "ideal_mass_kg": 351.2,
         "real_mass_kg": 423.2,
         "fabrication_waste_percentage": 25.0,

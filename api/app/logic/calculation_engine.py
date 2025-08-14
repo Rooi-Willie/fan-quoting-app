@@ -102,6 +102,8 @@ class CylinderSurfaceCalculator(BaseCalculator):
 
         print("--- CylinderSurfaceCalculator Inputs ---")
         print(f"steel_density: {steel_density}")
+        print(f"default_thickness_mm: {component_params['default_thickness_mm']}")
+        print(f"thickness_mm_override: {request_params['overrides'].get('thickness_mm_override')}")
         print(f"thickness: {thickness}")
         print(f"waste_factor: {waste_factor}")
         print(f"length: {length}")
@@ -171,7 +173,18 @@ class ScdMassCalculator(BaseCalculator):
         stiffening_factor = component_params['stiffening_factor']
         
         # --- 2. Perform Calculations (from Excel) ---
-        diameter = hub_size
+        diameter = request_params['fan_size_mm']
+
+        print("--- SCDMASSCALCULATOR Inputs ---")
+        print(f"steel_density: {steel_density}")
+        print(f"default_thickness_mm: {component_params['default_thickness_mm']}")
+        print(f"thickness_mm_override: {request_params['overrides'].get('thickness_mm_override')}")
+        print(f"thickness: {thickness}")
+        print(f"waste_factor: {waste_factor}")
+        print(f"length: {length}")
+        print(f"stiffening_factor: {stiffening_factor}")
+        print(f"diameter: {diameter}")
+        print("----------------------------------------")
         
         # Ideal Mass: Excel: =(PI()*$B$2*J11*J10 + ((PI()/4)*$B$2^2)*$J$11) * $B$4/10^9
         # This is the surface area of the cylinder PLUS the area of one end plate, all times thickness.
@@ -183,6 +196,17 @@ class ScdMassCalculator(BaseCalculator):
         material_cost = feedstock_mass * rates_settings['s355jr_cost_per_kg']
         labour_cost = real_mass * rates_settings['actual_abf_rate_per_kg']
         total_cost_before_markup = material_cost + labour_cost
+
+        print("--- SCDMassCalculator Calc Outputs ---")
+        print(f"cylinder_area: {cylinder_area}")
+        print(f"end_plate_area: {end_plate_area}")
+        print(f"ideal_mass: {ideal_mass}")
+        print(f"real_mass: {real_mass}")
+        print(f"feedstock_mass: {feedstock_mass}")
+        print(f"material_cost: {material_cost}")
+        print(f"labour_cost: {labour_cost}")
+        print(f"total_cost_before_markup: {total_cost_before_markup}")
+        print("----------------------------------------")
 
         return {
             "name": component_params['name'],
@@ -217,10 +241,10 @@ class RotorEmpiricalCalculator(BaseCalculator):
         
         # Cost: =(19.5)*($B$2/665)^2*Rates!B16*2+4*Rates!B14+Rates!B20+$B$4*$C$4*Rates!$B$18+(4226)*($B$2/665)^2
         # This requires specific material rates. We'll need a good way to fetch these by name.
-        cost_part1 = (19.5 * hub_scaling_factor * 2) * rates_settings['strenx_700_laser_cost_per_kg']  # Strenx700 Laser
+        cost_part1 = (19.5 * hub_scaling_factor * 2) * rates_settings['strenx700_laser_cost_per_kg']  # Strenx700 Laser
         cost_part2 = 4 * rates_settings['en8_machine_cost_per_kg']  # EN8 Machine
-        cost_part3 = rates_settings['taperlock_bush_cost_per_item'] # Taperlock Bush
-        cost_part4 = (blade_qty * mass_per_blade) * rates_settings['steel_blade_cost_per_kg'] # Steel Blade
+        cost_part3 = rates_settings['taperlock_bush_40x40x80_cost_per_item'] # Taperlock Bush
+        cost_part4 = (blade_qty * mass_per_blade) * rates_settings['steel_blades_set_cost_per_kg'] # Steel Blade
         cost_part5 = 4226 * hub_scaling_factor
         material_cost = cost_part1 + cost_part2 + cost_part3 + cost_part4 + cost_part5
         labour_cost = real_mass * rates_settings['actual_abf_rate_per_kg']
@@ -281,9 +305,13 @@ class ConeSurfaceCalculator(BaseCalculator):
         
         # Ideal Mass: Based on the "average diameter" method
         # Excel: =((($B$2+(1+0.16)*$B$2)/2)*PI())*D11*$B$4*D10/10^9
-        average_diameter = (start_diameter + end_diameter) / 2
-        ideal_mass = (math.pi * average_diameter * length * thickness * steel_density) / 1e9
-        
+        # average_diameter = (start_diameter + end_diameter) / 2
+        # ideal_mass = (math.pi * average_diameter * length * thickness * steel_density) / 1e9
+        if "conical" in component_params['name'].lower():
+            ideal_mass = (math.pi * ((start_diameter + 1.16*start_diameter) / 2) * length * thickness * steel_density) / 1e9
+        elif "diffuser" in component_params['name'].lower():
+            ideal_mass = (math.pi * ((start_diameter + 1.25*start_diameter) / 2) * length * thickness * steel_density) / 1e9
+
         # Real Mass: Excel: = IdealMass * (1 + StiffeningFactor)
         real_mass = ideal_mass * (1 + stiffening_factor)
         
