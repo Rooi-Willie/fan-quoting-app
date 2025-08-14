@@ -98,7 +98,16 @@ class CylinderSurfaceCalculator(BaseCalculator):
         # Get fixed or formula-driven values
         length = component_params['length_mm']
         stiffening_factor = component_params['stiffening_factor']
-        diameter = component_params['diameter_mm']
+        diameter = request_params['fan_size_mm']
+
+        print("--- CylinderSurfaceCalculator Inputs ---")
+        print(f"steel_density: {steel_density}")
+        print(f"thickness: {thickness}")
+        print(f"waste_factor: {waste_factor}")
+        print(f"length: {length}")
+        print(f"stiffening_factor: {stiffening_factor}")
+        print(f"diameter: {diameter}")
+        print("----------------------------------------")
         
         # --- 2. Perform Calculations (from Excel) ---
         # Diameter: (e.g., for Screen Inlet Inside) Excel: = $B$2
@@ -113,14 +122,31 @@ class CylinderSurfaceCalculator(BaseCalculator):
         # Feedstock & Cost
         feedstock_mass = real_mass * (1 + waste_factor)
         material_cost = feedstock_mass * rates_settings['s355jr_cost_per_kg']
+
+        # Add rockwool cost for silencers
+        if "silencer" in component_params['name'].lower():
+            fan_size = request_params['fan_size_mm']
+            rockwool_volume_litres = (math.pi / 4) * ((fan_size + 150)**2 - fan_size**2) * length / 1e6
+            rockwool_cost = rockwool_volume_litres * rates_settings['rockwool_cost_per_l']
+            material_cost += rockwool_cost
+
         labour_cost = real_mass * rates_settings['actual_abf_rate_per_kg']
         total_cost_before_markup = material_cost + labour_cost
+
+        print("--- CylinderSurfaceCalculator Calc Outputs ---")
+        print(f"ideal_mass: {ideal_mass}")
+        print(f"real_mass: {real_mass}")
+        print(f"feedstock_mass: {feedstock_mass}")
+        print(f"material_cost: {material_cost}")
+        print(f"labour_cost: {labour_cost}")
+        print(f"total_cost_before_markup: {total_cost_before_markup}")
+        print("----------------------------------------")
 
         return {
             "name": component_params['name'],
             "material_thickness_mm": thickness,
             "fabrication_waste_percentage": waste_factor * 100,
-            "overall_diameter_mm": diameter,
+            "overall_diameter_mm": component_params['diameter_mm'],
             "total_length_mm": length,
             "ideal_mass_kg": ideal_mass,
             "real_mass_kg": real_mass,
@@ -241,6 +267,16 @@ class ConeSurfaceCalculator(BaseCalculator):
         length = component_params['length_mm']
         stiffening_factor = component_params['stiffening_factor']
         
+        print("--- ConeSurfaceCalculator Inputs ---")
+        print(f"steel_density: {steel_density}")
+        print(f"thickness: {thickness}")
+        print(f"waste_factor: {waste_factor}")
+        print(f"start_diameter: {start_diameter}")
+        print(f"end_diameter: {end_diameter}")
+        print(f"length: {length}")
+        print(f"stiffening_factor: {stiffening_factor}")
+        print("----------------------------------------")
+
         # --- 2. Perform Calculations (from Excel) ---
         
         # Ideal Mass: Based on the "average diameter" method
@@ -256,6 +292,16 @@ class ConeSurfaceCalculator(BaseCalculator):
         material_cost = feedstock_mass * rates_settings['s355jr_cost_per_kg']
         labour_cost = real_mass * rates_settings['actual_abf_rate_per_kg']
         total_cost_before_markup = material_cost + labour_cost
+
+        print(f"--- ConeSurfaceCalculator Calc Outputs ---")
+        print(f"ideal_mass: {ideal_mass}")
+        print(f"real_mass: {real_mass}")
+        print(f"feedstock_mass: {feedstock_mass}")
+        print(f"material_cost: {material_cost}")
+        print(f"labour_cost: {labour_cost}")
+        print(f"total_cost_before_markup: {total_cost_before_markup}")
+        print(f"stiffening_factor: {stiffening_factor}")
+        print("----------------------------------------")
 
         return {
             "name": component_params['name'],
