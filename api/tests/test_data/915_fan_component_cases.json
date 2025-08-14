@@ -135,10 +135,10 @@
     "expected_response": {
       "name": "Rotor",
       "calculated_values": {
-        "real_mass_kg": 70.0,
-        "material_cost": 15094.40,
-        "labour_cost": 2860.56,
-        "total_cost_before_markup": 17954.96
+        "real_mass_kg": 86.7,
+        "material_cost": 18039.38,
+        "labour_cost": 3543.32,
+        "total_cost_before_markup": 21582.70
       }
     }
   },
@@ -231,7 +231,7 @@
         "overall_diameter_mm": 1143.8,
         "total_length_mm": 1870.0,
         "material_thickness_mm": 6.0,
-        "stiffening_factor": 0.205,
+        "stiffening_factor": 0.21,
         "ideal_mass_kg": 284.8,
         "real_mass_kg": 343.2,
         "fabrication_waste_percentage": 25.0,

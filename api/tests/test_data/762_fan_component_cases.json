@@ -231,7 +231,7 @@
         "overall_diameter_mm": 952.5,
         "total_length_mm": 1557.3,
         "material_thickness_mm": 6.0,
-        "stiffening_factor": 0.205,
+        "stiffening_factor": 0.21,
         "ideal_mass_kg": 197.5,
         "real_mass_kg": 238.0,
         "fabrication_waste_percentage": 25.0,

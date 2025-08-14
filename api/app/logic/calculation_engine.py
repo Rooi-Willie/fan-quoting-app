@@ -237,14 +237,33 @@ class RotorEmpiricalCalculator(BaseCalculator):
         # --- 2. Perform Calculations (from Excel) ---
         # Real Mass: =(19.5)*($B$2/665)^2*2+8.6+2+$B$4*$C$4+5*($B$2/665)^2
         hub_scaling_factor = (hub_size / 665) ** 2
-        real_mass = (19.5 * hub_scaling_factor * 2) + 8.6 + 2 + (blade_qty * mass_per_blade) + (5 * hub_scaling_factor)
+        if request_params['fan_size_mm'] == 1200:
+            real_mass = (19.5 * hub_scaling_factor * 2) + 27.72 + 2 + (blade_qty * mass_per_blade) + (5 * hub_scaling_factor)
+        else:
+            real_mass = (19.5 * hub_scaling_factor * 2) + 8.6 + 2 + (blade_qty * mass_per_blade) + (5 * hub_scaling_factor)
         
+        print(f"--- RotorEmpiricalCalculator Inputs ---")
+        print(f"hub_size: {hub_size}")
+        print(f"blade_qty: {blade_qty}")
+        print(f"mass_per_blade: {mass_per_blade}")
+        print(f"hub_scaling_factor: {hub_scaling_factor}")
+        print(f"real_mass: {real_mass}")
+        print(f"----------------------------------------")
+
         # Cost: =(19.5)*($B$2/665)^2*Rates!B16*2+4*Rates!B14+Rates!B20+$B$4*$C$4*Rates!$B$18+(4226)*($B$2/665)^2
         # This requires specific material rates. We'll need a good way to fetch these by name.
         cost_part1 = (19.5 * hub_scaling_factor * 2) * rates_settings['strenx700_laser_cost_per_kg']  # Strenx700 Laser
-        cost_part2 = 4 * rates_settings['en8_machine_cost_per_kg']  # EN8 Machine
+        if request_params['fan_size_mm'] in [762, 915]:
+            cost_part2 = 2 * rates_settings['en8_machine_cost_per_kg']  # EN8 Machine
+        elif request_params['fan_size_mm'] == 1016:
+            cost_part2 = 4 * rates_settings['en8_machine_cost_per_kg']  # EN8 Machine
+        elif request_params['fan_size_mm'] == 1200:
+            cost_part2 = 8 * rates_settings['en8_machine_cost_per_kg']  # EN8 Machine
         cost_part3 = rates_settings['taperlock_bush_40x40x80_cost_per_item'] # Taperlock Bush
-        cost_part4 = (blade_qty * mass_per_blade) * rates_settings['steel_blades_set_cost_per_kg'] # Steel Blade
+        if request_params['fan_size_mm'] == 1200:
+            cost_part4 = (blade_qty * mass_per_blade) * rates_settings['aluminium_blades_set_(orange)_cost_per_kg'] # Aluminium Blade
+        else:
+            cost_part4 = (blade_qty * mass_per_blade) * rates_settings['steel_blades_set_cost_per_kg'] # Steel Blade
         cost_part5 = 4226 * hub_scaling_factor
         material_cost = cost_part1 + cost_part2 + cost_part3 + cost_part4 + cost_part5
         labour_cost = real_mass * rates_settings['actual_abf_rate_per_kg']
