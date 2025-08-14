@@ -4,6 +4,7 @@
     "request_payload": {
       "fan_configuration_id": 1,
       "component_id": 1,
+      "blade_quantity": 12,
       "overrides": {}
     },
     "expected_response": {
@@ -11,11 +12,11 @@
       "calculated_values": {
         "overall_diameter_mm": 1028.7,
         "total_length_mm": 160.0,
-        "thickness_mm": 6.0,
+        "material_thickness_mm": 6.0,
         "stiffening_factor": -0.36,
         "ideal_mass_kg": 18.0,
         "real_mass_kg": 11.5,
-        "fabrication_waste_factor": 0.25,
+        "fabrication_waste_percentage": 25.0,
         "feedstock_mass_kg": 14.3,
         "material_cost": 358.72,
         "labour_cost": 469.32,
@@ -28,6 +29,7 @@
     "request_payload": {
       "fan_configuration_id": 1,
       "component_id": 2,
+      "blade_quantity": 12,
       "overrides": {}
     },
     "expected_response": {
@@ -35,11 +37,11 @@
       "calculated_values": {
         "overall_diameter_mm": 762.0,
         "total_length_mm": 50.0,
-        "thickness_mm": 6.0,
+        "material_thickness_mm": 6.0,
         "stiffening_factor": 0.69,
         "ideal_mass_kg": 5.6,
         "real_mass_kg": 9.5,
-        "fabrication_waste_factor": 0.25,
+        "fabrication_waste_percentage": 25.0,
         "feedstock_mass_kg": 11.9,
         "material_cost": 297.74,
         "labour_cost": 389.53,
@@ -52,6 +54,7 @@
     "request_payload": {
       "fan_configuration_id": 1,
       "component_id": 3,
+      "blade_quantity": 12,
       "overrides": {}
     },
     "expected_response": {
@@ -59,11 +62,11 @@
       "calculated_values": {
         "overall_diameter_mm": 982.0,
         "total_length_mm": 228.0,
-        "thickness_mm": 6.0,
+        "material_thickness_mm": 6.0,
         "stiffening_factor": 0.70,
         "ideal_mass_kg": 27.7,
         "real_mass_kg": 47.1,
-        "fabrication_waste_factor": 0.25,
+        "fabrication_waste_percentage": 25.0,
         "feedstock_mass_kg": 58.9,
         "material_cost": 1471.77,
         "labour_cost": 1925.54,
@@ -76,6 +79,7 @@
     "request_payload": {
       "fan_configuration_id": 1,
       "component_id": 4,
+      "blade_quantity": 12,
       "overrides": {}
     },
     "expected_response": {
@@ -83,11 +87,11 @@
       "calculated_values": {
         "overall_diameter_mm": 912.0,
         "total_length_mm": 762.0,
-        "thickness_mm": 6.0,
+        "material_thickness_mm": 6.0,
         "stiffening_factor": 0.20,
         "ideal_mass_kg": 85.9,
         "real_mass_kg": 103.1,
-        "fabrication_waste_factor": 0.25,
+        "fabrication_waste_percentage": 25.0,
         "feedstock_mass_kg": 128.9,
         "material_cost": 6978.82,
         "labour_cost": 4215.25,
@@ -100,6 +104,7 @@
     "request_payload": {
       "fan_configuration_id": 1,
       "component_id": 7,
+      "blade_quantity": 12,
       "overrides": {}
     },
     "expected_response": {
@@ -107,11 +112,11 @@
       "calculated_values": {
         "overall_diameter_mm": 762.0,
         "total_length_mm": 350.0,
-        "thickness_mm": 8.0,
+        "material_thickness_mm": 8.0,
         "stiffening_factor": 0.41,
         "ideal_mass_kg": 52.6,
         "real_mass_kg": 74.2,
-        "fabrication_waste_factor": 0.25,
+        "fabrication_waste_percentage": 25.0,
         "feedstock_mass_kg": 92.7,
         "material_cost": 2318.47,
         "labour_cost": 3033.29,
@@ -124,6 +129,7 @@
     "request_payload": {
       "fan_configuration_id": 1,
       "component_id": 8,
+      "blade_quantity": 12,
       "overrides": {}
     },
     "expected_response": {
@@ -141,6 +147,7 @@
     "request_payload": {
       "fan_configuration_id": 1,
       "component_id": 9,
+      "blade_quantity": 12,
       "overrides": {}
     },
     "expected_response": {
@@ -148,11 +155,11 @@
       "calculated_values": {
         "overall_diameter_mm": 762.0,
         "total_length_mm": 1300.0,
-        "thickness_mm": 8.0,
+        "material_thickness_mm": 8.0,
         "stiffening_factor": 0.69,
         "ideal_mass_kg": 195.4,
         "real_mass_kg": 330.3,
-        "fabrication_waste_factor": 0.25,
+        "fabrication_waste_percentage": 25.0,
         "feedstock_mass_kg": 412.9,
         "material_cost": 10321.54,
         "labour_cost": 13503.81,
@@ -165,6 +172,7 @@
     "request_payload": {
       "fan_configuration_id": 1,
       "component_id": 10,
+      "blade_quantity": 12,
       "overrides": {}
     },
     "expected_response": {
@@ -172,11 +180,11 @@
       "calculated_values": {
         "overall_diameter_mm": 912.0,
         "total_length_mm": 762.0,
-        "thickness_mm": 6.0,
+        "material_thickness_mm": 6.0,
         "stiffening_factor": 0.20,
         "ideal_mass_kg": 85.9,
         "real_mass_kg": 103.1,
-        "fabrication_waste_factor": 0.25,
+        "fabrication_waste_percentage": 25.0,
         "feedstock_mass_kg": 128.9,
         "material_cost": 6978.82,
         "labour_cost": 4215.25,
@@ -189,6 +197,7 @@
     "request_payload": {
       "fan_configuration_id": 1,
       "component_id": 13,
+      "blade_quantity": 12,
       "overrides": {}
     },
     "expected_response": {
@@ -196,11 +205,11 @@
       "calculated_values": {
         "overall_diameter_mm": 762.0,
         "total_length_mm": 580.0,
-        "thickness_mm": 6.0,
+        "material_thickness_mm": 6.0,
         "stiffening_factor": 0.48,
         "ideal_mass_kg": 86.9,
         "real_mass_kg": 128.6,
-        "fabrication_waste_factor": 1.15,
+        "fabrication_waste_percentage": 115.0,
         "feedstock_mass_kg": 276.4,
         "material_cost": 6910.96,
         "labour_cost": 5256.81,
@@ -213,6 +222,7 @@
     "request_payload": {
       "fan_configuration_id": 1,
       "component_id": 14,
+      "blade_quantity": 12,
       "overrides": {}
     },
     "expected_response": {
@@ -220,11 +230,11 @@
       "calculated_values": {
         "overall_diameter_mm": 952.5,
         "total_length_mm": 1557.3,
-        "thickness_mm": 6.0,
+        "material_thickness_mm": 6.0,
         "stiffening_factor": 0.205,
         "ideal_mass_kg": 197.5,
         "real_mass_kg": 238.0,
-        "fabrication_waste_factor": 0.25,
+        "fabrication_waste_percentage": 25.0,
         "feedstock_mass_kg": 297.5,
         "material_cost": 7438.65,
         "labour_cost": 9732.09,
