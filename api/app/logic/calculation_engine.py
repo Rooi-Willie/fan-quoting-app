@@ -402,6 +402,7 @@ def calculate_single_component_details(db: Session, request: schemas.ComponentCa
         raise ValueError("Fan configuration not found.")
 
     params_for_comp = crud.get_parameters_for_calculation(db, fan_config.id, [request.component_id])[0]
+    print(f"DEBUG: params_for_comp from CRUD: {params_for_comp}")
     if not params_for_comp:
         raise ValueError("Parameters for component not found.")
 

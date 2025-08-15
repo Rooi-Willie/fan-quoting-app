@@ -328,12 +328,15 @@ def render_main_content():
         component_id = name_to_id_map[comp_name]
         
         # Prepare request for this single component
+        fabrication_waste_percentage = cd.get(comp_name, {}).get("Fabrication Waste")
+        fabrication_waste_factor = fabrication_waste_percentage / 100.0 if fabrication_waste_percentage is not None else None
+
         request_payload = {
             "fan_configuration_id": fan_config_id,
             "component_id": component_id,
             "blade_quantity": int(qd.get("blade_sets", 0)) if qd.get("blade_sets") else None,
             "thickness_mm_override": cd.get(comp_name, {}).get("Material Thickness"),
-            "fabrication_waste_factor_override": cd.get(comp_name, {}).get("Fabrication Waste", 0) / 100.0
+            "fabrication_waste_factor_override": fabrication_waste_factor
         }
         
         # Make it hashable for st.cache_data
@@ -378,10 +381,10 @@ def render_main_content():
         ("Feedstock Mass", "feedstock_mass_kg", "kg"),
         ("Material Cost", "material_cost", CURRENCY_SYMBOL),
         ("Labour Cost", "labour_cost", CURRENCY_SYMBOL),
-        ("Total Cost Before Markup", "total_cost_before_markup", CURRENCY_SYMBOL),
+        ("Cost Before Markup", "total_cost_before_markup", CURRENCY_SYMBOL),
     ]
     # dividers = [3, 7]
-    dividers = [7]
+    dividers = [8]
 
     component_calcs = st.session_state.component_calculations
 
@@ -401,16 +404,18 @@ def render_main_content():
                 widget_key = f"fc_{comp_name}_{row_label.replace(' ', '_')}"
                 
                 api_value = component_calcs.get(comp_name, {}).get(api_field)
-
                 if row_label in ["Material Thickness", "Fabrication Waste"]:
-                    default_value = api_value if api_value is not None else (5.0 if row_label == "Material Thickness" else 15.0)
+                    if row_label == "Fabrication Waste":
+                        default_value = api_value if api_value is not None else 15.0
+                    else: # Material Thickness
+                        default_value = api_value if api_value is not None else 5.0
                     current_value = cd.setdefault(comp_name, {}).get(row_label, default_value)
                     
                     user_value = st.number_input(
                         label=f"_{widget_key}",
                         label_visibility="collapsed",
                         value=float(current_value),
-                        step=0.5 if row_label == "Material Thickness" else 1.0,
+                        step=1.0 if row_label == "Material Thickness" else 1.0,
                         format="%.1f",
                         key=widget_key,
                         on_change=_update_component_detail_from_widget_state,
