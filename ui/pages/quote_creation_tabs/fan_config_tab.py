@@ -87,12 +87,11 @@ def get_component_details(request_payload_tuple: tuple) -> Optional[Dict]:
     request_payload = dict(request_payload_tuple)
 
     try:
-        # Note the new endpoint URL
         response = requests.post(f"{API_BASE_URL}/quotes/components/calculate-details", json=request_payload)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        st.error(f"API Error: Could not calculate component details for {request_payload.get('component_id')}. {e}")
+        st.error(f"API Error: Could not calculate component details. {e}")
         try:
             st.json(response.json())
         except:
@@ -163,13 +162,12 @@ def _handle_fan_id_change():
 def render_sidebar_widgets():
     """Renders the specific sidebar widgets for Fan Configuration."""
     if "quote_data" not in st.session_state:
-        st.warning("quote_data not found in session_state. Initializing to empty dictionary. "
-                   "Consider initializing in the parent page for better state management.")
+        st.warning("quote_data not found in session_state. Initializing.")
         st.session_state.quote_data = {}
     if "current_fan_config" not in st.session_state: # Initialize for API response
         st.session_state.current_fan_config = None
 
-    qd = st.session_state.quote_data # Shorthand for quote_data
+    qd = st.session_state.quote_data
 
     with st.sidebar:
         st.divider()
@@ -286,7 +284,7 @@ def render_main_content():
         # This should ideally be handled by the main page (2_Create_New_Quote.py)
         st.error("Quote data not initialized. Please start a new quote or refresh.")
         st.session_state.quote_data = {} # Basic fallback
-        # return # Optionally stop if quote_data is critical and missing
+        return
 
     qd = st.session_state.quote_data # Shorthand for quote_data
     cd = qd.setdefault("component_details", {}) # Shorthand for component_details
@@ -305,10 +303,10 @@ def render_main_content():
         keys_to_remove = [k for k in cd if k not in ordered_selected_components]
         for k_rem in keys_to_remove:
             del cd[k_rem]
+        st.session_state.component_calculations = {} # Clear old calculations
         return
     
     # --- Call API to get component calculations ---
-    # Get all available components for this fan to create a lookup map
     fan_config_id = qd.get("fan_config_id")
     available_components = get_available_components(fan_config_id)
     
@@ -316,46 +314,39 @@ def render_main_content():
         st.error("Could not fetch component information from API.")
         return
     
-    # Create a map from component name to component ID for the API request
     name_to_id_map = {comp['name']: comp['id'] for comp in available_components}
     
-    # Create the component list for the API request
-    component_list = []
-    for comp_name in ordered_selected_components:
-        if comp_name in name_to_id_map:
-            # Create component request with required ID
-            component_request = {"component_id": name_to_id_map[comp_name]}
-            
-            # Add any overrides directly as top-level properties
-            if comp_name in cd:
-                if "Thickness" in cd[comp_name]:
-                    component_request["thickness_mm_override"] = cd[comp_name]["Thickness"]
-                if "Fabrication Waste" in cd[comp_name]:
-                    # Convert percentage to decimal for API
-                    component_request["fabrication_waste_factor_override"] = cd[comp_name]["Fabrication Waste"] / 100.0
-                
-            component_list.append(component_request)
-    
-    # Create the request payload
-    request_payload = {
-        "fan_configuration_id": fan_config_id,
-        "blade_quantity": int(qd.get("blade_sets", 0)) if qd.get("blade_sets") else None,
-        "components": component_list,
-        "markup_override": None  # Use default markup from server
-    }
-    
-    # Make it hashable for st.cache_data
-    request_payload_tuple = tuple(sorted(request_payload.items()))
-    
-    # Call API with the payload
-    calculation_results = get_component_calculations(request_payload_tuple)
-    
-    # Store the calculation results in session state for use elsewhere
-    if calculation_results:
-        st.session_state.calculation_results = calculation_results
+    # Initialize a dictionary to hold the calculation results for each component
+    if "component_calculations" not in st.session_state:
+        st.session_state.component_calculations = {}
 
+    # --- Iterate through components and get real-time calculations ---
+    for comp_name in ordered_selected_components:
+        if comp_name not in name_to_id_map:
+            continue
+
+        component_id = name_to_id_map[comp_name]
+        
+        # Prepare request for this single component
+        request_payload = {
+            "fan_configuration_id": fan_config_id,
+            "component_id": component_id,
+            "blade_quantity": int(qd.get("blade_sets", 0)) if qd.get("blade_sets") else None,
+            "thickness_mm_override": cd.get(comp_name, {}).get("Material Thickness"),
+            "fabrication_waste_factor_override": cd.get(comp_name, {}).get("Fabrication Waste", 0) / 100.0
+        }
+        
+        # Make it hashable for st.cache_data
+        request_payload_tuple = tuple(sorted(request_payload.items()))
+
+        # Call API and store result
+        result = get_component_details(request_payload_tuple)
+        if result:
+            st.session_state.component_calculations[comp_name] = result
+
+    # --- Display Area ---
     num_selected_components = len(ordered_selected_components)
-    column_layout_config = [1.5] + [1] * num_selected_components # Label col + component cols
+    column_layout_config = [1.5] + [1] * num_selected_components
 
     # --- Component Image Row ---
     image_cols = st.columns(column_layout_config)
@@ -364,22 +355,18 @@ def render_main_content():
         with image_cols[i + 1]:
             image_full_path = COMPONENT_IMAGES.get(comp_name)
             if image_full_path and os.path.exists(image_full_path):
-                st.image(image_full_path, use_column_width='always', caption=comp_name[:15]+"...") # Keep caption short
-            elif image_full_path: # Path defined but file missing
-                st.warning(f"Img missing: {os.path.basename(image_full_path)}")
-            else: # Path not configured
+                st.image(image_full_path, use_column_width='always', caption=comp_name[:15]+"...")
+            else:
                 st.markdown("*(No Image)*")
 
     # --- Header Row for Parameters ---
     header_cols = st.columns(column_layout_config)
     with header_cols[0]: st.markdown("**Parameter**")
     for i, comp_name in enumerate(ordered_selected_components):
-        with header_cols[i + 1]: st.markdown(f"**{comp_name}**", help=comp_name) # Use help for full name if truncated
+        with header_cols[i + 1]: st.markdown(f"**{comp_name}**", help=comp_name)
     st.divider()
 
     # --- Data Input/Display Area ---
-    
-    # Define new row definitions that match the API response
     api_response_rows = [
         ("Overall Diameter", "overall_diameter_mm", "mm"),
         ("Total Length", "total_length_mm", "mm"),
@@ -393,128 +380,73 @@ def render_main_content():
         ("Labour Cost", "labour_cost", CURRENCY_SYMBOL),
         ("Total Cost Before Markup", "total_cost_before_markup", CURRENCY_SYMBOL),
     ]
-    
-    # Horizontal dividers to match the requested layout
-    dividers = [3, 8]  # After "Stiffening Factor" and "Feedstock Mass"
-    
-    calculation_results = st.session_state.get("calculation_results")
-    
-    if not calculation_results:
-        st.warning("No calculation results available. Please check API connection.")
-    
-    # Map component names to API component data
-    component_data_map = {}
-    if calculation_results and "components" in calculation_results:
-        # Create a mapping from component name to component data
-        for comp in calculation_results["components"]:
-            component_data_map[comp["name"]] = comp
-    
-    for row_idx, (row_label, api_field, unit_or_curr) in enumerate(api_response_rows):
-        # Add dividers at specified positions
+    # dividers = [3, 7]
+    dividers = [7]
+
+    component_calcs = st.session_state.component_calculations
+
+    for row_idx, (row_label, api_field, unit) in enumerate(api_response_rows):
         if row_idx in dividers:
             st.divider()
             
         param_row_cols = st.columns(column_layout_config)
         with param_row_cols[0]:
-            display_label = f"{row_label} ({unit_or_curr})" if unit_or_curr not in ["factor", "%"] else row_label
+            display_label = f"{row_label} ({unit})" if unit not in ["factor", "%"] else row_label
             st.markdown(display_label)
-            if unit_or_curr in ["factor", "%"]:
-                 st.caption(f"Unit: {unit_or_curr}")
+            if unit in ["factor", "%"]:
+                 st.caption(f"Unit: {unit}")
 
         for comp_idx, comp_name in enumerate(ordered_selected_components):
-            cd.setdefault(comp_name, {}) # Ensure component dict exists in component_details
-            widget_key_unique = f"fc_{comp_name}_{row_label.replace(' ', '_')}_{row_idx}_{comp_idx}"
-
             with param_row_cols[comp_idx + 1]:
-                # Get value from API response if available
-                if comp_name in component_data_map and api_field in component_data_map[comp_name]:
-                    api_value = component_data_map[comp_name][api_field]
+                widget_key = f"fc_{comp_name}_{row_label.replace(' ', '_')}"
+                
+                api_value = component_calcs.get(comp_name, {}).get(api_field)
+
+                if row_label in ["Material Thickness", "Fabrication Waste"]:
+                    default_value = api_value if api_value is not None else (5.0 if row_label == "Material Thickness" else 15.0)
+                    current_value = cd.setdefault(comp_name, {}).get(row_label, default_value)
                     
-                    # For modifiable fields, show input widgets
-                    if row_label in ["Material Thickness", "Fabrication Waste"]:
-                        # Set default from API or use existing value
-                        current_value = cd[comp_name].get(row_label, api_value)
-                        
-                        step_val = 0.5 if row_label == "Material Thickness" else 1.0
-                        fmt_str = "%.1f"
-                        
-                        user_value = st.number_input(
-                            label=f"_{row_label}_{comp_name}", # Underscore for hidden label
-                            label_visibility="collapsed",
-                            value=float(current_value), # Ensure float for number_input
-                            step=step_val,
-                            format=fmt_str,
-                            key=widget_key_unique,
-                            on_change=_update_component_detail_from_widget_state,
-                            args=(comp_name, row_label, widget_key_unique)
-                        )
-                        # Store the value in component details
-                        cd[comp_name][row_label] = user_value
-                    else:
-                        # Format according to type
+                    user_value = st.number_input(
+                        label=f"_{widget_key}",
+                        label_visibility="collapsed",
+                        value=float(current_value),
+                        step=0.5 if row_label == "Material Thickness" else 1.0,
+                        format="%.1f",
+                        key=widget_key,
+                        on_change=_update_component_detail_from_widget_state,
+                        args=(comp_name, row_label, widget_key)
+                    )
+                    cd[comp_name][row_label] = user_value
+                else:
+                    if api_value is not None:
                         if isinstance(api_value, (int, float)):
-                            # Format numbers based on type
-                            if unit_or_curr in [CURRENCY_SYMBOL]:
-                                st.text(f"{api_value:.2f}")
-                            elif unit_or_curr in ["factor"]:
-                                st.text(f"{api_value:.3f}")
-                            else:
-                                st.text(f"{api_value:.1f}")
+                            if unit == CURRENCY_SYMBOL: st.text(f"{api_value:.2f}")
+                            elif unit == "factor": st.text(f"{api_value:.3f}")
+                            else: st.text(f"{api_value:.1f}")
                         else:
                             st.text(str(api_value))
-                        
-                        # Store the value in component details
-                        cd[comp_name][row_label] = api_value
-                else:
-                    # No API value, show placeholder or N/A
-                    if row_label in ["Material Thickness", "Fabrication Waste"]:
-                        # Default values for modifiable fields
-                        default_val = 5.0 if row_label == "Material Thickness" else 15.0
-                        current_value = cd[comp_name].get(row_label, default_val)
-                        
-                        step_val = 0.5 if row_label == "Material Thickness" else 1.0
-                        fmt_str = "%.1f"
-                        
-                        user_value = st.number_input(
-                            label=f"_{row_label}_{comp_name}", # Underscore for hidden label
-                            label_visibility="collapsed",
-                            value=float(current_value), # Ensure float for number_input
-                            step=step_val,
-                            format=fmt_str,
-                            key=widget_key_unique,
-                            on_change=_update_component_detail_from_widget_state,
-                            args=(comp_name, row_label, widget_key_unique)
-                        )
-                        cd[comp_name][row_label] = user_value
                     else:
                         st.text("N/A")
-    
-    # Add a section for total costs
+
+    # --- Quote Summary ---
     st.divider()
     st.subheader("Quote Summary")
-    
-    if calculation_results:
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Total Mass", f"{calculation_results.get('total_mass_kg', 0):.2f} kg")
-        with col2:
-            st.metric("Subtotal Cost", f"{CURRENCY_SYMBOL} {calculation_results.get('subtotal_cost', 0):.2f}")
-        with col3:
-            st.metric("Final Price", f"{CURRENCY_SYMBOL} {calculation_results.get('final_price', 0):.2f}")
-            
-        # Show markup applied
-        st.caption(f"Markup Applied: {(calculation_results.get('markup_applied', 1) - 1) * 100:.1f}%")
-        
-        # Optionally show raw API response for debugging
-        with st.expander("View Raw Calculation Results"):
-            st.json(calculation_results)
 
-    # Clean up details for components that are no longer selected (can be done here or at start)
-    # keys_to_remove_at_end = [k for k in cd if k not in ordered_selected_components]
-    # for k_rem_end in keys_to_remove_at_end:
-    #     del cd[k_rem_end]
-    # Note: The cleanup is already present at the beginning if no components are selected.
-    # Consider if a second cleanup here is always necessary or if the initial one covers all cases.
-    # For now, the initial cleanup when `not ordered_selected_components` and the implicit removal
-    # by not processing unselected components should suffice. If issues arise with stale data
-    # for deselected components while others remain, this end-cleanup can be reinstated.
+    total_mass = sum(c.get('real_mass_kg', 0) for c in component_calcs.values() if c)
+    subtotal_cost = sum(c.get('total_cost_before_markup', 0) for c in component_calcs.values() if c)
+    # Assuming default markup for now, as it's not returned from single component endpoint
+    # A separate call or logic might be needed if markup can be dynamic per quote
+    markup = 1.4 # Example, should be fetched from settings
+    final_price = subtotal_cost * markup
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Total Mass", f"{total_mass:.2f} kg")
+    with col2:
+        st.metric("Subtotal Cost", f"{CURRENCY_SYMBOL} {subtotal_cost:.2f}")
+    with col3:
+        st.metric("Final Price", f"{CURRENCY_SYMBOL} {final_price:.2f}")
+    st.caption(f"Markup Applied: {(markup - 1) * 100:.1f}% (default)")
+
+    with st.expander("View Raw Calculation Results"):
+        st.json(component_calcs)
