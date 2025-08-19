@@ -294,26 +294,22 @@ def render_main_content():
 
     st.subheader("Configure Selected Fan Components")
 
-    # Derive the ordered list for processing
-    ordered_selected_components = [
-        comp for comp in COMPONENT_ORDER if comp in qd.get("selected_components_unordered", [])
-    ]
-    st.write(f"DEBUG: ordered_selected_components = {ordered_selected_components}")
+    # Derive the ordered list for processing from the API-provided order
+    fan_config_id = qd.get("fan_config_id")
+    available_components_list = get_available_components(fan_config_id)
+    if available_components_list:
+        ordered_available_names = [comp['name'] for comp in available_components_list]
+        user_selected_names = qd.get("selected_components_unordered", [])
+        ordered_selected_components = [name for name in ordered_available_names if name in user_selected_names]
+    else:
+        ordered_selected_components = []
 
     if not ordered_selected_components:
         st.info("Select fan components from the sidebar to configure them.")
         st.session_state.component_calculations = {}
         return
-    
-    # --- Call API to get component calculations ---
-    fan_config_id = qd.get("fan_config_id")
-    available_components = get_available_components(fan_config_id)
-    
-    if not available_components:
-        st.error("Could not fetch component information from API.")
-        return
-    
-    name_to_id_map = {comp['name']: comp['id'] for comp in available_components}
+
+    name_to_id_map = {comp['name']: comp['id'] for comp in available_components_list}
 
     for comp_name in ordered_selected_components:
         if comp_name not in name_to_id_map:
