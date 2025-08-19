@@ -296,6 +296,7 @@ def render_main_content():
     ordered_selected_components = [
         comp for comp in COMPONENT_ORDER if comp in qd.get("selected_components_unordered", [])
     ]
+    st.write(f"DEBUG: ordered_selected_components = {ordered_selected_components}")
 
     if not ordered_selected_components:
         st.info("Select fan components from the sidebar to configure them.")
@@ -382,6 +383,7 @@ def render_main_content():
         ("Material Cost", "material_cost", CURRENCY_SYMBOL),
         ("Labour Cost", "labour_cost", CURRENCY_SYMBOL),
         ("Cost Before Markup", "total_cost_before_markup", CURRENCY_SYMBOL),
+        ("Cost After Markup", "total_cost_after_markup", CURRENCY_SYMBOL),
     ]
     # dividers = [3, 7]
     dividers = [8]

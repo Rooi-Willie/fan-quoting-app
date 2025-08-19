@@ -445,7 +445,10 @@ def calculate_single_component_details(db: Session, request: schemas.ComponentCa
 
     # 6. Apply markup and format response
     result_dict["total_cost_after_markup"] = result_dict["total_cost_before_markup"] * markup
-    
+    print("--- Calculation Result ---")
+    print(f"Cost after markup: {result_dict['total_cost_after_markup']}")
+    print("---------------------------------")
+
     return schemas.CalculatedComponent(**result_dict)
 
 def calculate_full_quote(db: Session, request: schemas.QuoteRequest) -> schemas.QuoteResponse:
