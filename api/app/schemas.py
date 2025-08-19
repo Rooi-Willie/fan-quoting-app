@@ -184,6 +184,7 @@ class ComponentCalculationRequest(BaseModel):
     # Optional user-defined overrides
     thickness_mm_override: Optional[float] = None
     fabrication_waste_factor_override: Optional[float] = None
+    markup_override: Optional[float] = None
 
 class QuoteResponse(BaseModel):
     """

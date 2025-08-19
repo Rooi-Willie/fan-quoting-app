@@ -407,7 +407,7 @@ def calculate_single_component_details(db: Session, request: schemas.ComponentCa
         raise ValueError("Parameters for component not found.")
 
     rates_and_settings = crud.get_rates_and_settings(db)
-    markup = rates_and_settings.get('default_markup', 1.0)
+    markup = request.markup_override if request.markup_override is not None else rates_and_settings.get('default_markup', 1.0)
 
     # 2. Resolve formulaic parameters
     for key, value in params_for_comp.items():
@@ -445,10 +445,7 @@ def calculate_single_component_details(db: Session, request: schemas.ComponentCa
 
     # 6. Apply markup and format response
     result_dict["total_cost_after_markup"] = result_dict["total_cost_before_markup"] * markup
-    print("--- Calculation Result ---")
-    print(f"Cost after markup: {result_dict['total_cost_after_markup']}")
-    print("---------------------------------")
-
+    
     return schemas.CalculatedComponent(**result_dict)
 
 def calculate_full_quote(db: Session, request: schemas.QuoteRequest) -> schemas.QuoteResponse:

@@ -17,13 +17,6 @@ def _update_quote_data_top_level_key(qd_top_level_key, widget_sstate_key):
     """
     if widget_sstate_key in st.session_state:
         st.session_state.quote_data[qd_top_level_key] = st.session_state[widget_sstate_key]
-        # Example: If blade_sets needs to be int downstream, convert here or where it's used.
-        # if qd_top_level_key == "blade_sets" and st.session_state[widget_sstate_key] is not None:
-        #     try:
-        #         st.session_state.quote_data[qd_top_level_key] = int(st.session_state[widget_sstate_key])
-        #     except ValueError:
-        #         st.warning(f"Blade sets value '{st.session_state[widget_sstate_key]}' is not a valid number.")
-
 
 def _update_component_detail_from_widget_state(component_name, detail_key, widget_sstate_key):
     """
@@ -31,7 +24,6 @@ def _update_component_detail_from_widget_state(component_name, detail_key, widge
     st.session_state.quote_data["component_details"].
     """
     qd = st.session_state.quote_data
-    # Ensure component_details and the specific component dictionary exist
     component_dict = qd.setdefault("component_details", {}).setdefault(component_name, {})
 
     if widget_sstate_key in st.session_state:
@@ -46,17 +38,12 @@ def get_all_fan_configs() -> Optional[List[Dict]]:
     Returns a list of dictionaries on success, None on failure.
     """
     try:
-        # The new endpoint returns a list of full fan configuration objects
         response = requests.get(f"{API_BASE_URL}/fans/")
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
         st.error(f"API Error: Could not fetch fan configurations. {e}")
         return None
-
-# Note: The get_fan_config(fan_id) function is no longer needed.
-# We now fetch all configurations at once and find the selected one
-# from the cached list, which is more efficient.
 
 @st.cache_data
 def get_available_components(fan_config_id: int) -> Optional[List[Dict]]:
@@ -146,8 +133,6 @@ def _handle_fan_id_change():
     # --- Auto-select default components for the new fan ---
     auto_select_ids = selected_config.get('auto_selected_components', [])
     if auto_select_ids:
-        # We need the names of the components, not just their IDs.
-        # Fetch all available components for this fan to create a lookup map.
         available_components = get_available_components(qd["fan_config_id"])
         if available_components:
             id_to_name_map = {comp['id']: comp['name'] for comp in available_components}
@@ -261,8 +246,24 @@ def render_sidebar_widgets():
 
         # Ensure the default selection is valid for the current fan's available components
         current_selection = qd.get("selected_components_unordered", [])
+        st.write(f"DEBUG: current_selection = {current_selection}")
         valid_selection = [comp for comp in current_selection if comp in component_options]
+        st.write(f"DEBUG: valid_selection = {valid_selection}")
         qd["selected_components_unordered"] = valid_selection # Update state with only valid items
+
+        default_markup = 1.4 # Or fetch from a config/API if it can be dynamic
+        markup_input = st.number_input(
+            "Markup Override",
+            min_value=1.0,
+            value=float(qd.get("markup_override", default_markup)),
+            step=0.01,
+            format="%.2f",
+            key="widget_markup_override",
+            on_change=_update_quote_data_top_level_key,
+            args=("markup_override", "widget_markup_override"),
+            help="Override the default markup for the selected components.",
+            disabled=is_disabled
+        )
 
         st.multiselect(
             "Select Fan Components",
@@ -283,13 +284,14 @@ def render_main_content():
     if "quote_data" not in st.session_state:
         # This should ideally be handled by the main page (2_Create_New_Quote.py)
         st.error("Quote data not initialized. Please start a new quote or refresh.")
-        st.session_state.quote_data = {} # Basic fallback
         return
 
-    qd = st.session_state.quote_data # Shorthand for quote_data
-    cd = qd.setdefault("component_details", {}) # Shorthand for component_details
+    qd = st.session_state.quote_data
+    cd = qd.setdefault("component_details", {})
+    
+    if "component_calculations" not in st.session_state:
+        st.session_state.component_calculations = {}
 
-    # --- Main Tab Display Area ---
     st.subheader("Configure Selected Fan Components")
 
     # Derive the ordered list for processing
@@ -300,11 +302,7 @@ def render_main_content():
 
     if not ordered_selected_components:
         st.info("Select fan components from the sidebar to configure them.")
-        # Clean up details for components that are no longer selected
-        keys_to_remove = [k for k in cd if k not in ordered_selected_components]
-        for k_rem in keys_to_remove:
-            del cd[k_rem]
-        st.session_state.component_calculations = {} # Clear old calculations
+        st.session_state.component_calculations = {}
         return
     
     # --- Call API to get component calculations ---
@@ -316,12 +314,7 @@ def render_main_content():
         return
     
     name_to_id_map = {comp['name']: comp['id'] for comp in available_components}
-    
-    # Initialize a dictionary to hold the calculation results for each component
-    if "component_calculations" not in st.session_state:
-        st.session_state.component_calculations = {}
 
-    # --- Iterate through components and get real-time calculations ---
     for comp_name in ordered_selected_components:
         if comp_name not in name_to_id_map:
             continue
@@ -337,7 +330,8 @@ def render_main_content():
             "component_id": component_id,
             "blade_quantity": int(qd.get("blade_sets", 0)) if qd.get("blade_sets") else None,
             "thickness_mm_override": cd.get(comp_name, {}).get("Material Thickness"),
-            "fabrication_waste_factor_override": fabrication_waste_factor
+            "fabrication_waste_factor_override": fabrication_waste_factor,
+            "markup_override": qd.get("markup_override")
         }
         
         # Make it hashable for st.cache_data
@@ -406,6 +400,7 @@ def render_main_content():
                 widget_key = f"fc_{comp_name}_{row_label.replace(' ', '_')}"
                 
                 api_value = component_calcs.get(comp_name, {}).get(api_field)
+
                 if row_label in ["Material Thickness", "Fabrication Waste"]:
                     if row_label == "Fabrication Waste":
                         default_value = api_value if api_value is not None else 15.0
@@ -417,7 +412,7 @@ def render_main_content():
                         label=f"_{widget_key}",
                         label_visibility="collapsed",
                         value=float(current_value),
-                        step=1.0 if row_label == "Material Thickness" else 1.0,
+                        step=1.0,
                         format="%.1f",
                         key=widget_key,
                         on_change=_update_component_detail_from_widget_state,
@@ -441,10 +436,8 @@ def render_main_content():
 
     total_mass = sum(c.get('real_mass_kg', 0) for c in component_calcs.values() if c)
     subtotal_cost = sum(c.get('total_cost_before_markup', 0) for c in component_calcs.values() if c)
-    # Assuming default markup for now, as it's not returned from single component endpoint
-    # A separate call or logic might be needed if markup can be dynamic per quote
-    markup = 1.4 # Example, should be fetched from settings
-    final_price = subtotal_cost * markup
+    final_price = sum(c.get('total_cost_after_markup', 0) for c in component_calcs.values() if c)
+    markup_used = final_price / subtotal_cost if subtotal_cost > 0 else 0
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -453,7 +446,7 @@ def render_main_content():
         st.metric("Subtotal Cost", f"{CURRENCY_SYMBOL} {subtotal_cost:.2f}")
     with col3:
         st.metric("Final Price", f"{CURRENCY_SYMBOL} {final_price:.2f}")
-    st.caption(f"Markup Applied: {(markup - 1) * 100:.1f}% (default)")
+    st.caption(f"Markup Applied: {(markup_used - 1) * 100:.1f}% (default)")
 
     with st.expander("View Raw Calculation Results"):
         st.json(component_calcs)
