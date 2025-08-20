@@ -216,9 +216,11 @@ def render_sidebar_widgets():
             with col1:
                 st.metric(label="Fan Size (mm)", value=fan_config.get('fan_size_mm', 'N/A'))
                 st.text_input("Available Blade Counts", value=", ".join(map(str, fan_config.get('available_blade_qtys', []))), disabled=True)
+                st.text_input("Available Motor kW", value=", ".join(map(str, fan_config.get('available_motor_kw', []))), disabled=True)
             with col2:
                 st.metric(label="Hub Size (mm)", value=fan_config.get('hub_size_mm', 'N/A'))
-                st.text_input("Available Motor kW", value=", ".join(map(str, fan_config.get('available_motor_kw', []))), disabled=True)
+                st.text_input("Blade Name & Material", value=f"{fan_config.get('blade_name', 'N/A')} ({fan_config.get('blade_material', 'N/A')})", disabled=True)
+                st.text_input("Motor Poles", value=str(fan_config.get('motor_pole', 'N/A')), disabled=True)
             
             # Optionally, show the raw JSON data for debugging
             with st.expander("Show Raw API Response"):
@@ -246,9 +248,7 @@ def render_sidebar_widgets():
 
         # Ensure the default selection is valid for the current fan's available components
         current_selection = qd.get("selected_components_unordered", [])
-        st.write(f"DEBUG: current_selection = {current_selection}")
         valid_selection = [comp for comp in current_selection if comp in component_options]
-        st.write(f"DEBUG: valid_selection = {valid_selection}")
         qd["selected_components_unordered"] = valid_selection # Update state with only valid items
 
         default_markup = 1.4 # Or fetch from a config/API if it can be dynamic
@@ -426,23 +426,134 @@ def render_main_content():
                     else:
                         st.text("N/A")
 
-    # --- Quote Summary ---
+    # --- Selected Component Summary ---
     st.divider()
-    st.subheader("Quote Summary")
+    st.subheader("Component Summary")
 
-    total_mass = sum(c.get('real_mass_kg', 0) for c in component_calcs.values() if c)
-    subtotal_cost = sum(c.get('total_cost_before_markup', 0) for c in component_calcs.values() if c)
-    final_price = sum(c.get('total_cost_after_markup', 0) for c in component_calcs.values() if c)
-    markup_used = final_price / subtotal_cost if subtotal_cost > 0 else 0
+    # safe accessor
+    component_calcs = st.session_state.get("component_calculations", {}) or {}
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Total Mass", f"{total_mass:.2f} kg")
-    with col2:
-        st.metric("Subtotal Cost", f"{CURRENCY_SYMBOL} {subtotal_cost:.2f}")
-    with col3:
-        st.metric("Final Price", f"{CURRENCY_SYMBOL} {final_price:.2f}")
-    st.caption(f"Markup Applied: {(markup_used - 1) * 100:.1f}% (default)")
+    def _sum_field(name):
+        return sum((c.get(name) or 0) for c in component_calcs.values())
+
+    total_length_mm = _sum_field("total_length_mm")
+    total_ideal_mass_kg = _sum_field("ideal_mass_kg")
+    total_real_mass_kg = _sum_field("real_mass_kg")
+    total_feedstock_mass_kg = _sum_field("feedstock_mass_kg")
+    total_material_cost = _sum_field("material_cost")
+    total_labour_cost = _sum_field("labour_cost")
+    subtotal_cost = _sum_field("total_cost_before_markup")
+    final_price = _sum_field("total_cost_after_markup")
+    markup_pct = ((final_price / subtotal_cost) - 1) * 100 if subtotal_cost > 0 else 0.0
+
+    # Top-level KPI row (grouped)
+    kpi_col_1, kpi_col_2, kpi_col_3 = st.columns(3)
+    with kpi_col_1:
+        st.metric("Total Mass (real)", f"{total_real_mass_kg:.2f} kg")
+        st.metric("Total Ideal Mass", f"{total_ideal_mass_kg:.2f} kg")
+    with kpi_col_2:
+        st.metric("Total Length", f"{total_length_mm:.0f} mm")
+        st.metric("Feedstock Mass", f"{total_feedstock_mass_kg:.2f} kg")
+    with kpi_col_3:
+        st.metric("Material Cost", f"{CURRENCY_SYMBOL} {total_material_cost:.2f}")
+        st.metric("Labour Cost", f"{CURRENCY_SYMBOL} {total_labour_cost:.2f}")
+
+    st.divider()
+    # Pricing row
+    price_col_1, price_col_2, price_col_3 = st.columns(3)
+    with price_col_1:
+        st.metric("Subtotal (before markup)", f"{CURRENCY_SYMBOL} {subtotal_cost:.2f}")
+    with price_col_2:
+        st.metric("Final Price (after markup)", f"{CURRENCY_SYMBOL} {final_price:.2f}")
+    with price_col_3:
+        st.metric("Markup Applied", f"{markup_pct:.1f}%")
+
+    st.divider()
+    st.caption("Provisional totals calculated from the component results currently in the UI. Press 'Recalculate server totals' before finalising to get authoritative values.")
+
+    # Per-component compact table for quick inspection
+    if component_calcs:
+        rows = []
+        for name, c in component_calcs.items():
+            rows.append({
+                "Component": name,
+                "Length (mm)": c.get("total_length_mm"),
+                "Real Mass (kg)": c.get("real_mass_kg"),
+                "Material Cost": c.get("material_cost"),
+                "Labour Cost": c.get("labour_cost"),
+                "Cost Before Markup": c.get("total_cost_before_markup"),
+                "Cost After Markup": c.get("total_cost_after_markup"),
+            })
+
+        df = pd.DataFrame(rows)
+
+        # Append totals row using totals already computed above
+        totals_row = {
+            "Component": "TOTAL",
+            "Length (mm)": float(total_length_mm or 0),
+            "Real Mass (kg)": float(total_real_mass_kg or 0),
+            "Material Cost": float(total_material_cost or 0),
+            "Labour Cost": float(total_labour_cost or 0),
+            "Cost Before Markup": float(subtotal_cost or 0),
+            "Cost After Markup": float(final_price or 0),
+        }
+        df = pd.concat([df, pd.DataFrame([totals_row])], ignore_index=True, sort=False).fillna("N/A")
+
+        # Styling: make the TOTAL row bold and larger font
+        def _highlight_totals(row):
+            return ['font-weight: bold; font-size: 20px; color: #66b1d1;' if row['Component'] == 'TOTAL' else '' for _ in row]
+
+        def _fmt_length(x):
+            return f"{int(x):,d}" if isinstance(x, (int, float)) else x
+        def _fmt_float2(x):
+            return f"{x:,.2f}" if isinstance(x, (int, float)) else x
+        def _fmt_currency(x):
+            return f"{CURRENCY_SYMBOL} {x:,.2f}" if isinstance(x, (int, float)) else x
+
+        styler = df.style.apply(_highlight_totals, axis=1).format({
+            "Length (mm)": _fmt_length,
+            "Real Mass (kg)": _fmt_float2,
+            "Material Cost": _fmt_currency,
+            "Labour Cost": _fmt_currency,
+            "Cost Before Markup": _fmt_currency,
+            "Cost After Markup": _fmt_currency,
+        })
+
+        # Render styled table
+        st.write(styler)
+
+    # Action to explicitly request authoritative server totals (hook up your API endpoint)
+    recalc_col1, recalc_col2 = st.columns([1, 3])
+    with recalc_col1:
+        if st.button("Recalculate server totals"):
+            # Build payload for server summary
+            comp_list = []
+            available_map = {comp['name']: comp['id'] for comp in available_components_list or []}
+            for name in ordered_selected_components:
+                comp_id = available_map.get(name)
+                overrides = cd.get(name, {})
+                comp_list.append({
+                    "component_id": comp_id,
+                    "thickness_mm_override": overrides.get("Material Thickness"),
+                    "fabrication_waste_factor_override": (overrides.get("Fabrication Waste") / 100.0) if overrides.get("Fabrication Waste") is not None else None
+                })
+            payload = {
+                "fan_configuration_id": fan_config_id,
+                "blade_quantity": int(qd.get("blade_sets", 0)) if qd.get("blade_sets") else None,
+                "components": comp_list,
+                "markup_override": qd.get("markup_override")
+            }
+            try:
+                resp = requests.post(f"{API_BASE_URL}/quotes/components/summary", json=payload)
+                resp.raise_for_status()
+                server_summary = resp.json()
+                # Update UI with authoritative totals (or show them in a modal / info)
+                st.session_state.server_summary = server_summary
+                st.success("Server totals updated.")
+            except requests.RequestException as e:
+                st.error(f"Server error: {e}")
+    with recalc_col2:
+        st.caption("Use this to fetch server-calculated totals (recommended before finalising).")
 
     with st.expander("View Raw Calculation Results"):
         st.json(component_calcs)

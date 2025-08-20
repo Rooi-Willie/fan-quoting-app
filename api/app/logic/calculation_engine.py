@@ -464,6 +464,15 @@ def calculate_full_quote(db: Session, request: schemas.QuoteRequest) -> schemas.
     all_component_params = crud.get_parameters_for_calculation(db, fan_config.id, component_ids)
     rates_and_settings = crud.get_rates_and_settings(db)
 
+    # Convert Decimal values to floats so calculators (which use math.*) won't error
+    for comp in all_component_params:
+        for k, v in list(comp.items()):
+            if isinstance(v, decimal.Decimal):
+                comp[k] = float(v)
+    for k, v in list(rates_and_settings.items()):
+        if isinstance(v, decimal.Decimal):
+            rates_and_settings[k] = float(v)
+    
     # Use markup override if provided, otherwise use the default from settings
     markup = request.markup_override if request.markup_override is not None else rates_and_settings.get('default_markup', 1.0)
 
@@ -522,3 +531,74 @@ def calculate_full_quote(db: Session, request: schemas.QuoteRequest) -> schemas.
         final_price=round(final_price, 2),
         components=[schemas.CalculatedComponent(**c) for c in calculated_components_details]
     )
+
+def calculate_components_summary(db: Session, request: schemas.QuoteRequest) -> dict:
+    """
+    Calculate authoritative aggregated totals for the components included in `request`.
+    This reuses the same per-component calculators as calculate_full_quote but only
+    returns component-level totals (no motor / buy-outs).
+    """
+    # --- 1. Fetch fan & parameters ---
+    fan_config = crud.get_fan_configuration(db, request.fan_configuration_id)
+    if not fan_config:
+        raise ValueError("Fan configuration not found.")
+
+    component_ids = [c.component_id for c in request.components]
+    all_component_params = crud.get_parameters_for_calculation(db, fan_config.id, component_ids)
+    rates_and_settings = crud.get_rates_and_settings(db)
+
+    # Convert Decimal values to floats so calculators (which use math.*) won't error
+    for comp in all_component_params:
+        for k, v in list(comp.items()):
+            if isinstance(v, decimal.Decimal):
+                comp[k] = float(v)
+    for k, v in list(rates_and_settings.items()):
+        if isinstance(v, decimal.Decimal):
+            rates_and_settings[k] = float(v)
+    
+    markup = request.markup_override if request.markup_override is not None else rates_and_settings.get('default_markup', 1.0)
+
+    calculated_components_details = []
+    for comp_request in request.components:
+        params_for_this_comp = next((p for p in all_component_params if p['component_id'] == comp_request.component_id), None)
+        if not params_for_this_comp:
+            continue
+
+        resolved_params = _resolve_formulaic_parameters(
+            hub_size=fan_config.hub_size_mm,
+            fan_size=fan_config.fan_size_mm,
+            params=params_for_this_comp
+        )
+
+        calculator = get_calculator(resolved_params['mass_formula_type'])
+        request_params = {
+            "hub_size_mm": fan_config.hub_size_mm,
+            "fan_size_mm": fan_config.fan_size_mm,
+            "blade_quantity": request.blade_quantity,
+            "mass_per_blade_kg": float(fan_config.mass_per_blade_kg),
+            "overrides": comp_request.model_dump()
+        }
+
+        result_dict = calculator.calculate(request_params, resolved_params, rates_and_settings)
+        result_dict["total_cost_after_markup"] = result_dict["total_cost_before_markup"] * markup
+        calculated_components_details.append(result_dict)
+
+    # --- Aggregate component totals ---
+    total_mass = sum((c.get('real_mass_kg') or 0) for c in calculated_components_details)
+    total_length = sum((c.get('total_length_mm') or 0) for c in calculated_components_details)
+    total_material_cost = sum((c.get('material_cost') or 0) for c in calculated_components_details)
+    total_labour_cost = sum((c.get('labour_cost') or 0) for c in calculated_components_details)
+    subtotal = total_material_cost + total_labour_cost
+    final_price = subtotal * markup
+
+    return {
+        "fan_uid": fan_config.uid,
+        "total_mass_kg": round(total_mass, 2),
+        "total_length_mm": round(total_length, 2),
+        "total_material_cost": round(total_material_cost, 2),
+        "total_labour_cost": round(total_labour_cost, 2),
+        "subtotal_cost": round(subtotal, 2),
+        "markup_applied": markup,
+        "final_price": round(final_price, 2),
+        "components": calculated_components_details
+    }

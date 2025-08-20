@@ -45,3 +45,17 @@ def calculate_component_details(request: schemas.ComponentCalculationRequest, db
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An internal error occurred during component calculation: {e}")
+
+@router.post("/components/summary")
+def components_summary(request: schemas.QuoteRequest, db: Session = Depends(get_db)):
+    """
+    Return authoritative aggregated totals for the supplied components only.
+    UI will call this for the "recalculate server totals" action.
+    """
+    try:
+        summary = calculation_engine.calculate_components_summary(db=db, request=request)
+        return summary
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An internal error occurred during components summary calculation: {e}")
