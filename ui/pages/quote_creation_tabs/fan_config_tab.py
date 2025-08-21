@@ -447,7 +447,25 @@ def render_main_content():
     final_price = _sum_field("total_cost_after_markup")
     markup_pct = ((final_price / subtotal_cost) - 1) * 100 if subtotal_cost > 0 else 0.0
 
-    # Top-level KPI row (grouped)
+    # Prefer authoritative server totals when available
+    server_summary = st.session_state.get("server_summary") or {}
+    if server_summary:
+        total_length_mm = server_summary.get("total_length_mm", total_length_mm) or 0
+        total_real_mass_kg = server_summary.get("total_mass_kg", total_real_mass_kg) or 0
+        # Ideal mass and feedstock may not be returned by the server; keep UI values if missing
+        total_material_cost = server_summary.get("total_material_cost", total_material_cost) or 0
+        total_labour_cost = server_summary.get("total_labour_cost", total_labour_cost) or 0
+        subtotal_cost = server_summary.get("subtotal_cost", subtotal_cost) or 0
+        final_price = server_summary.get("final_price", final_price) or 0
+
+        markup_applied = server_summary.get("markup_applied")
+        if isinstance(markup_applied, (int, float)):
+            # markup_applied is a multiplier (e.g., 1.40) -> convert to %
+            markup_pct = (markup_applied - 1.0) * 100.0
+        else:
+            markup_pct = ((final_price / subtotal_cost) - 1) * 100 if subtotal_cost > 0 else 0.0
+
+    # KPI display (unchanged UI, now prefers server totals if present)
     kpi_col_1, kpi_col_2, kpi_col_3 = st.columns(3)
     with kpi_col_1:
         st.metric("Total Mass (real)", f"{total_real_mass_kg:.2f} kg")
