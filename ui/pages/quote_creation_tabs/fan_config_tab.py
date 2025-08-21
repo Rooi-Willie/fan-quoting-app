@@ -541,7 +541,8 @@ def render_main_content():
                 "fan_configuration_id": fan_config_id,
                 "blade_quantity": int(qd.get("blade_sets", 0)) if qd.get("blade_sets") else None,
                 "components": comp_list,
-                "markup_override": qd.get("markup_override")
+                "markup_override": qd.get("markup_override"),
+                "motor_markup_override": qd.get("motor_markup_override")
             }
             try:
                 resp = requests.post(f"{API_BASE_URL}/quotes/components/summary", json=payload)

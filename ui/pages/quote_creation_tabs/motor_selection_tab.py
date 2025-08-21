@@ -9,24 +9,46 @@ from typing import Optional, List, Dict
 API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
 
 @st.cache_data
-def get_available_motors(available_kw: List[int]) -> Optional[List[Dict]]:
+def get_available_motors(available_kw: List[int], poles: Optional[int] = None) -> Optional[List[Dict]]:
     """
-    Fetches a list of available motors from the API based on a list of kW ratings.
-    Returns a list of motor dictionaries on success, None on failure.
+    Fetches a list of available motors from the API based on a list of kW ratings
+    and an optional poles filter. Returns a list of motor dictionaries on success,
+    empty list if no kWs are provided, or None on error.
     """
     if not available_kw:
-        return [] # No need to call API if no kWs are specified
+        return []  # No need to call API if no kWs are specified
 
     try:
-        # The `requests` library can handle a list of values for a single key
-        # by passing it as the `params` argument (e.g., ?available_kw=22&available_kw=30)
         params = {'available_kw': available_kw}
+        if poles is not None:
+            params['poles'] = poles
         response = requests.get(f"{API_BASE_URL}/motors/", params=params)
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
         st.error(f"API Error: Could not fetch available motors. {e}")
         return None
+
+@st.cache_data
+def get_global_settings() -> Optional[Dict]:
+    """
+    Fetches global settings from the API, including default markups.
+    Returns a dict of settings on success, or None on error.
+    """
+    try:
+        response = requests.get(f"{API_BASE_URL}/settings/global")
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        st.warning(f"Could not fetch global settings: {e}")
+        return None
+
+def _update_quote_data_from_widget(key, widget_key):
+    """
+    Helper function to update quote_data based on widget value changes.
+    """
+    if widget_key in st.session_state:
+        st.session_state.quote_data[key] = st.session_state[widget_key]
 
 def render_main_content():
     st.header("2. Motor Selection")
@@ -44,7 +66,15 @@ def render_main_content():
         st.warning("The selected fan configuration has no specified motor kW ratings.")
         return
 
-    motors_list = get_available_motors(available_kw)
+    # Derive poles filter from the fan configuration (support either single int or list)
+    raw_poles = fan_config.get('available_motor_poles') or fan_config.get('motor_poles') or fan_config.get('motor_pole') or fan_config.get('preferred_motor_poles')
+    poles_filter = None
+    if isinstance(raw_poles, list):
+        poles_filter = raw_poles[0] if raw_poles else None
+    elif isinstance(raw_poles, int):
+        poles_filter = raw_poles
+
+    motors_list = get_available_motors(available_kw, poles=poles_filter)
 
     # --- 3. Display motors in a selectable dataframe (initial setup) ---
     if motors_list is None:
@@ -104,25 +134,61 @@ def render_main_content():
         selected_index = selection["rows"][0]
         selected_motor = st.session_state.available_motors_df.iloc[selected_index]
         
-        st.success(f"**Selected Motor:**   {selected_motor['supplier_name']} - {selected_motor['rated_output']} kW, {selected_motor['poles']} poles, {selected_motor['speed']} RPM")
+        st.success(f"**Selected Motor:**   {selected_motor['supplier_name']} - {selected_motor['rated_output']} kW, {selected_motor['poles']} poles, {selected_motor['speed']} RPM ({selected_motor['product_range']})")
 
         # Store the full motor details in quote_data for later use
         qd['selected_motor_details'] = selected_motor.to_dict()
 
         # --- Fix for st.radio TypeError and to enforce Flange-only selection ---
-        st.subheader("Finalize Motor Configuration")
-        st.markdown("Mounting Type: **Flange**")
         st.caption("Foot mount option is currently unavailable.")
+        st.divider()
 
         # Set the motor type and price based on the fixed selection (Flange)
         qd['motor_mount_type'] = "Flange"
         qd['motor_price'] = selected_motor['flange_price']
         
-        # Display the final price, handling potential None values
+        # Add motor markup override widget
+        # Try to fetch default motor markup from API, fall back to 1.0
+        global_settings = get_global_settings()
+        default_motor_markup = 1.0
+        if global_settings and "default_motor_markup" in global_settings:
+            try:
+                default_motor_markup = float(global_settings["default_motor_markup"])
+            except (ValueError, TypeError):
+                pass  # Keep the default 1.0
+                
+        motor_markup_col1, motor_markup_col2 = st.columns([2, 1])
+        with motor_markup_col1:
+            motor_markup = st.number_input(
+                "Motor Markup Override",
+                min_value=1.0,
+                value=float(qd.get("motor_markup_override", default_motor_markup)),
+                step=0.01,
+                format="%.2f",
+                key="widget_motor_markup_override",
+                on_change=_update_quote_data_from_widget,
+                args=("motor_markup_override", "widget_motor_markup_override"),
+                help=f"Override the default markup ({default_motor_markup}) for the motor."
+            )
+        with motor_markup_col2:
+            motor_markup_percentage = (motor_markup - 1) * 100
+            st.metric("Motor Markup:",f"{motor_markup_percentage:.1f}%")
+
+        # Calculate and display the final price with markup
         if pd.notna(qd['motor_price']):
-            st.metric("Final Motor Price", f"{selected_motor['currency']} {qd['motor_price']:,.2f}")
+            base_price = float(qd['motor_price'])
+            marked_up_price = base_price * motor_markup
+            qd['motor_price_after_markup'] = marked_up_price
+            
+            # Display both base and marked-up prices
+            price_cols = st.columns(2)
+            with price_cols[0]:
+                st.metric("Base Motor Price", f"{selected_motor['currency']} {base_price:,.2f}")
+            with price_cols[1]:
+                st.metric("Final Motor Price (after markup)", f"{selected_motor['currency']} {marked_up_price:,.2f}")
         else:
             st.metric("Final Motor Price", "N/A")
         
+        st.divider()
         with st.expander("Show all selected motor data"):
             st.json(qd['selected_motor_details'])

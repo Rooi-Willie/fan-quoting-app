@@ -9,16 +9,44 @@ def render_main_content():
     cd = qd.get("component_details", {})
 
     # --- Display Basic Info ---
-    st.subheader("Project & Motor Information")
+    # Project Information
+    st.subheader("Project Information")
     col1, col2 = st.columns(2)
     with col1:
         st.markdown(f"**Project Name:** {qd.get('project_name', 'N/A')}")
         st.markdown(f"**Client Name:** {qd.get('client_name', 'N/A')}")
         st.markdown(f"**Quote Reference:** {qd.get('quote_ref', 'N/A')}")
     with col2:
-        st.markdown(f"**Motor Type:** {qd.get('motor_type', 'N/A')}")
-        st.markdown(f"**Motor Power:** {qd.get('motor_power_kw', 0.0):.2f} kW")
         st.markdown(f"**Fan ID:** {qd.get('fan_id', 'N/A')} mm")
+        
+    # Motor Information (more detailed)
+    st.subheader("Motor Information")
+    if qd.get('selected_motor_details') and isinstance(qd['selected_motor_details'], dict):
+        motor = qd['selected_motor_details']
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown(f"**Supplier:** {motor.get('supplier_name', 'N/A')}")
+            st.markdown(f"**Product Range:** {motor.get('product_range', 'N/A')}")
+            st.markdown(f"**Part Number:** {motor.get('part_number', 'N/A')}")
+        with col2:
+            st.markdown(f"**Power:** {motor.get('rated_output', 0)} {motor.get('rated_output_unit', 'kW')}")
+            st.markdown(f"**Poles:** {motor.get('poles', 'N/A')}")
+            st.markdown(f"**Speed:** {motor.get('speed', 'N/A')} {motor.get('speed_unit', 'RPM')}")
+        with col3:
+            st.markdown(f"**Mount Type:** {qd.get('motor_mount_type', 'N/A')}")
+            st.markdown(f"**Base Price:** {CURRENCY_SYMBOL} {float(qd.get('motor_price', 0)):,.2f}")
+            
+            # Show markup details
+            motor_markup = float(qd.get('motor_markup_override', 1.0))
+            motor_markup_pct = (motor_markup - 1) * 100
+            st.markdown(f"**Markup Applied:** {motor_markup:.2f} ({motor_markup_pct:.1f}%)")
+            
+            # Final price
+            if 'motor_price_after_markup' in qd:
+                st.markdown(f"**Final Price:** {CURRENCY_SYMBOL} {float(qd.get('motor_price_after_markup', 0)):,.2f}")
+    else:
+        st.info("No motor has been selected. Please go to the 'Motor Selection' tab to choose a motor.")
 
     st.divider()
 
@@ -114,16 +142,27 @@ def render_main_content():
         if f"Total Cost" in summary_df.index and 'Total' in summary_df.columns and pd.notna(summary_df.loc[f"Total Cost", 'Total']):
             fan_components_total_cost = float(summary_df.loc[f"Total Cost", 'Total'])
 
+        # Get motor cost if available
+        motor_cost = 0.0
+        if 'motor_price_after_markup' in qd and pd.notna(qd['motor_price_after_markup']):
+            motor_cost = float(qd['motor_price_after_markup'])
+        elif 'motor_price' in qd and pd.notna(qd['motor_price']) and 'motor_markup_override' in qd:
+            # Calculate motor cost if we have price and markup but not pre-calculated after-markup price
+            motor_cost = float(qd['motor_price']) * float(qd['motor_markup_override'])
+
         buy_out_total_cost = sum(item['cost'] * item['quantity'] for item in qd.get("buy_out_items_list", []))
 
-        grand_total_quote = fan_components_total_cost + buy_out_total_cost
+        grand_total_quote = fan_components_total_cost + motor_cost + buy_out_total_cost
 
-        summary_cols = st.columns(3)
+        # Display total costs in a grid - now including motor cost
+        summary_cols = st.columns(4)
         with summary_cols[0]:
             st.metric(f"Total Fan Components Cost", f"{CURRENCY_SYMBOL} {fan_components_total_cost:,.2f}")
         with summary_cols[1]:
-            st.metric(f"Total Buy-out Items Cost", f"{CURRENCY_SYMBOL} {buy_out_total_cost:,.2f}")
+            st.metric(f"Motor Cost", f"{CURRENCY_SYMBOL} {motor_cost:,.2f}")
         with summary_cols[2]:
+            st.metric(f"Total Buy-out Items Cost", f"{CURRENCY_SYMBOL} {buy_out_total_cost:,.2f}")
+        with summary_cols[3]:
             st.metric("GRAND TOTAL QUOTE", f"{CURRENCY_SYMBOL} {grand_total_quote:,.2f}", delta_color="off")
 
     st.divider()

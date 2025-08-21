@@ -140,6 +140,9 @@ class QuoteRequest(BaseModel):
     blade_quantity: int
     components: List[ComponentQuoteRequest]
     markup_override: Optional[float] = None
+    motor_markup_override: Optional[float] = None
+    motor_id: Optional[int] = None
+    motor_mount_type: Optional[str] = None
 
 
 class CalculatedComponent(BaseModel):
@@ -198,3 +201,7 @@ class QuoteResponse(BaseModel):
     markup_applied: float
     final_price: float
     components: List[CalculatedComponent]
+    motor_base_price: Optional[float] = None
+    motor_markup_applied: Optional[float] = None
+    motor_final_price: Optional[float] = None
+    motor_details: Optional[dict] = None

@@ -520,7 +520,30 @@ def calculate_full_quote(db: Session, request: schemas.QuoteRequest) -> schemas.
     subtotal = total_material_cost + total_labour_cost
     final_price = subtotal * markup
 
-    # --- 4. Assemble the final response object using Pydantic models ---
+    # --- 4. Handle motor pricing if provided ---
+    motor_base_price = None
+    motor_markup_applied = None
+    motor_final_price = None
+    motor_details = None
+
+    if request.motor_id:
+        # Use motor_markup_override if provided, otherwise use the default from settings
+        motor_markup = request.motor_markup_override if request.motor_markup_override is not None else rates_and_settings.get('default_motor_markup', 1.0)
+        
+        # In a real implementation, we would fetch the motor details from the database using the motor_id
+        # For now, this would need to be handled when integrating with the review_quote_tab.py
+        # Example:
+        # motor = crud.get_motor(db, request.motor_id)
+        # if motor:
+        #     price_field = 'flange_price' if request.motor_mount_type == 'Flange' else 'foot_price'
+        #     motor_base_price = getattr(motor, price_field)
+        #     motor_final_price = motor_base_price * motor_markup
+        #     motor_details = motor.dict()
+        #     
+        # In the current implementation, we assume the motor price is provided in the UI
+        # and we'll handle it in the review tab
+
+    # --- 5. Assemble the final response object using Pydantic models ---
     return schemas.QuoteResponse(
         fan_uid=fan_config.uid,
         total_mass_kg=round(total_mass, 2),
@@ -529,7 +552,11 @@ def calculate_full_quote(db: Session, request: schemas.QuoteRequest) -> schemas.
         subtotal_cost=round(subtotal, 2),
         markup_applied=markup,
         final_price=round(final_price, 2),
-        components=[schemas.CalculatedComponent(**c) for c in calculated_components_details]
+        components=[schemas.CalculatedComponent(**c) for c in calculated_components_details],
+        motor_base_price=motor_base_price,
+        motor_markup_applied=motor_markup_applied,
+        motor_final_price=motor_final_price,
+        motor_details=motor_details
     )
 
 def calculate_components_summary(db: Session, request: schemas.QuoteRequest) -> dict:
@@ -537,6 +564,9 @@ def calculate_components_summary(db: Session, request: schemas.QuoteRequest) -> 
     Calculate authoritative aggregated totals for the components included in `request`.
     This reuses the same per-component calculators as calculate_full_quote but only
     returns component-level totals (no motor / buy-outs).
+    
+    If motor_markup_override is provided, it will be stored in the response for the UI to use,
+    but this function does not calculate motor pricing.
     """
     # --- 1. Fetch fan & parameters ---
     fan_config = crud.get_fan_configuration(db, request.fan_configuration_id)
@@ -591,6 +621,9 @@ def calculate_components_summary(db: Session, request: schemas.QuoteRequest) -> 
     subtotal = total_material_cost + total_labour_cost
     final_price = subtotal * markup
 
+    # Include motor markup in response if provided
+    motor_markup = request.motor_markup_override if request.motor_markup_override is not None else rates_and_settings.get('default_motor_markup', 1.0)
+
     return {
         "fan_uid": fan_config.uid,
         "total_mass_kg": round(total_mass, 2),
@@ -600,5 +633,6 @@ def calculate_components_summary(db: Session, request: schemas.QuoteRequest) -> 
         "subtotal_cost": round(subtotal, 2),
         "markup_applied": markup,
         "final_price": round(final_price, 2),
-        "components": calculated_components_details
+        "components": calculated_components_details,
+        "motor_markup_applied": motor_markup
     }
