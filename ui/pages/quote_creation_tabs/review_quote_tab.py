@@ -1,14 +1,17 @@
 import streamlit as st
 import pandas as pd
-import numpy as np # For np.nan
-from config import ROW_DEFINITIONS, CURRENCY_SYMBOL, COMPONENT_ORDER # For ordering if needed
+import os
+import json
+import requests
+from config import CURRENCY_SYMBOL
+
+API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
 
 def render_main_content():
     st.header("5. Review & Finalize Quote")
     qd = st.session_state.quote_data
     cd = qd.get("component_details", {})
 
-    # --- Display Basic Info ---
     # Project Information
     st.subheader("Project Information")
     col1, col2 = st.columns(2)
@@ -17,7 +20,7 @@ def render_main_content():
         st.markdown(f"**Client Name:** {qd.get('client_name', 'N/A')}")
         st.markdown(f"**Quote Reference:** {qd.get('quote_ref', 'N/A')}")
     with col2:
-        st.markdown(f"**Fan ID:** {qd.get('fan_id', 'N/A')} mm")
+        st.markdown(f"**Fan ID:** {qd.get('fan_uid', 'N/A')} mm")
         
     # Motor Information (more detailed)
     st.subheader("Motor Information")
@@ -50,124 +53,125 @@ def render_main_content():
 
     st.divider()
 
-    # --- Fan Component Summary Table ---
-    st.subheader("Fan Component Cost & Mass Summary")
-    if not cd or not any(cd.values()): # Check if component_details is empty or has no actual data
-        st.info("No fan components configured yet. Please go to the 'Fan Configuration' tab.")
-    else:
-        # Filter cd to only include selected and ordered components
-        ordered_selected_components_for_summary = [
-            comp for comp in COMPONENT_ORDER if comp in qd.get("selected_components_unordered", []) and comp in cd
-        ]
-        filtered_cd_for_df = {comp: cd[comp] for comp in ordered_selected_components_for_summary if comp in cd}
-
-
-        if not filtered_cd_for_df:
-            st.info("No data for selected components. Please check 'Fan Configuration' tab.")
+    # Auto-refresh authoritative server totals when inputs change
+    def _ensure_server_summary_up_to_date():
+        qd_local = st.session_state.get("quote_data", {}) or {}
+        cd_local = qd_local.get("component_details", {}) or {}
+        fan_config_id = qd_local.get("fan_config_id") or qd_local.get("fan_id")
+        selected_names = qd_local.get("selected_components_unordered", []) or []
+        if not fan_config_id or not selected_names:
             return
 
-        ordered_rows_labels = [row_tuple[0] for row_tuple in ROW_DEFINITIONS]
         try:
-            # Create DataFrame from the filtered and ordered component details
-            summary_df = pd.DataFrame(filtered_cd_for_df)
-            # Reindex to ensure all defined rows are present and in order
-            summary_df = summary_df.reindex(index=ordered_rows_labels)
-        except Exception as e:
-            st.error(f"Error creating summary DataFrame: {e}")
-            st.json(filtered_cd_for_df) # Show data that caused the error
-            return # Stop further processing for this section
+            resp = requests.get(f"{API_BASE_URL}/fans/{fan_config_id}/components")
+            resp.raise_for_status()
+            comps = resp.json() or []
+            available_map = {c.get('name'): c.get('id') for c in comps}
+        except requests.RequestException:
+            return
 
-        # Calculate 'Total' column
-        rows_to_sum = ["Real Mass", "Feedstock Mass", f"Material Cost", "Labour", f"Total Cost"]
-        valid_rows_to_sum = [r for r in rows_to_sum if r in summary_df.index]
+        comp_list = []
+        for name in selected_names:
+            comp_id = available_map.get(name)
+            overrides = cd_local.get(name, {}) if isinstance(cd_local, dict) else {}
+            comp_list.append({
+                "component_id": comp_id,
+                "thickness_mm_override": overrides.get("Material Thickness"),
+                "fabrication_waste_factor_override": (overrides.get("Fabrication Waste") / 100.0) if overrides.get("Fabrication Waste") is not None else None
+            })
 
-        summary_df['Total'] = np.nan # Initialize with NaN for Arrow compatibility
-        if valid_rows_to_sum and not summary_df.select_dtypes(include=np.number).empty:
-            numeric_cols_for_sum = summary_df.columns[summary_df.columns != 'Total']
-            summary_df.loc[valid_rows_to_sum, 'Total'] = summary_df.loc[valid_rows_to_sum, numeric_cols_for_sum].sum(axis=1, skipna=True)
+        payload = {
+            "fan_configuration_id": fan_config_id,
+            "blade_quantity": int(qd_local.get("blade_sets", 0)) if qd_local.get("blade_sets") else None,
+            "components": comp_list,
+            "markup_override": qd_local.get("markup_override"),
+            "motor_markup_override": qd_local.get("motor_markup_override")
+        }
 
-        # --- Configure Column Formatting for st.dataframe ---
-        st_col_config = {}
-        row_format_details = {row[0]: (row[3], row[1]) for row in ROW_DEFINITIONS} # label: (unit, type)
+        payload_hash = json.dumps(payload, sort_keys=True, default=str)
+        if st.session_state.get("last_summary_payload_hash") == payload_hash:
+            return
+        try:
+            resp = requests.post(f"{API_BASE_URL}/quotes/components/summary", json=payload)
+            resp.raise_for_status()
+            st.session_state.server_summary = resp.json()
+            st.session_state.last_summary_payload_hash = payload_hash
+        except requests.RequestException:
+            pass
 
-        for df_col_name in summary_df.columns: # Iterate over DataFrame columns (Component names + 'Total')
-            # Default formatting for the column - applied if no row-specific format matches
-            st_col_config[df_col_name] = st.column_config.NumberColumn(
-                label=str(df_col_name),
-                format="%.2f" # Generic float
-            )
+    _ensure_server_summary_up_to_date()
 
-        # Apply specific formatting to cells based on row_label's unit_hint
-        # This is a bit tricky as st.column_config is column-wide.
-        # We will format the DataFrame for display instead, then show it.
-        # OR, we can create a new DF with formatted strings for st.dataframe if direct config is too limited.
-        # For now, let's try to make NumberColumn work as much as possible.
-        # The best is to have consistent types in columns. NaNs are fine.
+    # Fan Component Cost & Mass Summary (DataFrame only)
+    st.subheader("Fan Component Cost & Mass Summary")
 
-        # Since st.column_config applies to the whole column, we create a styled DF for display
-        styled_df = summary_df.copy().astype(object) # Copy to object to allow mixed types (strings for formatted numbers)
+    server_components = (st.session_state.get("server_summary") or {}).get("components")
+    component_calcs = st.session_state.get("component_calculations", {}) or {}
 
-        for row_label_df, (unit, row_type) in row_format_details.items():
-            if row_label_df not in styled_df.index: continue
-            for col_name_df in styled_df.columns:
-                val = styled_df.loc[row_label_df, col_name_df]
-                if pd.isna(val):
-                    styled_df.loc[row_label_df, col_name_df] = "---" # Display NaNs as "---"
-                    continue
+    rows = []
+    if server_components:
+        for c in server_components:
+            rows.append({
+                "Component": c.get("name"),
+                "Length (mm)": c.get("total_length_mm"),
+                "Real Mass (kg)": c.get("real_mass_kg"),
+                "Material Cost": c.get("material_cost"),
+                "Labour Cost": c.get("labour_cost"),
+                "Cost Before Markup": c.get("total_cost_before_markup"),
+                "Cost After Markup": c.get("total_cost_after_markup"),
+            })
+    else:
+        for name, c in component_calcs.items():
+            rows.append({
+                "Component": name,
+                "Length (mm)": c.get("total_length_mm"),
+                "Real Mass (kg)": c.get("real_mass_kg"),
+                "Material Cost": c.get("material_cost"),
+                "Labour Cost": c.get("labour_cost"),
+                "Cost Before Markup": c.get("total_cost_before_markup"),
+                "Cost After Markup": c.get("total_cost_after_markup"),
+            })
 
-                try:
-                    if unit == CURRENCY_SYMBOL:
-                        styled_df.loc[row_label_df, col_name_df] = f"{CURRENCY_SYMBOL} {float(val):,.2f}"
-                    elif unit == '%':
-                        styled_df.loc[row_label_df, col_name_df] = f"{float(val):.1f} %"
-                    elif unit == 'kg':
-                        styled_df.loc[row_label_df, col_name_df] = f"{float(val):.2f} kg"
-                    elif unit == 'mm':
-                        styled_df.loc[row_label_df, col_name_df] = f"{float(val):.1f} mm"
-                    elif unit == 'hrs':
-                        styled_df.loc[row_label_df, col_name_df] = f"{float(val):.1f} hrs"
-                    elif unit == 'factor':
-                         styled_df.loc[row_label_df, col_name_df] = f"{float(val):.2f}"
-                    # else keep as is, or add more specific formats
-                except (ValueError, TypeError): # If value can't be converted to float (e.g. already "---")
-                    pass # Keep the existing value
+    if not rows:
+        st.info("No fan components configured yet. Please go to the 'Fan Configuration' tab.")
+        return
 
-        st.dataframe(styled_df, use_container_width=True) # Display the manually formatted DataFrame
+    df = pd.DataFrame(rows)
 
-        # --- Grand Totals ---
-        st.divider()
-        st.subheader("Quote Grand Totals")
+    def _safe_sum(key: str) -> float:
+        vals = pd.to_numeric(df[key], errors='coerce') if key in df.columns else pd.Series(dtype=float)
+        return float(vals.fillna(0).sum())
 
-        fan_components_total_cost = 0.0
-        if f"Total Cost" in summary_df.index and 'Total' in summary_df.columns and pd.notna(summary_df.loc[f"Total Cost", 'Total']):
-            fan_components_total_cost = float(summary_df.loc[f"Total Cost", 'Total'])
+    totals_row = {
+        "Component": "TOTAL",
+        "Length (mm)": _safe_sum("Length (mm)"),
+        "Real Mass (kg)": _safe_sum("Real Mass (kg)"),
+        "Material Cost": _safe_sum("Material Cost"),
+        "Labour Cost": _safe_sum("Labour Cost"),
+        "Cost Before Markup": _safe_sum("Cost Before Markup"),
+        "Cost After Markup": _safe_sum("Cost After Markup"),
+    }
+    df = pd.concat([df, pd.DataFrame([totals_row])], ignore_index=True, sort=False).fillna("N/A")
 
-        # Get motor cost if available
-        motor_cost = 0.0
-        if 'motor_price_after_markup' in qd and pd.notna(qd['motor_price_after_markup']):
-            motor_cost = float(qd['motor_price_after_markup'])
-        elif 'motor_price' in qd and pd.notna(qd['motor_price']) and 'motor_markup_override' in qd:
-            # Calculate motor cost if we have price and markup but not pre-calculated after-markup price
-            motor_cost = float(qd['motor_price']) * float(qd['motor_markup_override'])
+    def _highlight_totals(row):
+        return ['font-weight: bold; font-size: 20px; color: #66b1d1;' if row['Component'] == 'TOTAL' else '' for _ in row]
+    def _fmt_length(x):
+        return f"{int(x):,d}" if isinstance(x, (int, float)) else x
+    def _fmt_float2(x):
+        return f"{x:,.2f}" if isinstance(x, (int, float)) else x
+    def _fmt_currency(x):
+        return f"{CURRENCY_SYMBOL} {x:,.2f}" if isinstance(x, (int, float)) else x
 
-        buy_out_total_cost = sum(item['cost'] * item['quantity'] for item in qd.get("buy_out_items_list", []))
-
-        grand_total_quote = fan_components_total_cost + motor_cost + buy_out_total_cost
-
-        # Display total costs in a grid - now including motor cost
-        summary_cols = st.columns(4)
-        with summary_cols[0]:
-            st.metric(f"Total Fan Components Cost", f"{CURRENCY_SYMBOL} {fan_components_total_cost:,.2f}")
-        with summary_cols[1]:
-            st.metric(f"Motor Cost", f"{CURRENCY_SYMBOL} {motor_cost:,.2f}")
-        with summary_cols[2]:
-            st.metric(f"Total Buy-out Items Cost", f"{CURRENCY_SYMBOL} {buy_out_total_cost:,.2f}")
-        with summary_cols[3]:
-            st.metric("GRAND TOTAL QUOTE", f"{CURRENCY_SYMBOL} {grand_total_quote:,.2f}", delta_color="off")
+    styler = df.style.apply(_highlight_totals, axis=1).format({
+        "Length (mm)": _fmt_length,
+        "Real Mass (kg)": _fmt_float2,
+        "Material Cost": _fmt_currency,
+        "Labour Cost": _fmt_currency,
+        "Cost Before Markup": _fmt_currency,
+        "Cost After Markup": _fmt_currency,
+    })
+    st.write(styler)
 
     st.divider()
     if st.button("🖨️ Generate Quote Document (Placeholder)", use_container_width=True):
-        # Logic to generate PDF/Word document using collected data from st.session_state.quote_data
-        # Libraries like FPDF, reportlab, python-docx could be used.
         st.success("Quote document generation logic would be triggered here!")
         st.balloons()

@@ -30,17 +30,23 @@ tab_titles = ["1. Project Info", "2. Motor Selection", "3. Fan Configuration", "
 # This ensures data persists across tab switches and reruns within this page.
 if "quote_data" not in st.session_state:
     st.session_state.quote_data = {
-        # Project Info
-        "project_name": "", "client_name": "", "project_location": "", "quote_ref": "Q" + st.session_state.get("username","demo")[0].upper() + "001",
-        # Motor Selection
-        "motor_type": "Standard AC", "motor_power_kw": 11.0, "motor_voltage": "400V", "motor_frequency": "50Hz",
-        # Fan Configuration
-        "fan_id": 570, "fan_hub": 400, "blade_sets": 1,
-        "selected_components_unordered": [], # Stores raw multiselect output
-        "component_details": {}, # Will store detailed data for each selected component's rows
+        # Project Info - initialized with sensible defaults for a new quote
+        "project_name": "",
+        "client_name": "",
+        "project_location": "",
+        "project_notes": "",
+        "quote_ref": "Q" + st.session_state.get("username", "demo")[0].upper() + "001",
+
+        # Fan/Component selections - start empty, populated by user
+        "selected_components_unordered": [],
+        "component_details": {},  # Stores user overrides (thickness, waste)
+
         # Buy-out Items
-        "buy_out_items_list": [], # List of dicts: {'description': '', 'cost': 0.0, 'quantity': 1}
-        # Review & Quote Summary will be derived from the above
+        "buy_out_items_list": [],
+
+        # Other keys will be added dynamically by other tabs:
+        # fan_config_id, fan_uid, fan_hub, blade_sets, markup_override (from fan_config_tab)
+        # selected_motor_details, motor_mount_type, motor_price, motor_markup_override, motor_price_after_markup (from motor_selection_tab)
     }
 
 elif st.sidebar.button("🔄 Start New Quote / Reset Form", use_container_width=True):
@@ -52,9 +58,11 @@ elif st.sidebar.button("🔄 Start New Quote / Reset Form", use_container_width=
     st.session_state.username = username
     # Re-initialize quote data
     st.session_state.quote_data = {
-        "project_name": "", "client_name": "", "project_location": "", "quote_ref": "Q" + st.session_state.get("username","demo")[0].upper() + "001",
-        "motor_type": "Standard AC", "motor_power_kw": 11.0, "motor_voltage": "400V", "motor_frequency": "50Hz",
-        "fan_id": 570, "fan_hub": 400, "blade_sets": 1,
+        "project_name": "",
+        "client_name": "",
+        "project_location": "",
+        "project_notes": "",
+        "quote_ref": "Q" + st.session_state.get("username", "demo")[0].upper() + "001",
         "selected_components_unordered": [],
         "component_details": {},
         "buy_out_items_list": [],
