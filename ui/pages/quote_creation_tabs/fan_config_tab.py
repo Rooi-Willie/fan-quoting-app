@@ -4,6 +4,7 @@ import pandas as pd # Keep for potential future use, though not strictly needed 
 from typing import Optional, List, Dict # Added for type hinting
 import requests # Added for API calls
 from config import COMPONENT_ORDER, COMPONENT_IMAGES, ROW_DEFINITIONS, IMAGE_FOLDER_PATH, CURRENCY_SYMBOL
+from utils import ensure_server_summary_up_to_date, build_summary_dataframe
 
 # API_BASE_URL should be configured, e.g., via environment variable
 # Docker Compose will set this from .env for the UI service.
@@ -484,75 +485,18 @@ def render_main_content():
                 "Cost Before Markup": c.get("total_cost_before_markup"),
                 "Cost After Markup": c.get("total_cost_after_markup"),
             })
-
-        df = pd.DataFrame(rows)
-
-        # Append totals row using totals already computed above
-        totals_row = {
-            "Component": "TOTAL",
-            "Length (mm)": float(total_length_mm or 0),
-            "Real Mass (kg)": float(total_real_mass_kg or 0),
-            "Material Cost": float(total_material_cost or 0),
-            "Labour Cost": float(total_labour_cost or 0),
-            "Cost Before Markup": float(subtotal_cost or 0),
-            "Cost After Markup": float(final_price or 0),
-        }
-        df = pd.concat([df, pd.DataFrame([totals_row])], ignore_index=True, sort=False).fillna("N/A")
-
-        # Styling: make the TOTAL row bold and larger font
-        def _highlight_totals(row):
-            return ['font-weight: bold; font-size: 20px; color: #66b1d1;' if row['Component'] == 'TOTAL' else '' for _ in row]
-
-        def _fmt_length(x):
-            return f"{int(x):,d}" if isinstance(x, (int, float)) else x
-        def _fmt_float2(x):
-            return f"{x:,.2f}" if isinstance(x, (int, float)) else x
-        def _fmt_currency(x):
-            return f"{CURRENCY_SYMBOL} {x:,.2f}" if isinstance(x, (int, float)) else x
-
-        styler = df.style.apply(_highlight_totals, axis=1).format({
-            "Length (mm)": _fmt_length,
-            "Real Mass (kg)": _fmt_float2,
-            "Material Cost": _fmt_currency,
-            "Labour Cost": _fmt_currency,
-            "Cost Before Markup": _fmt_currency,
-            "Cost After Markup": _fmt_currency,
-        })
-
-        # Render styled table
+        styler = build_summary_dataframe(rows, CURRENCY_SYMBOL)
         st.write(styler)
 
-    # Action to explicitly request authoritative server totals (hook up your API endpoint)
+    # Action to explicitly request authoritative server totals (using shared helper)
     recalc_col1, recalc_col2 = st.columns([1, 3])
     with recalc_col1:
         if st.button("Recalculate server totals"):
-            # Build payload for server summary
-            comp_list = []
-            available_map = {comp['name']: comp['id'] for comp in available_components_list or []}
-            for name in ordered_selected_components:
-                comp_id = available_map.get(name)
-                overrides = cd.get(name, {})
-                comp_list.append({
-                    "component_id": comp_id,
-                    "thickness_mm_override": overrides.get("Material Thickness"),
-                    "fabrication_waste_factor_override": (overrides.get("Fabrication Waste") / 100.0) if overrides.get("Fabrication Waste") is not None else None
-                })
-            payload = {
-                "fan_configuration_id": fan_config_id,
-                "blade_quantity": int(qd.get("blade_sets", 0)) if qd.get("blade_sets") else None,
-                "components": comp_list,
-                "markup_override": qd.get("markup_override"),
-                "motor_markup_override": qd.get("motor_markup_override")
-            }
-            try:
-                resp = requests.post(f"{API_BASE_URL}/quotes/components/summary", json=payload)
-                resp.raise_for_status()
-                server_summary = resp.json()
-                # Update UI with authoritative totals (or show them in a modal / info)
-                st.session_state.server_summary = server_summary
+            ensure_server_summary_up_to_date(qd)
+            if st.session_state.get("server_summary"):
                 st.success("Server totals updated.")
-            except requests.RequestException as e:
-                st.error(f"Server error: {e}")
+            else:
+                st.warning("Could not update server totals. Check API logs.")
     with recalc_col2:
         st.caption("Use this to fetch server-calculated totals (recommended before finalising).")
 
