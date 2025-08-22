@@ -90,6 +90,98 @@ def render_main_content():
     styler = build_summary_dataframe(rows, CURRENCY_SYMBOL)
     st.write(styler)
 
+    # Final Quote Cost Breakdown Section
+    st.divider()
+    st.subheader("Final Quote Cost Breakdown")
+
+    # Get data from session state
+    server_summary = st.session_state.get("server_summary", {})
+    
+    # Initialize breakdown data
+    breakdown_rows = []
+    
+    # Add Component section with all components
+    if server_components:
+        # Add each individual component
+        for i, c in enumerate(server_components):
+            breakdown_rows.append({
+                "Item Type": "Component",
+                "Item": c.get("name", f"Component {i+1}"),
+                "Cost": c.get("total_cost_after_markup", 0)
+            })
+        
+        # Add Component Subtotal
+        components_total = server_summary.get("final_price", 0)
+        breakdown_rows.append({
+            "Item Type": "Subtotal",
+            "Item": "Components Subtotal",
+            "Cost": components_total
+        })
+    
+    # Add Motor section if a motor is selected
+    if qd.get('selected_motor_details'):
+        motor = qd['selected_motor_details']
+        motor_price = float(qd.get('motor_price_after_markup', 0) or 0)
+        
+        # Add motor entry
+        motor_name = f"{motor.get('supplier_name', '')} {motor.get('product_range', '')} - {motor.get('rated_output', 0)} {motor.get('rated_output_unit', 'kW')}"
+        breakdown_rows.append({
+            "Item Type": "Motor",
+            "Item": motor_name,
+            "Cost": motor_price
+        })
+        
+        # Add Motor Subtotal
+        breakdown_rows.append({
+            "Item Type": "Subtotal",
+            "Item": "Motor Subtotal",
+            "Cost": motor_price
+        })
+    
+    # Add Buyout Items section placeholder
+    breakdown_rows.append({
+        "Item Type": "Subtotal",
+        "Item": "Buyout Items Subtotal (Future)",
+        "Cost": 0
+    })
+    
+    # Calculate and add Final Total
+    components_total = server_summary.get("final_price", 0) or 0
+    motor_total = float(qd.get('motor_price_after_markup', 0) or 0)
+    buyout_total = 0  # For future implementation
+    final_total = components_total + motor_total + buyout_total
+    
+    # Add Final Total Row
+    breakdown_rows.append({
+        "Item Type": "Total",
+        "Item": "FINAL QUOTE TOTAL",
+        "Cost": final_total
+    })
+    
+    # Create DataFrame
+    df = pd.DataFrame(breakdown_rows)
+    
+    # Format the cost column
+    df["Formatted Cost"] = df["Cost"].apply(lambda x: f"{CURRENCY_SYMBOL} {float(x):,.2f}")
+    
+    # Keep only necessary columns for display
+    display_df = df[["Item", "Formatted Cost"]]
+    
+    # Apply styling to the table
+    def highlight_rows(row):
+        style = ''
+        if df.loc[row.name, "Item Type"] == "Subtotal":
+            style = 'font-weight: bold; border-top: 1px solid; color: #1E88E5'
+        elif df.loc[row.name, "Item Type"] == "Total":
+            style = 'font-weight: bold; font-size: 1.1em; border-top: 2px solid; color: #2E7D32'
+        return [style, style]  # Return styling for exactly 2 columns
+    
+    # Apply styling
+    styled_df = display_df.style.apply(highlight_rows, axis=1)
+    
+    # Show the table
+    st.table(styled_df)
+
     st.divider()
     if st.button("🖨️ Generate Quote Document (Placeholder)", use_container_width=True):
         st.success("Quote document generation logic would be triggered here!")
