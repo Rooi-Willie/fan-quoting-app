@@ -200,6 +200,7 @@ class QuoteResponse(BaseModel):
     subtotal_cost: float
     markup_applied: float
     final_price: float
+    total_quote_price: float
     components: List[CalculatedComponent]
     motor_base_price: Optional[float] = None
     motor_markup_applied: Optional[float] = None

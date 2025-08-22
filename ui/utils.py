@@ -3,6 +3,7 @@ import json
 from typing import Dict, List, Optional
 
 import pandas as pd
+from pandas.io.formats.style import Styler
 import requests
 import streamlit as st
 
@@ -68,7 +69,7 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 		pass
 
 
-def build_summary_dataframe(rows: List[Dict], currency_symbol: str) -> pd.io.formats.style.Styler:
+def build_summary_dataframe(rows: List[Dict], currency_symbol: str) -> Styler:
 	"""Return a styled DataFrame with a TOTAL row and nice formatting."""
 	df = pd.DataFrame(rows)
 
@@ -85,7 +86,7 @@ def build_summary_dataframe(rows: List[Dict], currency_symbol: str) -> pd.io.for
 		"Cost Before Markup": _safe_sum("Cost Before Markup"),
 		"Cost After Markup": _safe_sum("Cost After Markup"),
 	}
-	df = pd.concat([df, pd.DataFrame([totals_row])], ignore_index=True, sort=False).fillna("N/A")
+	df = pd.concat([df, pd.DataFrame([totals_row])], ignore_index=True, sort=False).fillna(0)
 
 	def _highlight_totals(row):
 		return ['font-weight: bold; font-size: 20px; color: #66b1d1;' if row['Component'] == 'TOTAL' else '' for _ in row]

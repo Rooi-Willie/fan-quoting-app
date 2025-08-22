@@ -527,23 +527,23 @@ def calculate_full_quote(db: Session, request: schemas.QuoteRequest) -> schemas.
     motor_details = None
 
     if request.motor_id:
-        # Use motor_markup_override if provided, otherwise use the default from settings
-        motor_markup = request.motor_markup_override if request.motor_markup_override is not None else rates_and_settings.get('default_motor_markup', 1.0)
-        
-        # In a real implementation, we would fetch the motor details from the database using the motor_id
-        # For now, this would need to be handled when integrating with the review_quote_tab.py
-        # Example:
-        # motor = crud.get_motor(db, request.motor_id)
-        # if motor:
-        #     price_field = 'flange_price' if request.motor_mount_type == 'Flange' else 'foot_price'
-        #     motor_base_price = getattr(motor, price_field)
-        #     motor_final_price = motor_base_price * motor_markup
-        #     motor_details = motor.dict()
-        #     
-        # In the current implementation, we assume the motor price is provided in the UI
-        # and we'll handle it in the review tab
+        motor_info = crud.get_motor_with_latest_price(db, request.motor_id)
+        if motor_info:
+            # Determine which price to use
+            if request.motor_mount_type and request.motor_mount_type.lower() == 'flange':
+                motor_base_price = motor_info.flange_price
+            else: # Default to foot-mounted
+                motor_base_price = motor_info.foot_price
+
+            if motor_base_price is not None:
+                motor_markup = request.motor_markup_override if request.motor_markup_override is not None else rates_and_settings.get('default_motor_markup', 1.0)
+                motor_markup_applied = motor_markup
+                motor_final_price = motor_base_price * motor_markup
+                motor_details = schemas.MotorWithLatestPrice.from_orm(motor_info).dict()
 
     # --- 5. Assemble the final response object using Pydantic models ---
+    total_quote_price = final_price + (motor_final_price or 0)
+    
     return schemas.QuoteResponse(
         fan_uid=fan_config.uid,
         total_mass_kg=round(total_mass, 2),
@@ -552,6 +552,7 @@ def calculate_full_quote(db: Session, request: schemas.QuoteRequest) -> schemas.
         subtotal_cost=round(subtotal, 2),
         markup_applied=markup,
         final_price=round(final_price, 2),
+        total_quote_price=round(total_quote_price, 2),
         components=[schemas.CalculatedComponent(**c) for c in calculated_components_details],
         motor_base_price=motor_base_price,
         motor_markup_applied=motor_markup_applied,
