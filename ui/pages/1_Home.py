@@ -1,5 +1,12 @@
 import streamlit as st
 from config import APP_TITLE
+import logging
+
+# Configure basic logging (optional, but good for quick setup)
+logging.basicConfig(level=logging.DEBUG,format='%(asctime)s - %(levelname)s - %(filename)s - %(message)s')
+
+# Create a logger object
+logger = logging.getLogger(__name__)
 
 # Page Configuration (set for each page in 'pages' dir for consistency)
 st.set_page_config(page_title=f"Home - {APP_TITLE}", layout="wide")
@@ -31,5 +38,6 @@ with cols[1]:
     if st.button("📄 View Existing Quotes", use_container_width=True):
         # st.switch_page("pages/3_View_Existing_Quotes.py") # Uncomment when ready
         st.info("View Existing Quotes feature is under development.")
+        logger.debug("View Existing Quotes button clicked.")
 
 # Add more options as needed in other columns or rows

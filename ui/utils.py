@@ -6,6 +6,13 @@ import pandas as pd
 from pandas.io.formats.style import Styler
 import requests
 import streamlit as st
+import logging
+
+# Configure basic logging (optional, but good for quick setup)
+logging.basicConfig(level=logging.DEBUG,format='%(asctime)s - %(levelname)s - %(filename)s - %(message)s')
+
+# Create a logger object
+logger = logging.getLogger(__name__)
 
 # Shared API base URL
 API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
@@ -29,6 +36,7 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 	Build a summary payload from session state and POST to /quotes/components/summary
 	only when inputs change. Stores response in st.session_state.server_summary.
 	"""
+	logger.debug("ensure_server_summary_up_to_date called")
 	if not isinstance(qd, dict):
 		return
 	cd = qd.get("component_details", {}) or {}
@@ -58,13 +66,21 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 	}
 
 	payload_hash = json.dumps(payload, sort_keys=True, default=str)
+	logger.debug(f"[DEBUG] New hash: {payload_hash[:30]}...")
+	logger.debug(f"[DEBUG] Old hash: {st.session_state.get('last_summary_payload_hash', 'None')[:30]}...")
+
 	if st.session_state.get("last_summary_payload_hash") == payload_hash:
+		logger.debug("[DEBUG] Skipping API call - payload unchanged")
 		return
+
+	logger.debug("[DEBUG] Making API call with payload:", payload)
 	try:
 		resp = requests.post(f"{API_BASE_URL}/quotes/components/summary", json=payload)
 		resp.raise_for_status()
 		st.session_state.server_summary = resp.json()
 		st.session_state.last_summary_payload_hash = payload_hash
+		# Add explicit rerun when the server summary changes
+		st.rerun()
 	except requests.RequestException:
 		pass
 

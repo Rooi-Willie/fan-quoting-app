@@ -11,9 +11,6 @@ st.title("Fan Quoting App UI")
 
 st.write(f"Attempting to connect to API at: {API_BASE_URL}")
 
-st.write(f"Hello there!")
-st.write(f"1222567567")
-
 try:
     response = requests.get(f"{API_BASE_URL}/")
     response.raise_for_status() # Raise an exception for HTTP errors

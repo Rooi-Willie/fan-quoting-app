@@ -70,11 +70,6 @@ elif st.sidebar.button("🔄 Start New Quote / Reset Form", use_container_width=
     st.success("Quote form has been reset.")
     st.rerun()
 
-# Common sidebar elements (like the JSON dump for debugging) can go here,
-# after the conditional block for tab-specific items.
-st.sidebar.divider() # Placed after potential fan_config_tab sidebar content
-st.sidebar.json(st.session_state.quote_data, expanded=False) # For debugging
-
 # This section now renders the same sidebar content regardless of the active tab.
 fan_config_tab.render_sidebar_widgets() # Always render fan config widgets in sidebar
 st.sidebar.divider()
@@ -105,3 +100,8 @@ with tab_review:
 
 # The "Start New Quote / Reset Form" button is already in the sidebar from earlier.
 # The st.sidebar.divider() and st.sidebar.json() are also managed above.
+
+# Common sidebar elements (like the JSON dump for debugging) can go here,
+# after the conditional block for tab-specific items.
+st.sidebar.divider() # Placed after potential fan_config_tab sidebar content
+st.sidebar.json(st.session_state.quote_data, expanded=False) # For debugging

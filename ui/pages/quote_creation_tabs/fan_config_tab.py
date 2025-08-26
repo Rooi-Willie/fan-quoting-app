@@ -5,30 +5,62 @@ from typing import Optional, List, Dict # Added for type hinting
 import requests # Added for API calls
 from config import COMPONENT_ORDER, COMPONENT_IMAGES, ROW_DEFINITIONS, IMAGE_FOLDER_PATH, CURRENCY_SYMBOL
 from utils import ensure_server_summary_up_to_date, build_summary_dataframe
+import logging
+
+# Configure basic logging (optional, but good for quick setup)
+logging.basicConfig(level=logging.DEBUG,format='%(asctime)s - %(levelname)s - %(filename)s - %(message)s')
+
+# Create a logger object
+logger = logging.getLogger(__name__)
 
 # API_BASE_URL should be configured, e.g., via environment variable
 # Docker Compose will set this from .env for the UI service.
 # Fallback is provided for local development if API is on localhost:8000.
 API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
 
+# Initialize callback counters in session state
+if "callback_counters" not in st.session_state:
+    st.session_state.callback_counters = {
+        "top_level_key": 0,
+        "component_detail": 0
+    }
+
 def _update_quote_data_top_level_key(qd_top_level_key, widget_sstate_key):
     """
     Callback to update a key in st.session_state.quote_data
     from a widget's state in st.session_state.
     """
+    st.session_state.callback_counters["top_level_key"] += 1
+    logger.debug(f"[DEBUG] Top-level callback fired {st.session_state.callback_counters['top_level_key']} times")
+
+    logger.debug(f"[DEBUG] Top-level widget change: {widget_sstate_key} = {st.session_state.get(widget_sstate_key)}")
+
+    old_value = st.session_state.quote_data.get(qd_top_level_key)
+    logger.debug(f"[DEBUG] Old value in quote_data: {old_value}")
+
     if widget_sstate_key in st.session_state:
         st.session_state.quote_data[qd_top_level_key] = st.session_state[widget_sstate_key]
+        logger.debug(f"[DEBUG] Updated quote_data: {qd_top_level_key} = {st.session_state.quote_data[qd_top_level_key]}")
 
 def _update_component_detail_from_widget_state(component_name, detail_key, widget_sstate_key):
     """
     Callback to update a specific detail for a component in
     st.session_state.quote_data["component_details"].
     """
+    st.session_state.callback_counters["component_detail"] += 1
+    logger.debug(f"[DEBUG] Component detail callback fired {st.session_state.callback_counters['component_detail']} times")
+
+    logger.debug(f"[DEBUG] Widget change: {widget_sstate_key} = {st.session_state.get(widget_sstate_key)}")
+
     qd = st.session_state.quote_data
     component_dict = qd.setdefault("component_details", {}).setdefault(component_name, {})
 
+    old_value = component_dict.get(detail_key)
+    logger.debug(f"[DEBUG] Old value in component_details: {old_value}")
+    
     if widget_sstate_key in st.session_state:
         component_dict[detail_key] = st.session_state[widget_sstate_key]
+        logger.debug(f"[DEBUG] Updated component_details: {component_name}.{detail_key} = {component_dict[detail_key]}")
 
 # --- API Helper Functions with Caching ---
 @st.cache_data
@@ -277,6 +309,17 @@ def render_sidebar_widgets():
             disabled=is_disabled
         )
         st.divider()
+
+        # Test button for direct markup update
+        if st.sidebar.button("Test Direct Markup Update"):
+            print("[DEBUG] Test Direct Markup Update button clicked.")
+            # Get current value
+            current_markup = st.session_state.quote_data.get("markup_override", 1.4)
+            # Update by a small amount
+            st.session_state.quote_data["markup_override"] = current_markup + 0.01
+            # Try to trigger recalculation
+            ensure_server_summary_up_to_date(st.session_state.quote_data)
+            st.rerun()
 
 def render_main_content():
     """Renders the main content area for the Fan Configuration tab."""
