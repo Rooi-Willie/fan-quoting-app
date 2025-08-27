@@ -126,3 +126,53 @@ CREATE TABLE global_settings (
     setting_name VARCHAR(50) PRIMARY KEY,
     setting_value VARCHAR(255) NOT NULL
 );
+
+-- ================== QUOTE SAVING TABLES ==================
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255),
+    role VARCHAR(50) DEFAULT 'user',
+    external_id VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS quotes (
+    id SERIAL PRIMARY KEY,
+    quote_ref VARCHAR(50) NOT NULL,
+    original_quote_id INTEGER,
+    revision_number INTEGER NOT NULL DEFAULT 1,
+    user_id INTEGER NOT NULL,
+    creation_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(50) DEFAULT 'draft',
+    
+    -- Project information
+    client_name VARCHAR(255),
+    project_name VARCHAR(255),
+    project_location VARCHAR(255),
+    
+    -- Summary fields for efficient querying
+    fan_uid VARCHAR(100),
+    fan_size_mm INTEGER,
+    blade_sets INTEGER,
+    component_list TEXT[],
+    markup DECIMAL(6, 4),
+    motor_supplier VARCHAR(255),
+    motor_rated_output INTEGER,
+    total_price DECIMAL(10, 2),
+    
+    -- Core quote data storage
+    quote_data JSONB NOT NULL,
+    
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (original_quote_id) REFERENCES quotes(id)
+);
+
+-- Create indices for common lookups
+CREATE INDEX idx_quotes_quote_ref ON quotes(quote_ref);
+CREATE INDEX idx_quotes_original_quote_id ON quotes(original_quote_id);
+CREATE INDEX idx_quotes_creation_date ON quotes(creation_date);
+CREATE INDEX idx_quotes_status ON quotes(status);
+CREATE INDEX idx_quotes_client_name ON quotes(client_name);
+CREATE INDEX idx_quotes_fan_uid ON quotes(fan_uid);

@@ -2,9 +2,11 @@
 # directly to your database tables. Each class represents a table, and instances
 # of that class represent rows in that table.
 import enum
-from sqlalchemy import (ARRAY, Column, Date, ForeignKey, Integer, Numeric,
+from sqlalchemy import (ARRAY, Column, Date, DateTime, ForeignKey, Integer, Numeric,
                         SmallInteger, String, Enum as SQLAlchemyEnum, Text, UniqueConstraint)
-from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship, backref
+import datetime
 from .database import Base
 
 
@@ -205,3 +207,52 @@ class FanComponentParameter(Base):
     component = relationship("Component", back_populates="fan_specific_parameters")
 
     __table_args__ = (UniqueConstraint('fan_configuration_id', 'component_id', name='_fan_component_uc'),)
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True)
+    name = Column(String)
+    role = Column(String, default="user")
+    external_id = Column(String)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    last_login = Column(DateTime)
+
+class Quote(Base):
+    __tablename__ = "quotes"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    quote_ref = Column(String, index=True)
+    original_quote_id = Column(Integer, ForeignKey("quotes.id"), nullable=True)
+    revision_number = Column(Integer, default=1)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    creation_date = Column(DateTime, default=datetime.datetime.utcnow)
+    status = Column(String, default="draft")
+    
+    # Project information
+    client_name = Column(String)
+    project_name = Column(String)
+    project_location = Column(String)
+    
+    # Summary fields
+    fan_uid = Column(String)
+    fan_size_mm = Column(Integer)
+    blade_sets = Column(Integer)
+    component_list = Column(ARRAY(String))
+    markup = Column(Numeric(6, 4))
+    motor_supplier = Column(String)
+    motor_rated_output = Column(Integer)
+    total_price = Column(Numeric(10, 2))
+    
+    # Core quote data
+    quote_data = Column(JSONB)
+    
+    # Relationships
+    user = relationship("User", back_populates="quotes")
+    revisions = relationship("Quote", 
+                            backref=backref("original_quote", remote_side=[id]),
+                            foreign_keys=[original_quote_id])
+
+# Add the relationship to User class
+User.quotes = relationship("Quote", back_populates="user")
