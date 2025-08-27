@@ -1,7 +1,7 @@
 # This file separates the database query logic from the API endpoint logic.
 
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from . import models, schemas
@@ -191,3 +191,123 @@ def get_parameters_for_calculation(db: Session, fan_config_id: int, component_id
     except Exception as e:
         print(f"An error occurred while fetching component parameters: {e}")
         return []
+
+
+# ===================== QUOTE & USER CRUD ==========================
+
+# User CRUD operations
+def get_user(db: Session, user_id: int):
+    return db.query(models.User).filter(models.User.id == user_id).first()
+
+def get_user_by_email(db: Session, email: str):
+    return db.query(models.User).filter(models.User.email == email).first()
+
+def create_user(db: Session, user: schemas.UserCreate):
+    db_user = models.User(**user.dict())
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+def get_or_create_user(db: Session, email: str, name: Optional[str] = None):
+    user = get_user_by_email(db, email)
+    if not user:
+        user = create_user(db, schemas.UserCreate(email=email, name=name))
+    return user
+
+# Quote CRUD operations
+def get_quote(db: Session, quote_id: int):
+    return db.query(models.Quote).filter(models.Quote.id == quote_id).first()
+
+def get_quotes(db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.Quote).order_by(models.Quote.creation_date.desc()).offset(skip).limit(limit).all()
+
+def get_quotes_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 100):
+    return db.query(models.Quote).filter(models.Quote.user_id == user_id).order_by(models.Quote.creation_date.desc()).offset(skip).limit(limit).all()
+
+def get_quote_revisions(db: Session, original_quote_id: int):
+    return db.query(models.Quote).filter(models.Quote.original_quote_id == original_quote_id).order_by(models.Quote.revision_number).all()
+
+def create_quote(db: Session, quote: schemas.QuoteCreate):
+    # Extract summary fields from quote_data
+    quote_data = quote.quote_data
+    
+    # Create summary fields for efficient querying
+    summary_fields = {
+        "fan_uid": quote_data.get("fan_uid"),
+        "fan_size_mm": quote_data.get("fan_size_mm"),
+        "blade_sets": quote_data.get("blade_sets"),
+        "component_list": quote_data.get("selected_components_unordered", []),
+        "markup": quote_data.get("markup_override"),
+        "total_price": quote_data.get("final_price")
+    }
+    
+    # Get motor details if available
+    motor_details = quote_data.get("selected_motor_details", {})
+    if motor_details:
+        summary_fields["motor_supplier"] = motor_details.get("supplier_name")
+        summary_fields["motor_rated_output"] = str(motor_details.get("rated_output"))
+    
+    # Create the quote record
+    db_quote = models.Quote(
+        **quote.dict(exclude={"quote_data"}),
+        **summary_fields,
+        quote_data=quote_data
+    )
+    
+    db.add(db_quote)
+    db.commit()
+    db.refresh(db_quote)
+    return db_quote
+
+def create_quote_revision(db: Session, original_quote_id: int, user_id: int, quote_data: Dict[str, Any]):
+    # Get original quote to copy basic fields
+    original_quote = get_quote(db, original_quote_id)
+    if not original_quote:
+        return None
+        
+    # Get highest revision number
+    existing_revisions = get_quote_revisions(db, original_quote_id)
+    next_revision = len(existing_revisions) + 1
+    
+    # Create revision using the same schema as create_quote but with revision info
+    quote_create = schemas.QuoteCreate(
+        quote_ref=original_quote.quote_ref,
+        client_name=original_quote.client_name,
+        project_name=original_quote.project_name,
+        project_location=original_quote.project_location,
+        quote_data=quote_data,
+        user_id=user_id
+    )
+    
+    # Create new quote record with revision information
+    db_quote = models.Quote(
+        **quote_create.dict(exclude={"quote_data"}),
+        original_quote_id=original_quote_id,
+        revision_number=next_revision,
+        # Extract summary fields similar to create_quote
+        fan_uid=quote_data.get("fan_uid"),
+        fan_size_mm=quote_data.get("fan_size_mm"),
+        blade_sets=quote_data.get("blade_sets"),
+        component_list=quote_data.get("selected_components_unordered", []),
+        markup=quote_data.get("markup_override"),
+        total_price=quote_data.get("final_price"),
+        motor_supplier=quote_data.get("selected_motor_details", {}).get("supplier_name"),
+        motor_rated_output=str(quote_data.get("selected_motor_details", {}).get("rated_output")),
+        quote_data=quote_data
+    )
+    
+    db.add(db_quote)
+    db.commit()
+    db.refresh(db_quote)
+    return db_quote
+
+def update_quote_status(db: Session, quote_id: int, status: str):
+    db_quote = get_quote(db, quote_id)
+    if not db_quote:
+        return None
+    
+    db_quote.status = status
+    db.commit()
+    db.refresh(db_quote)
+    return db_quote
