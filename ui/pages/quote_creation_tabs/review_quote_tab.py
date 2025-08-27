@@ -1,8 +1,13 @@
 import streamlit as st
 import pandas as pd
 import os
+import requests
 from config import CURRENCY_SYMBOL
 from utils import ensure_server_summary_up_to_date, build_summary_dataframe
+
+# API_BASE_URL should be configured, e.g., via environment variable
+# Fallback is provided for local development.
+API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
 
 def render_main_content():
     st.header("5. Review & Finalize Quote")
@@ -183,6 +188,48 @@ def render_main_content():
     st.table(styled_df)
 
     st.divider()
-    if st.button("🖨️ Generate Quote Document (Placeholder)", use_container_width=True):
-        st.success("Quote document generation logic would be triggered here!")
-        st.balloons()
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Existing Generate PDF button
+        if st.button("📄 Generate Quote Document", use_container_width=True):
+            st.success("Quote document generation logic would be triggered here!")
+            st.balloons()
+    
+    with col2:
+        # New Save Quote button
+        if st.button("💾 Save Quote", use_container_width=True):
+            if save_quote():
+                st.success("Quote saved successfully!")
+                # Add option to view the quote or continue editing
+                if st.button("View Saved Quotes"):
+                    st.switch_page("pages/3_View_Existing_Quotes.py")
+
+def save_quote():
+    """Save the current quote to the database"""
+    try:
+        # Get current user ID (use 1 for development until auth is implemented)
+        user_id = 1
+        
+        # Prepare payload from session state
+        payload = {
+            "quote_ref": st.session_state.quote_data.get("quote_ref"),
+            "client_name": st.session_state.quote_data.get("client_name"),
+            "project_name": st.session_state.quote_data.get("project_name"),
+            "project_location": st.session_state.quote_data.get("project_location"),
+            "user_id": user_id,
+            "quote_data": st.session_state.quote_data
+        }
+        
+        # Call API
+        response = requests.post(f"{API_BASE_URL}/saved-quotes/", json=payload)
+        response.raise_for_status()
+        
+        # Store the quote ID in session state for reference
+        saved_quote = response.json()
+        st.session_state["last_saved_quote_id"] = saved_quote["id"]
+        
+        return True
+    except Exception as e:
+        st.error(f"Error saving quote: {str(e)}")
+        return False
