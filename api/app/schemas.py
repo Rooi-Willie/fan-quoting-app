@@ -1,9 +1,10 @@
 # This file defines Pydantic schemas that determine the shape of data for API
 # requests and responses. They provide data validation, serialization, and
 # documentation for the API endpoints.
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
+from enum import Enum
 from pydantic import BaseModel, ConfigDict
 
 
@@ -206,3 +207,70 @@ class QuoteResponse(BaseModel):
     motor_markup_applied: Optional[float] = None
     motor_final_price: Optional[float] = None
     motor_details: Optional[dict] = None
+
+# ============= SCHEMAS FOR SAVING AND MANAGING QUOTES ==============
+class QuoteStatus(str, Enum):
+    DRAFT = "draft"
+    SENT = "sent" 
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+class UserBase(BaseModel):
+    email: str
+    name: Optional[str] = None
+    role: Optional[str] = "user"
+
+class UserCreate(UserBase):
+    pass
+
+class User(UserBase):
+    id: int
+    created_at: datetime
+    last_login: Optional[datetime] = None
+    
+    class Config:
+        orm_mode = True
+
+class QuoteBase(BaseModel):
+    quote_ref: str
+    client_name: Optional[str] = None
+    project_name: Optional[str] = None
+    project_location: Optional[str] = None
+    status: Optional[QuoteStatus] = QuoteStatus.DRAFT
+
+class QuoteCreate(QuoteBase):
+    quote_data: Dict[str, Any]
+    user_id: int
+
+class QuoteUpdate(BaseModel):
+    client_name: Optional[str] = None
+    project_name: Optional[str] = None
+    project_location: Optional[str] = None
+    status: Optional[QuoteStatus] = None
+    quote_data: Optional[Dict[str, Any]] = None
+
+class QuoteRevision(BaseModel):
+    original_quote_id: int
+
+class QuoteSummary(QuoteBase):
+    id: int
+    revision_number: int
+    creation_date: datetime
+    fan_uid: Optional[str] = None
+    fan_size_mm: Optional[int] = None
+    blade_sets: Optional[int] = None
+    component_list: Optional[List[str]] = None
+    markup: Optional[float] = None
+    motor_supplier: Optional[str] = None
+    motor_rated_output: Optional[str] = None
+    total_price: Optional[float] = None
+    
+    class Config:
+        orm_mode = True
+
+class Quote(QuoteSummary):
+    quote_data: Dict[str, Any]
+    original_quote_id: Optional[int] = None
+    
+    class Config:
+        orm_mode = True
