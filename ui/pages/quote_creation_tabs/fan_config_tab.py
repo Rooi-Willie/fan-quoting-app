@@ -30,6 +30,13 @@ def _update_quote_data_top_level_key(qd_top_level_key, widget_sstate_key):
     Callback to update a key in st.session_state.quote_data
     from a widget's state in st.session_state.
     """
+    # Ensure callback_counters is initialized
+    if "callback_counters" not in st.session_state:
+        st.session_state.callback_counters = {
+            "top_level_key": 0,
+            "component_detail": 0
+        }
+    
     st.session_state.callback_counters["top_level_key"] += 1
     logger.debug(f"[DEBUG] Top-level callback fired {st.session_state.callback_counters['top_level_key']} times")
 
@@ -47,6 +54,13 @@ def _update_component_detail_from_widget_state(component_name, detail_key, widge
     Callback to update a specific detail for a component in
     st.session_state.quote_data["component_details"].
     """
+    # Ensure callback_counters is initialized
+    if "callback_counters" not in st.session_state:
+        st.session_state.callback_counters = {
+            "top_level_key": 0,
+            "component_detail": 0
+        }
+    
     st.session_state.callback_counters["component_detail"] += 1
     logger.debug(f"[DEBUG] Component detail callback fired {st.session_state.callback_counters['component_detail']} times")
 

@@ -159,7 +159,7 @@ CREATE TABLE IF NOT EXISTS quotes (
     component_list TEXT[],
     markup DECIMAL(6, 4),
     motor_supplier VARCHAR(255),
-    motor_rated_output INTEGER,
+    motor_rated_output VARCHAR(100),
     total_price DECIMAL(10, 2),
     
     -- Core quote data storage

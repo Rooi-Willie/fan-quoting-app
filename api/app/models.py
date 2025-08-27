@@ -242,7 +242,7 @@ class Quote(Base):
     component_list = Column(ARRAY(String))
     markup = Column(Numeric(6, 4))
     motor_supplier = Column(String)
-    motor_rated_output = Column(Integer)
+    motor_rated_output = Column(String)
     total_price = Column(Numeric(10, 2))
     
     # Core quote data
