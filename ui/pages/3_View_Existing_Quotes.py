@@ -1,8 +1,13 @@
+import os
 import streamlit as st
 import pandas as pd
 import requests
-from config import APP_TITLE, API_BASE_URL
+from config import APP_TITLE
 import datetime
+
+# API_BASE_URL should be configured, e.g., via environment variable
+# Fallback is provided for local development.
+API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
 
 # Page configuration
 st.set_page_config(page_title=f"View Quotes - {APP_TITLE}", layout="wide")
