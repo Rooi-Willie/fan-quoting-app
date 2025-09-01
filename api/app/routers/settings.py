@@ -24,3 +24,14 @@ def get_global_settings(db: Session = Depends(get_db)):
     settings_dict = {setting.setting_name: setting.setting_value for setting in settings}
     
     return settings_dict
+
+@router.get("/rates-and-settings", response_model=Dict[str, str])
+def get_rates_and_settings(db: Session = Depends(get_db)):
+    """
+    Retrieves rates and settings as a dictionary.
+
+    Returns:
+        Dict[str, str]: A dictionary with key-value pairs for rates and settings
+    """
+    rates_and_settings = crud.get_rates_and_settings(db)
+    return rates_and_settings
