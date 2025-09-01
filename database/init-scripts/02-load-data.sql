@@ -44,3 +44,6 @@ COPY component_parameters(
 FROM '/csv_data/component_parameters.csv' WITH (FORMAT csv, HEADER true, NULL '');
 
 COPY fan_component_parameters(fan_configuration_id, component_id, length_mm, stiffening_factor) FROM '/csv_data/fan_component_parameters.csv' WITH (FORMAT csv, HEADER true, NULL '');
+
+-- Load users data
+COPY users(id, email, name, role, external_id, created_at, last_login) FROM '/csv_data/users.csv' WITH (FORMAT csv, HEADER true, NULL '');

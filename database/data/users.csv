@@ -1,0 +1,6 @@
+id,email,name,role,external_id,created_at,last_login
+1,admin@example.com,Admin User,admin,admin-ext-001,2025-01-01 00:00:00,2025-08-27 12:00:00
+2,engineer1@example.com,Engineer One,engineer,eng-ext-001,2025-01-02 00:00:00,2025-08-26 15:30:00
+3,sales1@example.com,Sales One,sales,sales-ext-001,2025-01-03 00:00:00,2025-08-25 09:45:00
+4,user1@example.com,Regular User,user,user-ext-001,2025-01-04 00:00:00,2025-08-24 14:20:00
+5,guest@example.com,Guest User,guest,guest-ext-001,2025-01-05 00:00:00,2025-08-23 10:15:00

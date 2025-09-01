@@ -110,8 +110,14 @@ else:
     df = pd.DataFrame(df_data)
     
     # Display table with selection
-    selection = st.dataframe(
+    # Initialize selected_row in session state if not present
+    if 'selected_row' not in st.session_state:
+        st.session_state.selected_row = None
+    
+    # Use the same approach as in motor_selection_tab.py
+    st.dataframe(
         df,
+        key="quotes_selection_df",
         column_config={
             "ID": st.column_config.NumberColumn(format="%d"),
             "Quote Ref": st.column_config.TextColumn("Quote Ref"),
@@ -125,9 +131,28 @@ else:
             "Status": st.column_config.TextColumn("Status"),
             "Date": st.column_config.TextColumn("Date")
         },
+        on_select="rerun",  # Rerun the script when a row is selected
+        selection_mode="single-row",  # Allow single row selection
         use_container_width=True,
         hide_index=True
     )
+    
+    # Process the selection when it changes (same approach as in motor_selection_tab.py)
+    selection = st.session_state.get("quotes_selection_df", {}).get("selection", {})
+    if selection.get("rows"):
+        selected_index = selection["rows"][0]
+        st.session_state.selected_row = df.iloc[selected_index].to_dict()
+    
+    
+    # Show currently selected quote
+    if st.session_state.selected_row is not None:
+        col_info, col_clear = st.columns([5, 1])
+        with col_info:
+            st.success(f"Selected Quote: {st.session_state.selected_row['Quote Ref']} (ID: {st.session_state.selected_row['ID']})")
+        with col_clear:
+            if st.button("Clear Selection"):
+                st.session_state.selected_row = None
+                st.rerun()
     
     # Action buttons below the table
     col1, col2, col3, col4 = st.columns(4)
