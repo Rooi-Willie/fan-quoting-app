@@ -48,11 +48,45 @@ def _update_quote_data_from_widget(key, widget_key):
     Helper function to update quote_data based on widget value changes.
     """
     if widget_key in st.session_state:
-        st.session_state.quote_data[key] = st.session_state[widget_key]
+        # Update the value in both old and new structure
+        qd = st.session_state.quote_data
+        
+        # Update the legacy flat structure
+        qd[key] = st.session_state[widget_key]
+        
+        # Also update the new nested structure if this is a field we're tracking
+        if key == "motor_markup_override":
+            # Ensure motor dict exists
+            if "motor" not in qd:
+                qd["motor"] = {}
+            qd["motor"]["markup_override"] = st.session_state[widget_key]
+        elif key == "motor_mount_type":
+            if "motor" not in qd:
+                qd["motor"] = {}
+            qd["motor"]["mount_type"] = st.session_state[widget_key]
+        elif key == "motor_price":
+            if "motor" not in qd:
+                qd["motor"] = {}
+            qd["motor"]["price"] = st.session_state[widget_key]
+        elif key == "motor_price_after_markup":
+            if "motor" not in qd:
+                qd["motor"] = {}
+            qd["motor"]["price_after_markup"] = st.session_state[widget_key]
+        elif key == "selected_motor_details":
+            if "motor" not in qd:
+                qd["motor"] = {}
+            qd["motor"]["details"] = st.session_state[widget_key]
 
 def render_main_content():
     st.header("2. Motor Selection")
-    qd = st.session_state.get("quote_data", {})
+    
+    # Import shared_logic here to avoid circular imports
+    from pages.quote_creation_tabs import shared_logic
+    
+    # Initialize/ensure the nested structure exists
+    shared_logic.init_quote_data_structure()
+    
+    qd = st.session_state.quote_data
     fan_config = st.session_state.get("current_fan_config")
 
     # --- 1. Prerequisite Check: Ensure a fan is selected first. ---
@@ -137,15 +171,33 @@ def render_main_content():
         st.success(f"**Selected Motor:**   {selected_motor['supplier_name']} - {selected_motor['rated_output']} kW, {selected_motor['poles']} poles, {selected_motor['speed']} RPM ({selected_motor['product_range']})")
 
         # Store the full motor details in quote_data for later use
-        qd['selected_motor_details'] = selected_motor.to_dict()
+        motor_details = selected_motor.to_dict()
+        
+        # Update both structures
+        # Legacy flat structure
+        qd['selected_motor_details'] = motor_details
+        
+        # New nested structure
+        if "motor" not in qd:
+            qd["motor"] = {}
+        qd["motor"]["details"] = motor_details
 
         # --- Fix for st.radio TypeError and to enforce Flange-only selection ---
         st.caption("Foot mount option is currently unavailable.")
         st.divider()
 
         # Set the motor type and price based on the fixed selection (Flange)
-        qd['motor_mount_type'] = "Flange"
-        qd['motor_price'] = selected_motor['flange_price']
+        # Update both structures
+        mount_type = "Flange"
+        motor_price = selected_motor['flange_price']
+        
+        # Legacy flat structure
+        qd['motor_mount_type'] = mount_type
+        qd['motor_price'] = motor_price
+        
+        # New nested structure
+        qd["motor"]["mount_type"] = mount_type
+        qd["motor"]["price"] = motor_price
         
         # Add motor markup override widget
         # Try to fetch default motor markup from API, fall back to 1.0
@@ -159,10 +211,25 @@ def render_main_content():
                 
         motor_markup_col1, motor_markup_col2 = st.columns([2, 1])
         with motor_markup_col1:
+            # Get the motor markup override value, checking both new and legacy structure
+            motor_markup_override = qd.get("motor", {}).get("markup_override")
+            if motor_markup_override is None:
+                motor_markup_override = qd.get("motor_markup_override")
+            
+            # If still None, use the default
+            if motor_markup_override is None:
+                motor_markup_override = default_motor_markup
+                
+            # Ensure it's a float
+            try:
+                motor_markup_override = float(motor_markup_override)
+            except (TypeError, ValueError):
+                motor_markup_override = float(default_motor_markup)
+                
             motor_markup = st.number_input(
                 "Motor Markup Override",
                 min_value=1.0,
-                value=float(qd.get("motor_markup_override", default_motor_markup)),
+                value=motor_markup_override,
                 step=0.01,
                 format="%.2f",
                 key="widget_motor_markup_override",
@@ -178,7 +245,15 @@ def render_main_content():
         if pd.notna(qd['motor_price']):
             base_price = float(qd['motor_price'])
             marked_up_price = base_price * motor_markup
+            
+            # Update both structures
+            # Legacy flat structure
             qd['motor_price_after_markup'] = marked_up_price
+            
+            # New nested structure
+            if "motor" not in qd:
+                qd["motor"] = {}
+            qd["motor"]["price_after_markup"] = marked_up_price
             
             # Display both base and marked-up prices
             price_cols = st.columns(2)

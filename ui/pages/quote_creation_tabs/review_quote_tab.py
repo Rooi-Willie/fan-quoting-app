@@ -11,6 +11,13 @@ API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
 
 def render_main_content():
     st.header("5. Review & Finalize Quote")
+    
+    # Import shared_logic here to avoid circular imports
+    from pages.quote_creation_tabs import shared_logic
+    
+    # Initialize/ensure the nested structure exists
+    shared_logic.init_quote_data_structure()
+    
     qd = st.session_state.quote_data
     cd = qd.get("component_details", {})
 
@@ -18,38 +25,114 @@ def render_main_content():
     st.subheader("Project Information")
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown(f"**Project Name:** {qd.get('project_name', 'N/A')}")
-        st.markdown(f"**Client Name:** {qd.get('client_name', 'N/A')}")
-        st.markdown(f"**Quote Reference:** {qd.get('quote_ref', 'N/A')}")
+        # Get project info from either new or legacy structure
+        project_name = None
+        client_name = None
+        quote_ref = None
+        
+        if "project_info" in qd and isinstance(qd["project_info"], dict):
+            project_name = qd["project_info"].get("name")
+            client_name = qd["project_info"].get("client")
+            quote_ref = qd["project_info"].get("quote_ref")
+            
+        if project_name is None:
+            project_name = qd.get('project_name', 'N/A')
+        if client_name is None:
+            client_name = qd.get('client_name', 'N/A')
+        if quote_ref is None:
+            quote_ref = qd.get('quote_ref', 'N/A')
+            
+        st.markdown(f"**Project Name:** {project_name}")
+        st.markdown(f"**Client Name:** {client_name}")
+        st.markdown(f"**Quote Reference:** {quote_ref}")
     with col2:
-        st.markdown(f"**Fan ID:** {qd.get('fan_uid', 'N/A')} mm")
+        # Get fan UID from either new or legacy structure
+        fan_uid = None
+        if "fan" in qd and isinstance(qd["fan"], dict):
+            fan_uid = qd["fan"].get("uid")
+        if fan_uid is None:
+            fan_uid = qd.get('fan_uid', 'N/A')
+            
+        st.markdown(f"**Fan ID:** {fan_uid} mm")
     st.divider()
    
     # Motor Information (more detailed)
     st.subheader("Motor Information")
-    if qd.get('selected_motor_details') and isinstance(qd['selected_motor_details'], dict):
-        motor = qd['selected_motor_details']
+    
+    # Get motor details from either new or legacy structure
+    motor_details = None
+    if "motor" in qd and isinstance(qd["motor"], dict) and "details" in qd["motor"]:
+        motor_details = qd["motor"]["details"]
+    else:
+        motor_details = qd.get('selected_motor_details')
+        
+    if motor_details and isinstance(motor_details, dict):
+        motor = motor_details
         
         col1, col2, col3 = st.columns(3)
         with col1:
             st.markdown(f"**Supplier:** {motor.get('supplier_name', 'N/A')}")
             st.markdown(f"**Product Range:** {motor.get('product_range', 'N/A')}")
-            st.markdown(f"**Mount Type:** {qd.get('motor_mount_type', 'N/A')}")
+            
+            # Get mount type from either new or legacy structure
+            mount_type = None
+            if "motor" in qd and isinstance(qd["motor"], dict):
+                mount_type = qd["motor"].get("mount_type")
+            if mount_type is None:
+                mount_type = qd.get('motor_mount_type', 'N/A')
+                
+            st.markdown(f"**Mount Type:** {mount_type}")
         with col2:
             st.markdown(f"**Power:** {motor.get('rated_output', 0)} {motor.get('rated_output_unit', 'kW')}")
             st.markdown(f"**Poles:** {motor.get('poles', 'N/A')}")
             st.markdown(f"**Speed:** {motor.get('speed', 'N/A')} {motor.get('speed_unit', 'RPM')}")
         with col3:
-            st.markdown(f"**Base Price:** {CURRENCY_SYMBOL} {float(qd.get('motor_price', 0)):,.2f}")
+            # Get motor price, checking both structures
+            motor_price = None
+            if "motor" in qd and isinstance(qd["motor"], dict):
+                motor_price = qd["motor"].get("price")
+            if motor_price is None:
+                motor_price = qd.get("motor_price")
+            if motor_price is None:
+                motor_price = 0
             
-            # Show markup details
-            motor_markup = float(qd.get('motor_markup_override', 1.0))
-            motor_markup_pct = (motor_markup - 1) * 100
-            st.markdown(f"**Markup Applied:** {motor_markup:.2f} ({motor_markup_pct:.1f}%)")
+            try:
+                base_price = float(motor_price)
+                st.markdown(f"**Base Price:** {CURRENCY_SYMBOL} {base_price:,.2f}")
+            except (ValueError, TypeError):
+                st.markdown(f"**Base Price:** {CURRENCY_SYMBOL} 0.00")
             
-            # Final price
-            if 'motor_price_after_markup' in qd:
-                st.markdown(f"**Final Price:** {CURRENCY_SYMBOL} {float(qd.get('motor_price_after_markup', 0)):,.2f}")
+            # Show markup details - get from new structure first, then fall back to legacy
+            motor_markup_override = None
+            if "motor" in qd and isinstance(qd["motor"], dict):
+                motor_markup_override = qd["motor"].get("markup_override")
+            if motor_markup_override is None:
+                motor_markup_override = qd.get("motor_markup_override")
+            if motor_markup_override is None:
+                motor_markup_override = 1.0  # Default markup is 1.0 (no markup)
+            
+            try:
+                # Try to convert to float (handle potential string values)
+                motor_markup = float(motor_markup_override)
+                motor_markup_pct = (motor_markup - 1) * 100
+                st.markdown(f"**Markup Applied:** {motor_markup:.2f} ({motor_markup_pct:.1f}%)")
+            except (ValueError, TypeError):
+                st.markdown(f"**Markup Applied:** 1.00 (0.0%)")
+            
+            # Final price - get from new structure first, then fall back to legacy
+            motor_price_after_markup = None
+            if "motor" in qd and isinstance(qd["motor"], dict):
+                motor_price_after_markup = qd["motor"].get("price_after_markup")
+            if motor_price_after_markup is None:
+                motor_price_after_markup = qd.get("motor_price_after_markup")
+                
+            if motor_price_after_markup is not None:
+                try:
+                    final_price = float(motor_price_after_markup)
+                    st.markdown(f"**Final Price:** {CURRENCY_SYMBOL} {final_price:,.2f}")
+                except (ValueError, TypeError):
+                    # If conversion fails, don't show the final price
+                    pass
     else:
         st.info("No motor has been selected. Please go to the 'Motor Selection' tab to choose a motor.")
 
@@ -124,9 +207,27 @@ def render_main_content():
         })
     
     # Add Motor section if a motor is selected
-    if qd.get('selected_motor_details'):
-        motor = qd['selected_motor_details']
-        motor_price = float(qd.get('motor_price_after_markup', 0) or 0)
+    # Get motor details from either new or legacy structure
+    motor_details = None
+    if "motor" in qd and isinstance(qd["motor"], dict) and "details" in qd["motor"]:
+        motor_details = qd["motor"]["details"]
+    if motor_details is None:
+        motor_details = qd.get('selected_motor_details')
+    
+    if motor_details and isinstance(motor_details, dict):
+        motor = motor_details
+        
+        # Get motor price after markup from either new or legacy structure
+        motor_price_after_markup = None
+        if "motor" in qd and isinstance(qd["motor"], dict):
+            motor_price_after_markup = qd["motor"].get("price_after_markup")
+        if motor_price_after_markup is None:
+            motor_price_after_markup = qd.get("motor_price_after_markup")
+            
+        try:
+            motor_price = float(motor_price_after_markup or 0)
+        except (ValueError, TypeError):
+            motor_price = 0
         
         # Add motor entry
         motor_name = f"{motor.get('supplier_name', '')} {motor.get('product_range', '')} - {motor.get('rated_output', 0)} {motor.get('rated_output_unit', 'kW')}"
@@ -152,7 +253,19 @@ def render_main_content():
     
     # Calculate and add Final Total
     components_total = server_summary.get("final_price", 0) or 0
-    motor_total = float(qd.get('motor_price_after_markup', 0) or 0)
+    
+    # Get motor price after markup from either new or legacy structure
+    motor_price_after_markup = None
+    if "motor" in qd and isinstance(qd["motor"], dict):
+        motor_price_after_markup = qd["motor"].get("price_after_markup")
+    if motor_price_after_markup is None:
+        motor_price_after_markup = qd.get("motor_price_after_markup", 0)
+        
+    try:
+        motor_total = float(motor_price_after_markup or 0)
+    except (ValueError, TypeError):
+        motor_total = 0
+        
     buyout_total = 0  # For future implementation
     final_total = components_total + motor_total + buyout_total
     
@@ -211,14 +324,38 @@ def save_quote():
         # Get current user ID (use 1 for development until auth is implemented)
         user_id = 1
         
+        qd = st.session_state.quote_data
+        
+        # Get values from either new or legacy structure
+        quote_ref = None
+        client_name = None
+        project_name = None
+        project_location = None
+        
+        if "project_info" in qd and isinstance(qd["project_info"], dict):
+            quote_ref = qd["project_info"].get("quote_ref")
+            client_name = qd["project_info"].get("client")
+            project_name = qd["project_info"].get("name")
+            project_location = qd["project_info"].get("location")
+            
+        # Fall back to legacy structure if needed
+        if quote_ref is None:
+            quote_ref = qd.get("quote_ref")
+        if client_name is None:
+            client_name = qd.get("client_name")
+        if project_name is None:
+            project_name = qd.get("project_name")
+        if project_location is None:
+            project_location = qd.get("project_location")
+        
         # Prepare payload from session state
         payload = {
-            "quote_ref": st.session_state.quote_data.get("quote_ref"),
-            "client_name": st.session_state.quote_data.get("client_name"),
-            "project_name": st.session_state.quote_data.get("project_name"),
-            "project_location": st.session_state.quote_data.get("project_location"),
+            "quote_ref": quote_ref,
+            "client_name": client_name,
+            "project_name": project_name,
+            "project_location": project_location,
             "user_id": user_id,
-            "quote_data": st.session_state.quote_data
+            "quote_data": qd
         }
         
         # Call API

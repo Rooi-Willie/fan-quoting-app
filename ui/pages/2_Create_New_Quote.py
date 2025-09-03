@@ -6,7 +6,8 @@ from pages.quote_creation_tabs import (
     motor_selection_tab,
     fan_config_tab,
     buyout_items_tab,
-    review_quote_tab
+    review_quote_tab,
+    shared_logic
 )
 
 # Page Configuration
@@ -29,24 +30,54 @@ tab_titles = ["1. Project Info", "2. Motor Selection", "3. Fan Configuration", "
 # --- Initialize Session State for Quote Data ---
 # This ensures data persists across tab switches and reruns within this page.
 if "quote_data" not in st.session_state:
+    # Initialize with the new nested structure
+    username = st.session_state.get("username", "demo")
+    quote_ref = f"Q{username[0].upper()}001"
+    
     st.session_state.quote_data = {
-        # Project Info - initialized with sensible defaults for a new quote
+        # Project Info with sensible defaults
+        "project_info": {
+            "name": "",
+            "client": "",
+            "location": "",
+            "notes": "",
+            "quote_ref": quote_ref,
+        },
+        
+        # Fan configuration data
+        "fan": {
+            "config_id": None,
+            "uid": None,
+            "hub_size_mm": None,
+            "blade_sets": None,
+            "markup_override": 1.2,  # Default markup
+            "selected_components": [],
+        },
+        
+        # Component details
+        "component_details": {},  # Stores user overrides (thickness, waste)
+        
+        # Motor data
+        "motor": {
+            "details": {},
+            "mount_type": None,
+            "price": None,
+            "markup_override": None,
+            "price_after_markup": None,
+        },
+        
+        # Buy-out Items
+        "buyout_items": [],
+        
+        # Legacy flat structure for backward compatibility
+        # These will be kept in sync with the nested structure during transition
         "project_name": "",
         "client_name": "",
         "project_location": "",
         "project_notes": "",
-        "quote_ref": "Q" + st.session_state.get("username", "demo")[0].upper() + "001",
-
-        # Fan/Component selections - start empty, populated by user
+        "quote_ref": quote_ref,
         "selected_components_unordered": [],
-        "component_details": {},  # Stores user overrides (thickness, waste)
-
-        # Buy-out Items
         "buy_out_items_list": [],
-
-        # Other keys will be added dynamically by other tabs:
-        # fan_config_id, fan_uid, fan_hub, blade_sets, markup_override (from fan_config_tab)
-        # selected_motor_details, motor_mount_type, motor_price, motor_markup_override, motor_price_after_markup (from motor_selection_tab)
     }
 
 elif st.sidebar.button("🔄 Start New Quote / Reset Form", use_container_width=True):
@@ -56,22 +87,63 @@ elif st.sidebar.button("🔄 Start New Quote / Reset Form", use_container_width=
     st.session_state.clear() # Clears everything
     st.session_state.logged_in = logged_in_status # Restore login
     st.session_state.username = username
-    # Re-initialize quote data
+    
+    # Re-initialize quote data with new structure
+    quote_ref = f"Q{username[0].upper()}001"
+    
     st.session_state.quote_data = {
+        # Project Info with sensible defaults
+        "project_info": {
+            "name": "",
+            "client": "",
+            "location": "",
+            "notes": "",
+            "quote_ref": quote_ref,
+        },
+        
+        # Fan configuration data
+        "fan": {
+            "config_id": None,
+            "uid": None,
+            "hub_size_mm": None,
+            "blade_sets": None,
+            "markup_override": 1.2,  # Default markup
+            "selected_components": [],
+        },
+        
+        # Component details
+        "component_details": {},
+        
+        # Motor data
+        "motor": {
+            "details": {},
+            "mount_type": None,
+            "price": None,
+            "markup_override": None,
+            "price_after_markup": None,
+        },
+        
+        # Buy-out Items
+        "buyout_items": [],
+        
+        # Legacy flat structure for backward compatibility
         "project_name": "",
         "client_name": "",
         "project_location": "",
         "project_notes": "",
-        "quote_ref": "Q" + st.session_state.get("username", "demo")[0].upper() + "001",
+        "quote_ref": quote_ref,
         "selected_components_unordered": [],
-        "component_details": {},
         "buy_out_items_list": [],
     }
+    
     st.success("Quote form has been reset.")
     st.rerun()
 
 # This section now renders the same sidebar content regardless of the active tab.
-fan_config_tab.render_sidebar_widgets() # Always render fan config widgets in sidebar
+# First, ensure the quote_data structure is initialized with the new format
+shared_logic.init_quote_data_structure()
+# Then render the sidebar widgets
+shared_logic.render_sidebar_widgets() # Always render fan config widgets in sidebar from shared_logic
 st.sidebar.divider()
 st.sidebar.json(st.session_state.quote_data, expanded=False) # For debugging
 
