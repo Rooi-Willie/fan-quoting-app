@@ -7,6 +7,104 @@ from sqlalchemy import func
 from . import models, schemas
 
 
+# ===================== NESTED QUOTEDATA SUMMARY EXTRACTION ====================
+def _extract_summary_from_quote_data(qd: Dict[str, Any]) -> Dict[str, Any]:
+    """Derive summary columns and ensure derived_totals for nested schema.
+
+    Supports both legacy flat keys and new nested structure. Mutates the
+    passed quote_data to add/adjust calculation.derived_totals where possible.
+    """
+    if not isinstance(qd, dict):
+        return {
+            "fan_uid": None,
+            "fan_size_mm": None,
+            "blade_sets": None,
+            "component_list": [],
+            "markup": None,
+            "total_price": None,
+            "motor_supplier": None,
+            "motor_rated_output": None,
+        }
+
+    # Access nested nodes with fallbacks
+    fan = qd.get("fan", {})
+    comps = qd.get("components", {})
+    calc = qd.get("calculation", {})
+    motor = qd.get("motor", {})
+    buyouts = qd.get("buy_out_items", [])
+
+    # Legacy fallbacks
+    fan_uid = fan.get("uid") or qd.get("fan_uid")
+    blade_sets = fan.get("blade_sets") or qd.get("blade_sets")
+    markup = calc.get("markup_override") if isinstance(calc, dict) else None
+    if markup is None:
+        markup = qd.get("markup_override")
+    component_list = comps.get("selected") or qd.get("selected_components_unordered") or []
+
+    # Motor details
+    motor_selection = motor.get("selection") or qd.get("selected_motor_details") or {}
+    motor_supplier = motor_selection.get("supplier_name") if isinstance(motor_selection, dict) else None
+    motor_rated_output = None
+    if isinstance(motor_selection, dict) and motor_selection.get("rated_output") is not None:
+        motor_rated_output = str(motor_selection.get("rated_output"))
+
+    # Component pricing: prefer server summary inside calculation.server_summary
+    server_summary = calc.get("server_summary") if isinstance(calc, dict) else qd.get("server_summary", {})
+    components_final_price = None
+    if isinstance(server_summary, dict):
+        components_final_price = server_summary.get("final_price") or server_summary.get("total_cost_after_markup")
+
+    # Motor price
+    motor_final_price = motor.get("final_price") or qd.get("motor_price_after_markup")
+
+    # Buy-out items subtotal
+    buyout_total = 0.0
+    if isinstance(buyouts, list):
+        for item in buyouts:
+            if not isinstance(item, dict):
+                continue
+            subtotal = item.get("subtotal")
+            if subtotal is None:
+                unit_cost = item.get("unit_cost") or item.get("cost") or 0
+                qty = item.get("qty") or item.get("quantity") or 0
+                subtotal = float(unit_cost) * float(qty)
+            buyout_total += float(subtotal or 0)
+
+    # Compute total price fallbacks
+    total_price = qd.get("final_price") or qd.get("total_price")
+    if not total_price:
+        total_price = 0
+        if components_final_price:
+            total_price += float(components_final_price)
+        if motor_final_price:
+            total_price += float(motor_final_price)
+        total_price += buyout_total
+
+    # Populate derived_totals structure
+    calc.setdefault("derived_totals", {})
+    derived = calc["derived_totals"]
+    derived.update({
+        "components_final_price": float(components_final_price or 0),
+        "motor_final_price": float(motor_final_price or 0),
+        "buyout_total": float(buyout_total),
+        "grand_total": float(total_price),
+    })
+    # Mirror back (in case calc came from qd)
+    qd.setdefault("calculation", calc)
+    qd["calculation"]["derived_totals"] = derived
+
+    return {
+        "fan_uid": fan_uid,
+        "fan_size_mm": fan.get("config_size_mm") or qd.get("fan_size_mm"),  # legacy fallback
+        "blade_sets": blade_sets,
+        "component_list": component_list,
+        "markup": markup,
+        "motor_supplier": motor_supplier,
+        "motor_rated_output": motor_rated_output,
+        "total_price": float(total_price) if total_price is not None else None,
+    }
+
+
 # ============================= FAN & COMPONENT CRUD =============================
 
 def get_fan_configurations(db: Session) -> List[models.FanConfiguration]:
@@ -229,32 +327,15 @@ def get_quote_revisions(db: Session, original_quote_id: int):
     return db.query(models.Quote).filter(models.Quote.original_quote_id == original_quote_id).order_by(models.Quote.revision_number).all()
 
 def create_quote(db: Session, quote: schemas.QuoteCreate):
-    # Extract summary fields from quote_data
-    quote_data = quote.quote_data
-    
-    # Create summary fields for efficient querying
-    summary_fields = {
-        "fan_uid": quote_data.get("fan_uid"),
-        "fan_size_mm": quote_data.get("fan_size_mm"),
-        "blade_sets": quote_data.get("blade_sets"),
-        "component_list": quote_data.get("selected_components_unordered", []),
-        "markup": quote_data.get("markup_override"),
-        "total_price": quote_data.get("final_price")
-    }
-    
-    # Get motor details if available
-    motor_details = quote_data.get("selected_motor_details", {})
-    if motor_details:
-        summary_fields["motor_supplier"] = motor_details.get("supplier_name")
-        summary_fields["motor_rated_output"] = str(motor_details.get("rated_output"))
-    
-    # Create the quote record
+    # Mutably enrich quote_data with derived totals & extract summaries
+    quote_data = quote.quote_data if isinstance(quote.quote_data, dict) else {}
+    summary_fields = _extract_summary_from_quote_data(quote_data)
+
     db_quote = models.Quote(
         **quote.dict(exclude={"quote_data"}),
         **summary_fields,
         quote_data=quote_data
     )
-    
     db.add(db_quote)
     db.commit()
     db.refresh(db_quote)
@@ -281,19 +362,15 @@ def create_quote_revision(db: Session, original_quote_id: int, user_id: int, quo
     )
     
     # Create new quote record with revision information
+    # Update quote_data & derive new summary
+    quote_data = quote_data if isinstance(quote_data, dict) else {}
+    summary_fields = _extract_summary_from_quote_data(quote_data)
+
     db_quote = models.Quote(
         **quote_create.dict(exclude={"quote_data"}),
         original_quote_id=original_quote_id,
         revision_number=next_revision,
-        # Extract summary fields similar to create_quote
-        fan_uid=quote_data.get("fan_uid"),
-        fan_size_mm=quote_data.get("fan_size_mm"),
-        blade_sets=quote_data.get("blade_sets"),
-        component_list=quote_data.get("selected_components_unordered", []),
-        markup=quote_data.get("markup_override"),
-        total_price=quote_data.get("final_price"),
-        motor_supplier=quote_data.get("selected_motor_details", {}).get("supplier_name"),
-        motor_rated_output=str(quote_data.get("selected_motor_details", {}).get("rated_output")),
+        **summary_fields,
         quote_data=quote_data
     )
     

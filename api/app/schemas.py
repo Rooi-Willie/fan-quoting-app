@@ -256,6 +256,9 @@ class QuoteSummary(QuoteBase):
     id: int
     revision_number: int
     creation_date: datetime
+    # Summary fields below are SERVER-DERIVED from quote_data nested schema.
+    # They are retained for fast listing queries. Client should not rely on
+    # sending these in create/update requests. (See crud._extract_summary_from_quote_data)
     fan_uid: Optional[str] = None
     fan_size_mm: Optional[int] = None
     blade_sets: Optional[int] = None

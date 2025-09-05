@@ -4,6 +4,7 @@ import pandas as pd
 import requests
 from config import APP_TITLE
 import datetime
+from pages.common import migrate_flat_to_nested_if_needed, _new_nested_quote_data
 
 # API_BASE_URL should be configured, e.g., via environment variable
 # Fallback is provided for local development.
@@ -179,8 +180,9 @@ else:
                     response.raise_for_status()
                     quote = response.json()
                     
-                    # Set quote data in session state
-                    st.session_state.quote_data = quote["quote_data"]
+                    # Set quote data in session state (migrate if needed)
+                    qd_loaded = quote.get("quote_data") or {}
+                    st.session_state.quote_data = migrate_flat_to_nested_if_needed(qd_loaded)
                     
                     # Redirect to quote creation page
                     st.switch_page("pages/2_Create_New_Quote.py")

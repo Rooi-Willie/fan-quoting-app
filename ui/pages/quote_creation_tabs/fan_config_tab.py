@@ -1,10 +1,17 @@
 import streamlit as st
 import os
-import pandas as pd # Keep for potential future use, though not strictly needed if not building DF here
-from typing import Optional, List, Dict # Added for type hinting
-import requests # Added for API calls
+import pandas as pd  # Keep for potential future use
+from typing import Optional, List, Dict
+import requests
 from config import COMPONENT_ORDER, COMPONENT_IMAGES, ROW_DEFINITIONS, IMAGE_FOLDER_PATH, CURRENCY_SYMBOL
 from utils import ensure_server_summary_up_to_date, build_summary_dataframe
+from pages.common import (
+    update_quote_data_top_level_key,  # (legacy helper still used by sidebar widgets)
+    update_component_detail_from_widget_state,  # will be adapted in Stage 2 clean-up
+    get_available_components,
+    get_all_fan_configs,
+    migrate_flat_to_nested_if_needed,
+)
 import logging
 
 # Configure basic logging (optional, but good for quick setup)
@@ -25,89 +32,9 @@ if "callback_counters" not in st.session_state:
         "component_detail": 0
     }
 
-def _update_quote_data_top_level_key(qd_top_level_key, widget_sstate_key):
-    """
-    Callback to update a key in st.session_state.quote_data
-    from a widget's state in st.session_state.
-    """
-    # Ensure callback_counters is initialized
-    if "callback_counters" not in st.session_state:
-        st.session_state.callback_counters = {
-            "top_level_key": 0,
-            "component_detail": 0
-        }
-    
-    st.session_state.callback_counters["top_level_key"] += 1
-    logger.debug(f"[DEBUG] Top-level callback fired {st.session_state.callback_counters['top_level_key']} times")
+## Local callbacks moved to pages.common
 
-    logger.debug(f"[DEBUG] Top-level widget change: {widget_sstate_key} = {st.session_state.get(widget_sstate_key)}")
-
-    old_value = st.session_state.quote_data.get(qd_top_level_key)
-    logger.debug(f"[DEBUG] Old value in quote_data: {old_value}")
-
-    if widget_sstate_key in st.session_state:
-        st.session_state.quote_data[qd_top_level_key] = st.session_state[widget_sstate_key]
-        logger.debug(f"[DEBUG] Updated quote_data: {qd_top_level_key} = {st.session_state.quote_data[qd_top_level_key]}")
-
-def _update_component_detail_from_widget_state(component_name, detail_key, widget_sstate_key):
-    """
-    Callback to update a specific detail for a component in
-    st.session_state.quote_data["component_details"].
-    """
-    # Ensure callback_counters is initialized
-    if "callback_counters" not in st.session_state:
-        st.session_state.callback_counters = {
-            "top_level_key": 0,
-            "component_detail": 0
-        }
-    
-    st.session_state.callback_counters["component_detail"] += 1
-    logger.debug(f"[DEBUG] Component detail callback fired {st.session_state.callback_counters['component_detail']} times")
-
-    logger.debug(f"[DEBUG] Widget change: {widget_sstate_key} = {st.session_state.get(widget_sstate_key)}")
-
-    qd = st.session_state.quote_data
-    component_dict = qd.setdefault("component_details", {}).setdefault(component_name, {})
-
-    old_value = component_dict.get(detail_key)
-    logger.debug(f"[DEBUG] Old value in component_details: {old_value}")
-    
-    if widget_sstate_key in st.session_state:
-        component_dict[detail_key] = st.session_state[widget_sstate_key]
-        logger.debug(f"[DEBUG] Updated component_details: {component_name}.{detail_key} = {component_dict[detail_key]}")
-
-# --- API Helper Functions with Caching ---
-@st.cache_data
-def get_all_fan_configs() -> Optional[List[Dict]]:
-    """
-    Fetches the list of all available fan configurations from the API.
-    Each item in the list is a dictionary representing a fan configuration.
-    Returns a list of dictionaries on success, None on failure.
-    """
-    try:
-        response = requests.get(f"{API_BASE_URL}/fans/")
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        st.error(f"API Error: Could not fetch fan configurations. {e}")
-        return None
-
-@st.cache_data
-def get_available_components(fan_config_id: int) -> Optional[List[Dict]]:
-    """
-    Fetches the list of components available for a specific fan configuration ID.
-    Returns a list of component dictionaries on success, None on failure.
-    """
-    if not fan_config_id:
-        return [] # No components if no fan is selected
-
-    try:
-        response = requests.get(f"{API_BASE_URL}/fans/{fan_config_id}/components")
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        st.error(f"API Error: Could not fetch available components for fan ID {fan_config_id}. {e}")
-        return None
+## Removed duplicated cached API helpers (now provided in pages.common)
 
 @st.cache_data
 def get_component_details(request_payload_tuple: tuple) -> Optional[Dict]:
@@ -132,208 +59,7 @@ def get_component_details(request_payload_tuple: tuple) -> Optional[Dict]:
             st.text(response.text)
         return None
 
-def _handle_fan_id_change():
-    """Callback to handle changes in Fan ID selection."""
-    qd = st.session_state.quote_data
-    # The widget now provides the UID of the selected fan
-    selected_fan_uid = st.session_state.get("widget_fc_fan_id")
-
-    # Get all fan configurations from the cached API call
-    all_configs = get_all_fan_configs()
-    if not all_configs:
-        # Error is already shown by the helper function, just clear state
-        st.session_state.current_fan_config = None
-        qd.update({"fan_config_id": None, "fan_uid": None, "fan_hub": None, "blade_sets": None, "selected_components_unordered": []})
-        return
-
-    # Find the full configuration for the selected UID
-    selected_config = next((c for c in all_configs if c['uid'] == selected_fan_uid), None)
-
-    # If user selects the placeholder or the selection is invalid, clear everything
-    if not selected_config:
-        st.session_state.current_fan_config = None
-        qd.update({"fan_config_id": None, "fan_uid": None, "fan_hub": None, "blade_sets": None, "selected_components_unordered": []})
-        return
-
-    # A valid fan was selected. Update session state.
-    st.session_state.current_fan_config = selected_config
-
-    # We store the integer 'id' for future API calls and the 'uid' for display.
-    qd["fan_config_id"] = selected_config.get('id')
-    qd["fan_uid"] = selected_config.get('uid')
-    qd["fan_hub"] = selected_config.get('hub_size_mm')
-
-    # Update blade quantity options based on the new fan
-    available_blades = selected_config.get('available_blade_qtys', [])
-    str_available_blades = [str(b) for b in available_blades]
-
-    if str_available_blades:
-        # If the currently selected blade quantity is not valid for the new fan,
-        # default to the first available option.
-        current_blade_set = str(qd.get("blade_sets")) if qd.get("blade_sets") is not None else None
-        if current_blade_set not in str_available_blades:
-            qd["blade_sets"] = str_available_blades[0]
-    else:
-        # No blade options for this fan
-        qd["blade_sets"] = None
-
-    # --- Auto-select default components for the new fan ---
-    auto_select_ids = selected_config.get('auto_selected_components', [])
-    if auto_select_ids:
-        available_components = get_available_components(qd["fan_config_id"])
-        if available_components:
-            id_to_name_map = {comp['id']: comp['name'] for comp in available_components}
-            # Translate the auto-select IDs to names, preserving order if needed (though not critical here)
-            auto_selected_names = [id_to_name_map[id] for id in auto_select_ids if id in id_to_name_map]
-            qd["selected_components_unordered"] = auto_selected_names
-        else:
-            qd["selected_components_unordered"] = [] # API call failed or no components
-    else:
-        qd["selected_components_unordered"] = [] # No auto-select components defined
-
-def render_sidebar_widgets():
-    """Renders the specific sidebar widgets for Fan Configuration."""
-    if "quote_data" not in st.session_state:
-        st.warning("quote_data not found in session_state. Initializing.")
-        st.session_state.quote_data = {}
-    if "current_fan_config" not in st.session_state: # Initialize for API response
-        st.session_state.current_fan_config = None
-
-    qd = st.session_state.quote_data
-
-    with st.sidebar:
-        st.divider()
-        st.subheader("Base Fan Parameters")
-
-        # 1. Fan ID Selectbox (API Driven by full fan configs)
-        all_fan_configs = get_all_fan_configs()
-        # The options for the selectbox are the user-friendly UIDs
-        fan_uid_options = ["--- Please select a Fan ID ---"]
-        if all_fan_configs:
-            # Sort by fan size for a consistent, logical order in the dropdown
-            sorted_configs = sorted(all_fan_configs, key=lambda c: c['fan_size_mm'])
-            fan_uid_options.extend([c['uid'] for c in sorted_configs])
-        else:
-            st.caption("Could not load Fan IDs from API.") # Error is already shown by get_all_fan_configs
-
-        # The selectbox should display the currently selected fan UID
-        current_fan_uid = qd.get("fan_uid")
-        fan_uid_idx = 0
-        if current_fan_uid and current_fan_uid in fan_uid_options:
-            fan_uid_idx = fan_uid_options.index(current_fan_uid)
-        
-        st.selectbox(
-            "Fan ID", options=fan_uid_options,
-            index=fan_uid_idx,
-            key="widget_fc_fan_id",
-            on_change=_handle_fan_id_change
-        )
-
-        fan_config = st.session_state.get("current_fan_config")
-
-        # Note: The Fan Hub is now displayed below in the st.metric widget
-        # when a fan configuration is selected.
-
-        # 3. Blade Sets (Blade Quantity - API Driven, dependent on Fan ID)
-        blade_qty_select_options = ["N/A"]
-        blade_qty_disabled = True
-        blade_qty_idx = 0
-        
-        if fan_config and fan_config.get('available_blade_qtys'):
-            blade_qty_select_options = [str(bq) for bq in fan_config.get('available_blade_qtys')]
-            blade_qty_disabled = False
-            current_blade_sets_val = str(qd.get("blade_sets")) if qd.get("blade_sets") is not None else None
-            if current_blade_sets_val and current_blade_sets_val in blade_qty_select_options:
-                blade_qty_idx = blade_qty_select_options.index(current_blade_sets_val)
-        elif qd.get("blade_sets"): # Show existing if no new options yet
-            blade_qty_select_options = [str(qd.get("blade_sets"))]
-
-        st.selectbox(
-            "Blade Sets", options=blade_qty_select_options,
-            index=blade_qty_idx,
-            key="widget_fc_blade_sets",
-            on_change=_update_quote_data_top_level_key,
-            args=("blade_sets", "widget_fc_blade_sets"),
-            disabled=blade_qty_disabled,
-            help="Options populated after selecting a Fan ID."
-        )
-        if fan_config:
-            # Display the fetched data in a more structured way
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric(label="Fan Size (mm)", value=fan_config.get('fan_size_mm', 'N/A'))
-                st.text_input("Available Blade Counts", value=", ".join(map(str, fan_config.get('available_blade_qtys', []))), disabled=True)
-                st.text_input("Available Motor kW", value=", ".join(map(str, fan_config.get('available_motor_kw', []))), disabled=True)
-            with col2:
-                st.metric(label="Hub Size (mm)", value=fan_config.get('hub_size_mm', 'N/A'))
-                st.text_input("Blade Name & Material", value=f"{fan_config.get('blade_name', 'N/A')} ({fan_config.get('blade_material', 'N/A')})", disabled=True)
-                st.text_input("Motor Poles", value=str(fan_config.get('motor_pole', 'N/A')), disabled=True)
-            
-            # Optionally, show the raw JSON data for debugging
-            with st.expander("Show Raw API Response"):
-                st.json(fan_config)
-
-        else:
-            st.info("Select a Fan ID to view its configuration details.")
-
-        st.divider()
-
-        # --- Component Selection ---
-        st.subheader("Fan Components Selection")
-
-        component_options = []
-        is_disabled = True
-        
-        if fan_config:
-            fan_config_id = fan_config.get('id')
-            # Fetch components available for the selected fan
-            available_components = get_available_components(fan_config_id)
-            if available_components:
-                # The API returns components pre-sorted by 'order_by'. We just extract the names.
-                component_options = [comp['name'] for comp in available_components]
-                is_disabled = False
-
-        # Ensure the default selection is valid for the current fan's available components
-        current_selection = qd.get("selected_components_unordered", [])
-        valid_selection = [comp for comp in current_selection if comp in component_options]
-        qd["selected_components_unordered"] = valid_selection # Update state with only valid items
-
-        default_markup = 1.4 # Or fetch from a config/API if it can be dynamic
-        markup_input = st.number_input(
-            "Markup Override",
-            min_value=1.0,
-            value=float(qd.get("markup_override", default_markup)),
-            step=0.01,
-            format="%.2f",
-            key="widget_markup_override",
-            on_change=_update_quote_data_top_level_key,
-            args=("markup_override", "widget_markup_override"),
-            help="Override the default markup for the selected components.",
-            disabled=is_disabled
-        )
-
-        st.multiselect(
-            "Select Fan Components",
-            options=component_options,
-            default=valid_selection,
-            key="widget_fc_multiselect_components",
-            on_change=_update_quote_data_top_level_key,
-            args=("selected_components_unordered", "widget_fc_multiselect_components"),
-            help="Select a Fan ID to populate this list.",
-            disabled=is_disabled
-        )
-        st.divider()
-
-        # Test button for direct markup update
-        if st.sidebar.button("Test Direct Markup Update"):
-            print("[DEBUG] Test Direct Markup Update button clicked.")
-            # Get current value
-            current_markup = st.session_state.quote_data.get("markup_override", 1.4)
-            # Update by a small amount
-            st.session_state.quote_data["markup_override"] = current_markup + 0.01
-            # Try to trigger recalculation
-            ensure_server_summary_up_to_date(st.session_state.quote_data)
-            st.rerun()
+## Removed local _handle_fan_id_change and render_sidebar_widgets (moved to pages.common)
 
 def render_main_content():
     """Renders the main content area for the Fan Configuration tab."""
@@ -344,20 +70,25 @@ def render_main_content():
         st.error("Quote data not initialized. Please start a new quote or refresh.")
         return
 
+    # Ensure nested schema
+    st.session_state.quote_data = migrate_flat_to_nested_if_needed(st.session_state.quote_data)
     qd = st.session_state.quote_data
-    cd = qd.setdefault("component_details", {})
-    
-    if "component_calculations" not in st.session_state:
-        st.session_state.component_calculations = {}
+    fan_node = qd.setdefault("fan", {})
+    comp_node = qd.setdefault("components", {})
+    selected_list = comp_node.setdefault("selected", [])
+    by_name = comp_node.setdefault("by_name", {})
+    calc_node = qd.setdefault("calculation", {})
+    # Backwards compatible overrides location (legacy cd) -> transition into by_name.overrides
+    legacy_cd = qd.get("component_details") or {}
 
     st.subheader("Configure Selected Fan Components")
 
     # Derive the ordered list for processing from the API-provided order
-    fan_config_id = qd.get("fan_config_id")
+    fan_config_id = fan_node.get("config_id")
     available_components_list = get_available_components(fan_config_id)
     if available_components_list:
         ordered_available_names = [comp['name'] for comp in available_components_list]
-        user_selected_names = qd.get("selected_components_unordered", [])
+        user_selected_names = list(selected_list)
         ordered_selected_components = [name for name in ordered_available_names if name in user_selected_names]
     else:
         ordered_selected_components = []
@@ -376,16 +107,26 @@ def render_main_content():
         component_id = name_to_id_map[comp_name]
         
         # Prepare request for this single component
-        fabrication_waste_percentage = cd.get(comp_name, {}).get("Fabrication Waste")
-        fabrication_waste_factor = fabrication_waste_percentage / 100.0 if fabrication_waste_percentage is not None else None
+        # Overrides (material thickness, fabrication waste) now stored under components.by_name[name].overrides
+        overrides = by_name.setdefault(comp_name, {}).setdefault("overrides", {})
+        # Migrate legacy flat override labels if present
+        if comp_name in legacy_cd:
+            leg = legacy_cd[comp_name]
+            if isinstance(leg, dict):
+                if "Material Thickness" in leg and "material_thickness_mm" not in overrides:
+                    overrides["material_thickness_mm"] = leg["Material Thickness"]
+                if "Fabrication Waste" in leg and "fabrication_waste_pct" not in overrides:
+                    overrides["fabrication_waste_pct"] = leg["Fabrication Waste"]
+        fabrication_waste_percentage = overrides.get("fabrication_waste_pct")
+        fabrication_waste_factor = (fabrication_waste_percentage / 100.0) if fabrication_waste_percentage is not None else None
 
         request_payload = {
             "fan_configuration_id": fan_config_id,
             "component_id": component_id,
-            "blade_quantity": int(qd.get("blade_sets", 0)) if qd.get("blade_sets") else None,
-            "thickness_mm_override": cd.get(comp_name, {}).get("Material Thickness"),
+            "blade_quantity": int(fan_node.get("blade_sets", 0)) if fan_node.get("blade_sets") else None,
+            "thickness_mm_override": overrides.get("material_thickness_mm"),
             "fabrication_waste_factor_override": fabrication_waste_factor,
-            "markup_override": qd.get("markup_override")
+            "markup_override": calc_node.get("markup_override")
         }
         
         # Make it hashable for st.cache_data
@@ -394,7 +135,7 @@ def render_main_content():
         # Call API and store result
         result = get_component_details(request_payload_tuple)
         if result:
-            st.session_state.component_calculations[comp_name] = result
+            by_name.setdefault(comp_name, {})["calculated"] = result
 
     # --- Display Area ---
     num_selected_components = len(ordered_selected_components)
@@ -436,7 +177,7 @@ def render_main_content():
     # dividers = [3, 7]
     dividers = [8]
 
-    component_calcs = st.session_state.component_calculations
+    component_calcs = {k: v.get("calculated", {}) for k, v in by_name.items() if k in ordered_selected_components}
 
     for row_idx, (row_label, api_field, unit) in enumerate(api_response_rows):
         if row_idx in dividers:
@@ -460,7 +201,11 @@ def render_main_content():
                         default_value = api_value if api_value is not None else 15.0
                     else: # Material Thickness
                         default_value = api_value if api_value is not None else 5.0
-                    current_value = cd.setdefault(comp_name, {}).get(row_label, default_value)
+                    # Map label to overrides key
+                    if row_label == "Fabrication Waste":
+                        current_value = overrides.get("fabrication_waste_pct", default_value)
+                    else:
+                        current_value = overrides.get("material_thickness_mm", default_value)
                     
                     user_value = st.number_input(
                         label=f"_{widget_key}",
@@ -469,10 +214,13 @@ def render_main_content():
                         step=1.0,
                         format="%.1f",
                         key=widget_key,
-                        on_change=_update_component_detail_from_widget_state,
+                        on_change=update_component_detail_from_widget_state,
                         args=(comp_name, row_label, widget_key)
                     )
-                    cd[comp_name][row_label] = user_value
+                    if row_label == "Fabrication Waste":
+                        overrides["fabrication_waste_pct"] = user_value
+                    else:
+                        overrides["material_thickness_mm"] = user_value
                 else:
                     if api_value is not None:
                         if isinstance(api_value, (int, float)):
@@ -489,7 +237,7 @@ def render_main_content():
     st.subheader("Component Summary")
 
     # safe accessor
-    component_calcs = st.session_state.get("component_calculations", {}) or {}
+    component_calcs = {k: v.get("calculated", {}) for k, v in by_name.items() if k in ordered_selected_components}
 
     def _sum_field(name):
         return sum((c.get(name) or 0) for c in component_calcs.values())

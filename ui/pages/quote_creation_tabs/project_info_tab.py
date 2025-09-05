@@ -1,53 +1,40 @@
 import streamlit as st
-
-def _update_quote_data_top_level_key(qd_top_level_key, widget_sstate_key):
-    """
-    Callback to update a key in st.session_state.quote_data
-    from a widget's state in st.session_state.
-    """
-    if widget_sstate_key in st.session_state:
-        st.session_state.quote_data[qd_top_level_key] = st.session_state[widget_sstate_key]
+from pages.common import migrate_flat_to_nested_if_needed, NEW_SCHEMA_VERSION
 
 def render_main_content():
     st.header("1. Project Information")
-    qd = st.session_state.quote_data # Shorthand
+    # Ensure migrated (in case tab accessed directly after legacy load)
+    st.session_state.quote_data = migrate_flat_to_nested_if_needed(st.session_state.quote_data)
+    qd = st.session_state.quote_data
+    proj = qd.setdefault("project", {})
 
     cols = st.columns(2)
     with cols[0]:
-        st.text_input(
+        proj["name"] = st.text_input(
             "Project Name/Reference",
-            value=qd.get("project_name", ""),
+            value=proj.get("name", ""),
             key="widget_proj_name",
-            on_change=_update_quote_data_top_level_key,
-            args=("project_name", "widget_proj_name")
         )
-        st.text_input(
+        proj["client"] = st.text_input(
             "Client Name",
-            value=qd.get("client_name", ""),
+            value=proj.get("client", ""),
             key="widget_client_name",
-            on_change=_update_quote_data_top_level_key,
-            args=("client_name", "widget_client_name")
         )
     with cols[1]:
-        # For quote_ref, the initial value generation is fine, but updates should also use callback
-        st.text_input(
+        proj["reference"] = st.text_input(
             "Our Quote Reference",
-            value=qd.get("quote_ref", "Q" + st.session_state.get("username","demo")[0].upper() + "001"), # Auto-generate example
+            value=proj.get("reference", qd.get("project", {}).get("reference", "")),
             key="widget_quote_ref_us",
-            on_change=_update_quote_data_top_level_key,
-            args=("quote_ref", "widget_quote_ref_us")
         )
-        st.text_input(
+        proj["location"] = st.text_input(
             "Project Location / Site",
-            value=qd.get("project_location", ""),
+            value=proj.get("location", ""),
             key="widget_proj_loc",
-            on_change=_update_quote_data_top_level_key,
-            args=("project_location", "widget_proj_loc")
         )
     # Add more project info fields as needed
-    st.text_area("Project Notes / Scope",
-                 value=qd.get("project_notes", ""),
-                 key="widget_proj_notes", height=100,
-                 on_change=_update_quote_data_top_level_key,
-                 args=("project_notes", "widget_proj_notes")
-                 )
+    proj["notes"] = st.text_area(
+        "Project Notes / Scope",
+        value=proj.get("notes", ""),
+        key="widget_proj_notes",
+        height=100,
+    )

@@ -1,11 +1,22 @@
 import streamlit as st
 from config import CURRENCY_SYMBOL
+from pages.common import migrate_flat_to_nested_if_needed, _new_nested_quote_data, NEW_SCHEMA_VERSION
+
 def render_main_content():
     st.header("4. Buy-out Items / Additional Costs")
+
+    # Ensure quote_data present & migrated
+    if "quote_data" not in st.session_state or not isinstance(st.session_state.quote_data, dict):
+        st.session_state.quote_data = _new_nested_quote_data()
+    else:
+        st.session_state.quote_data = migrate_flat_to_nested_if_needed(st.session_state.quote_data)
     qd = st.session_state.quote_data
-    # Ensure 'buy_out_items_list' exists and is a list
-    if "buy_out_items_list" not in qd or not isinstance(qd["buy_out_items_list"], list):
-        qd["buy_out_items_list"] = []
+
+    # Nested list location
+    buy_list = qd.setdefault("buy_out_items", [])
+
+    # Backward compatibility: mirror legacy list key while transitional
+    qd["buy_out_items_list"] = buy_list
 
     st.subheader("Add New Buy-out Item")
     with st.form("new_buyout_item_form", clear_on_submit=True):
@@ -18,37 +29,44 @@ def render_main_content():
         add_item_submitted = st.form_submit_button("Add Item")
 
         if add_item_submitted and new_desc:
-            qd["buy_out_items_list"].append({
-                "id": f"item_{len(qd['buy_out_items_list'])}_{new_desc[:5]}", # Simple unique ID
+            item_id = f"item_{len(buy_list)}_{new_desc[:5]}"  # Simple unique ID
+            new_item = {
+                "id": item_id,
                 "description": new_desc,
-                "cost": new_cost,
-                "quantity": new_qty
-            })
+                "unit_cost": new_cost,
+                "qty": new_qty,
+                "subtotal": new_cost * new_qty,
+            }
+            buy_list.append(new_item)
+            qd["buy_out_items_list"] = buy_list  # mirror legacy
             st.success(f"Added: {new_desc}")
 
     st.divider()
     st.subheader("Current Buy-out Items")
-    if not qd["buy_out_items_list"]:
+    if not buy_list:
         st.info("No buy-out items added yet.")
     else:
-        total_buyout_cost = 0
-        for i, item in enumerate(qd["buy_out_items_list"]):
-            item_total = item['cost'] * item['quantity']
-            total_buyout_cost += item_total
-            cols_item = st.columns([3, 1, 1, 1, 0.5]) # Description, Cost, Qty, Total, Remove
+        total_buyout_cost = 0.0
+        for i, item in enumerate(buy_list):
+            # Recompute subtotal defensively in case of manual edits later
+            item["subtotal"] = float(item.get("unit_cost", 0.0)) * float(item.get("qty", 0))
+            total_buyout_cost += item["subtotal"]
+            cols_item = st.columns([3, 1, 1, 1, 0.5])  # Description, Cost, Qty, Total, Remove
             with cols_item[0]:
-                st.write(item['description'])
+                st.write(item.get('description',''))
             with cols_item[1]:
-                st.write(f"{CURRENCY_SYMBOL} {item['cost']:.2f}")
+                st.write(f"{CURRENCY_SYMBOL} {item.get('unit_cost',0):.2f}")
             with cols_item[2]:
-                st.write(f"{item['quantity']}")
+                st.write(f"{item.get('qty',0)}")
             with cols_item[3]:
-                st.write(f"{CURRENCY_SYMBOL} {item_total:.2f}")
+                st.write(f"{CURRENCY_SYMBOL} {item.get('subtotal',0):.2f}")
             with cols_item[4]:
                 if st.button("✖️", key=f"remove_bo_{item['id']}", help="Remove item"):
-                    qd["buy_out_items_list"].pop(i)
-                    st.rerun() # Rerun to reflect removal
-            if i < len(qd["buy_out_items_list"]) -1 : st.markdown("---") # lite divider
+                    buy_list.pop(i)
+                    qd["buy_out_items_list"] = buy_list  # mirror legacy
+                    st.rerun()
+            if i < len(buy_list) - 1:
+                st.markdown("---")  # lite divider
 
         st.divider()
         st.metric("Total Buy-out Items Cost", f"{CURRENCY_SYMBOL} {total_buyout_cost:,.2f}")

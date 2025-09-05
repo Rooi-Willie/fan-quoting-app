@@ -8,6 +8,12 @@ from pages.quote_creation_tabs import (
     buyout_items_tab,
     review_quote_tab
 )
+from pages.common import (
+    render_sidebar_widgets,  # Shared sidebar renderer
+    _new_nested_quote_data,
+    migrate_flat_to_nested_if_needed,
+    NEW_SCHEMA_VERSION,
+)
 
 # Page Configuration
 st.set_page_config(page_title=f"Create Quote - {APP_TITLE}", layout="wide")
@@ -29,27 +35,12 @@ tab_titles = ["1. Project Info", "2. Motor Selection", "3. Fan Configuration", "
 # --- Initialize Session State for Quote Data ---
 # This ensures data persists across tab switches and reruns within this page.
 if "quote_data" not in st.session_state:
-    st.session_state.quote_data = {
-        # Project Info - initialized with sensible defaults for a new quote
-        "project_name": "",
-        "client_name": "",
-        "project_location": "",
-        "project_notes": "",
-        "quote_ref": "Q" + st.session_state.get("username", "demo")[0].upper() + "001",
+    st.session_state.quote_data = _new_nested_quote_data(st.session_state.get("username"))
+else:
+    # Migrate legacy flat structure if user navigated from older session state
+    st.session_state.quote_data = migrate_flat_to_nested_if_needed(st.session_state.quote_data)
 
-        # Fan/Component selections - start empty, populated by user
-        "selected_components_unordered": [],
-        "component_details": {},  # Stores user overrides (thickness, waste)
-
-        # Buy-out Items
-        "buy_out_items_list": [],
-
-        # Other keys will be added dynamically by other tabs:
-        # fan_config_id, fan_uid, fan_hub, blade_sets, markup_override (from fan_config_tab)
-        # selected_motor_details, motor_mount_type, motor_price, motor_markup_override, motor_price_after_markup (from motor_selection_tab)
-    }
-
-elif st.sidebar.button("🔄 Start New Quote / Reset Form", use_container_width=True):
+if st.sidebar.button("🔄 Start New Quote / Reset Form", use_container_width=True):
     # Reset specific quote data, keep login info
     logged_in_status = st.session_state.get("logged_in", False)
     username = st.session_state.get("username", "")
@@ -57,21 +48,12 @@ elif st.sidebar.button("🔄 Start New Quote / Reset Form", use_container_width=
     st.session_state.logged_in = logged_in_status # Restore login
     st.session_state.username = username
     # Re-initialize quote data
-    st.session_state.quote_data = {
-        "project_name": "",
-        "client_name": "",
-        "project_location": "",
-        "project_notes": "",
-        "quote_ref": "Q" + st.session_state.get("username", "demo")[0].upper() + "001",
-        "selected_components_unordered": [],
-        "component_details": {},
-        "buy_out_items_list": [],
-    }
+    st.session_state.quote_data = _new_nested_quote_data(st.session_state.get("username"))
     st.success("Quote form has been reset.")
     st.rerun()
 
 # This section now renders the same sidebar content regardless of the active tab.
-fan_config_tab.render_sidebar_widgets() # Always render fan config widgets in sidebar
+render_sidebar_widgets()  # Always render shared sidebar widgets
 st.sidebar.divider()
 st.sidebar.json(st.session_state.quote_data, expanded=False) # For debugging
 

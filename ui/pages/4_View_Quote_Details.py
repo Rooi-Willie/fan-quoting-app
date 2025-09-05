@@ -4,6 +4,7 @@ import datetime
 import json
 import os
 from config import APP_TITLE
+from pages.common import migrate_flat_to_nested_if_needed, _new_nested_quote_data
 
 # API_BASE_URL should be configured, e.g., via environment variable
 # Fallback is provided for local development.
@@ -75,23 +76,27 @@ with project_cols[2]:
     st.metric("Location", quote["project_location"] or "N/A")
 
 # Quote details from the saved JSON
-quote_data = quote["quote_data"]
+quote_data = migrate_flat_to_nested_if_needed(quote.get("quote_data") or {})
+
+fan_node = quote_data.get("fan", {})
+calc_node = quote_data.get("calculation", {})
+components_node = quote_data.get("components", {})
+motor_node = quote_data.get("motor", {})
 
 # Fan configuration section
 st.header("Fan Configuration")
 fan_cols = st.columns(4)
 with fan_cols[0]:
-    st.metric("Fan Type", quote_data.get("fan_uid", "N/A"))
+    st.metric("Fan ID", fan_node.get("uid") or "N/A")
 with fan_cols[1]:
-    st.metric("Fan Size", f"{quote_data.get('fan_size_mm', 'N/A')}mm")
+    st.metric("Fan Config ID", fan_node.get("config_id") or "N/A")
 with fan_cols[2]:
-    st.metric("Blade Sets", str(quote_data.get("blade_sets", "N/A")))
+    st.metric("Blade Sets", str(fan_node.get("blade_sets") or "N/A"))
 with fan_cols[3]:
-    st.metric("Markup", f"{float(quote_data.get('markup_override', 1.0)):.2f}x")
+    st.metric("Markup", f"{float(calc_node.get('markup_override', 1.4)):.2f}x")
 
-# Motor details
-if "selected_motor_details" in quote_data and quote_data["selected_motor_details"]:
-    motor = quote_data["selected_motor_details"]
+if motor_node.get("selection"):
+    motor = motor_node["selection"]
     st.header("Motor Information")
     motor_cols = st.columns(4)
     with motor_cols[0]:
@@ -101,37 +106,35 @@ if "selected_motor_details" in quote_data and quote_data["selected_motor_details
     with motor_cols[2]:
         st.metric("Speed", f"{motor.get('speed', 'N/A')} {motor.get('speed_unit', '')}")
     with motor_cols[3]:
-        st.metric("Price", f"R {quote_data.get('motor_price_after_markup', 0):,.2f}")
+        st.metric("Final Price", f"R {float(motor_node.get('final_price') or 0):,.2f}")
 
-# Components section
-if "selected_components_unordered" in quote_data and quote_data["selected_components_unordered"]:
+if components_node.get("selected"):
     st.header("Components")
-    
-    # Create a table of selected components
     component_data = []
-    for comp_name in quote_data["selected_components_unordered"]:
-        comp_details = quote_data.get("component_details", {}).get(comp_name, {})
+    for comp_name in components_node.get("selected", []):
+        node = components_node.get("by_name", {}).get(comp_name, {})
+        overrides = node.get("overrides", {})
         component_data.append({
             "Component": comp_name,
-            "Thickness": comp_details.get("Material Thickness", "Default"),
-            "Waste Factor": comp_details.get("Fabrication Waste", "Default")
+            "Thickness (mm)": overrides.get("material_thickness_mm", "Default"),
+            "Waste %": overrides.get("fabrication_waste_pct", "Default")
         })
-    
     st.table(component_data)
 
-# Buy-out items section
-if "buy_out_items_list" in quote_data and quote_data["buy_out_items_list"]:
+buyout_items = quote_data.get("buy_out_items", [])
+if buyout_items:
     st.header("Buy-out Items")
-    
     buyout_data = []
-    for item in quote_data["buy_out_items_list"]:
+    for item in buyout_items:
+        subtotal = item.get("subtotal")
+        if subtotal is None:
+            subtotal = float(item.get("unit_cost", 0)) * float(item.get("qty", 0))
         buyout_data.append({
             "Description": item.get("description", ""),
-            "Quantity": item.get("quantity", 1),
-            "Unit Price": f"R {float(item.get('unit_price', 0)):,.2f}",
-            "Total": f"R {float(item.get('unit_price', 0)) * float(item.get('quantity', 1)):,.2f}"
+            "Qty": item.get("qty") or item.get("quantity", 0),
+            "Unit Cost": f"R {float(item.get('unit_cost', item.get('cost', 0))):,.2f}",
+            "Subtotal": f"R {float(subtotal):,.2f}"
         })
-    
     st.table(buyout_data)
 
 # Pricing summary
@@ -139,17 +142,20 @@ st.header("Pricing Summary")
 price_cols = st.columns(4)
 
 with price_cols[0]:
-    st.metric("Total Mass", f"{quote.get('total_mass_kg', 0):.2f} kg")
+    total_mass = 0.0
+    server_summary = quote_data.get("calculation", {}).get("server_summary", {}) or quote_data.get("server_summary", {})
+    if server_summary:
+        total_mass = server_summary.get("total_real_mass_kg") or server_summary.get("total_mass_kg") or 0.0
+    st.metric("Total Mass", f"{float(total_mass):.2f} kg")
 
 with price_cols[1]:
     material_cost = 0
     labour_cost = 0
     
     # Extract from server summary if available
-    if "server_summary" in quote_data:
-        summary = quote_data["server_summary"]
-        material_cost = summary.get("total_material_cost", 0)
-        labour_cost = summary.get("total_labour_cost", 0)
+    if server_summary:
+        material_cost = server_summary.get("total_material_cost", 0)
+        labour_cost = server_summary.get("total_labour_cost", 0)
     
     st.metric("Material Cost", f"R {material_cost:,.2f}")
 
@@ -157,7 +163,16 @@ with price_cols[2]:
     st.metric("Labour Cost", f"R {labour_cost:,.2f}")
 
 with price_cols[3]:
-    st.metric("Final Price", f"R {quote.get('total_price', 0):,.2f}", delta="Including Markup")
+    # Final price attempt: prefer quote.total_price, fallback to server summary final_price, else sum components + motor + buyouts
+    final_price = quote.get('total_price')
+    if final_price in (None, 0):
+        final_price = server_summary.get("final_price") if server_summary else 0
+    if not final_price:
+        comp_total = server_summary.get("final_price", 0) if server_summary else 0
+        motor_total = motor_node.get("final_price") or 0
+        buyout_total = sum([float(it.get("subtotal") or 0) for it in buyout_items])
+        final_price = comp_total + motor_total + buyout_total
+    st.metric("Final Price", f"R {float(final_price):,.2f}", delta="Including Markup")
 
 # Revision history
 st.header("Revision History")
@@ -190,8 +205,8 @@ action_cols = st.columns(4)
 
 with action_cols[0]:
     if st.button("Edit This Quote", use_container_width=True):
-        # Load this quote for editing
-        st.session_state.quote_data = quote["quote_data"]
+        # Load this quote for editing (migrated)
+        st.session_state.quote_data = quote_data
         st.switch_page("pages/2_Create_New_Quote.py")
 
 with action_cols[1]:
