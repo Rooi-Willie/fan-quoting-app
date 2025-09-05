@@ -5,6 +5,8 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from . import models, schemas
+from fastapi import HTTPException
+from .validation import validate_quote_data
 
 
 # ===================== NESTED QUOTEDATA SUMMARY EXTRACTION ====================
@@ -307,6 +309,10 @@ def get_quote_revisions(db: Session, original_quote_id: int):
 def create_quote(db: Session, quote: schemas.QuoteCreate):
     # Mutably enrich quote_data with derived totals & extract summaries
     quote_data = quote.quote_data if isinstance(quote.quote_data, dict) else {}
+    # Stage 5: validation (non-blocking for now). Future: raise HTTPException(422,...)
+    _validation_issues = validate_quote_data(quote_data)
+    if _validation_issues:
+        raise HTTPException(status_code=422, detail={"errors": _validation_issues})
     summary_fields = _extract_summary_from_quote_data(quote_data)
 
     db_quote = models.Quote(
@@ -340,8 +346,11 @@ def create_quote_revision(db: Session, original_quote_id: int, user_id: int, quo
     )
     
     # Create new quote record with revision information
-    # Update quote_data & derive new summary
+    # Update quote_data & derive new summary (with validation placeholder)
     quote_data = quote_data if isinstance(quote_data, dict) else {}
+    _validation_issues = validate_quote_data(quote_data)
+    if _validation_issues:
+        raise HTTPException(status_code=422, detail={"errors": _validation_issues})
     summary_fields = _extract_summary_from_quote_data(quote_data)
 
     db_quote = models.Quote(
