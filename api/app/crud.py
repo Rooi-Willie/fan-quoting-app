@@ -9,55 +9,39 @@ from . import models, schemas
 
 # ===================== NESTED QUOTEDATA SUMMARY EXTRACTION ====================
 def _extract_summary_from_quote_data(qd: Dict[str, Any]) -> Dict[str, Any]:
-    """Derive summary columns and ensure derived_totals for nested schema.
+    """Derive summary columns and ensure calculation.derived_totals (nested-only).
 
-    Supports both legacy flat keys and new nested structure. Mutates the
-    passed quote_data to add/adjust calculation.derived_totals where possible.
+    Assumes UI has already migrated/pruned legacy keys. No legacy fallbacks remain.
+    Mutates qd in-place to refresh derived_totals.
     """
     if not isinstance(qd, dict):
-        return {
-            "fan_uid": None,
-            "fan_size_mm": None,
-            "blade_sets": None,
-            "component_list": [],
-            "markup": None,
-            "total_price": None,
-            "motor_supplier": None,
-            "motor_rated_output": None,
-        }
+        return {"fan_uid": None, "fan_size_mm": None, "blade_sets": None, "component_list": [],
+                "markup": None, "total_price": None, "motor_supplier": None, "motor_rated_output": None}
 
-    # Access nested nodes with fallbacks
-    fan = qd.get("fan", {})
-    comps = qd.get("components", {})
-    calc = qd.get("calculation", {})
-    motor = qd.get("motor", {})
-    buyouts = qd.get("buy_out_items", [])
+    fan = qd.get("fan", {}) or {}
+    comps = qd.get("components", {}) or {}
+    calc = qd.get("calculation", {}) or {}
+    motor = qd.get("motor", {}) or {}
+    buyouts = qd.get("buy_out_items", []) or []
 
-    # Legacy fallbacks
-    fan_uid = fan.get("uid") or qd.get("fan_uid")
-    blade_sets = fan.get("blade_sets") or qd.get("blade_sets")
-    markup = calc.get("markup_override") if isinstance(calc, dict) else None
-    if markup is None:
-        markup = qd.get("markup_override")
-    component_list = comps.get("selected") or qd.get("selected_components_unordered") or []
+    fan_uid = fan.get("uid")
+    blade_sets = fan.get("blade_sets")
+    component_list = comps.get("selected", []) or []
+    markup = calc.get("markup_override")
 
-    # Motor details
-    motor_selection = motor.get("selection") or qd.get("selected_motor_details") or {}
+    motor_selection = motor.get("selection") or {}
     motor_supplier = motor_selection.get("supplier_name") if isinstance(motor_selection, dict) else None
     motor_rated_output = None
     if isinstance(motor_selection, dict) and motor_selection.get("rated_output") is not None:
         motor_rated_output = str(motor_selection.get("rated_output"))
 
-    # Component pricing: prefer server summary inside calculation.server_summary
-    server_summary = calc.get("server_summary") if isinstance(calc, dict) else qd.get("server_summary", {})
+    server_summary = calc.get("server_summary") or {}
     components_final_price = None
     if isinstance(server_summary, dict):
         components_final_price = server_summary.get("final_price") or server_summary.get("total_cost_after_markup")
 
-    # Motor price
-    motor_final_price = motor.get("final_price") or qd.get("motor_price_after_markup")
+    motor_final_price = motor.get("final_price")
 
-    # Buy-out items subtotal
     buyout_total = 0.0
     if isinstance(buyouts, list):
         for item in buyouts:
@@ -65,43 +49,37 @@ def _extract_summary_from_quote_data(qd: Dict[str, Any]) -> Dict[str, Any]:
                 continue
             subtotal = item.get("subtotal")
             if subtotal is None:
-                unit_cost = item.get("unit_cost") or item.get("cost") or 0
-                qty = item.get("qty") or item.get("quantity") or 0
+                unit_cost = item.get("unit_cost") or 0
+                qty = item.get("qty") or 0
                 subtotal = float(unit_cost) * float(qty)
             buyout_total += float(subtotal or 0)
 
-    # Compute total price fallbacks
-    total_price = qd.get("final_price") or qd.get("total_price")
-    if not total_price:
-        total_price = 0
-        if components_final_price:
-            total_price += float(components_final_price)
-        if motor_final_price:
-            total_price += float(motor_final_price)
-        total_price += buyout_total
+    total_price = 0.0
+    if components_final_price:
+        total_price += float(components_final_price)
+    if motor_final_price:
+        total_price += float(motor_final_price)
+    total_price += buyout_total
 
-    # Populate derived_totals structure
-    calc.setdefault("derived_totals", {})
-    derived = calc["derived_totals"]
-    derived.update({
+    derived = {
         "components_final_price": float(components_final_price or 0),
         "motor_final_price": float(motor_final_price or 0),
         "buyout_total": float(buyout_total),
         "grand_total": float(total_price),
-    })
-    # Mirror back (in case calc came from qd)
-    qd.setdefault("calculation", calc)
-    qd["calculation"]["derived_totals"] = derived
+    }
+    calc.setdefault("derived_totals", {})
+    calc["derived_totals"].update(derived)
+    qd["calculation"] = calc
 
     return {
         "fan_uid": fan_uid,
-        "fan_size_mm": fan.get("config_size_mm") or qd.get("fan_size_mm"),  # legacy fallback
+        "fan_size_mm": fan.get("config_size_mm"),
         "blade_sets": blade_sets,
         "component_list": component_list,
         "markup": markup,
         "motor_supplier": motor_supplier,
         "motor_rated_output": motor_rated_output,
-        "total_price": float(total_price) if total_price is not None else None,
+        "total_price": float(total_price),
     }
 
 

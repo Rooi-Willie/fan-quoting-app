@@ -141,7 +141,79 @@ def migrate_flat_to_nested_if_needed(data: Dict) -> Dict:
     # Stamp updated_at
     from datetime import datetime as _dt
     upgraded["meta"]["updated_at"] = _dt.utcnow().isoformat()+"Z"
+    # Prune legacy keys now that upgraded structure is created
+    upgraded = prune_legacy_flat_keys(upgraded)
     return upgraded
+
+
+def prune_legacy_flat_keys(qd: Dict) -> Dict:
+    """Remove deprecated flat schema keys once nested schema is authoritative.
+
+    Safe to call multiple times; ignores missing keys. Only removes keys that
+    have migrated equivalents in the nested structure.
+    """
+    if not isinstance(qd, dict):
+        return qd
+    legacy_keys = [
+        "fan_config_id", "fan_uid", "fan_hub", "blade_sets", "selected_components_unordered",
+        "component_details", "markup_override", "motor_price_after_markup", "motor_markup_override",
+        "quote_ref", "buy_out_items_list", "server_summary"
+    ]
+    for k in legacy_keys:
+        qd.pop(k, None)
+    return qd
+
+
+def recompute_all_components(request_func) -> None:
+    """Utility to recompute all selected components' calculated data in-place.
+
+    Parameters
+    ----------
+    request_func : callable
+        A function accepting a hashable request_payload_tuple and returning a
+        result dict (mirrors get_component_details in fan_config_tab).
+
+    Behavior
+    --------
+    - Ensures quote_data migrated.
+    - Iterates components.selected preserving order.
+    - Builds request payload per component (using overrides & current fan node).
+    - Writes results into components.by_name[name].calculated.
+    - Silently skips components lacking an id mapping (caller must manage id resolution).
+    """
+    if "quote_data" not in st.session_state:
+        return
+    qd = migrate_flat_to_nested_if_needed(st.session_state.quote_data)
+    fan = qd.get("fan", {})
+    comps = qd.get("components", {})
+    calc = qd.get("calculation", {})
+    selected = comps.get("selected", [])
+    by_name = comps.setdefault("by_name", {})
+    fan_config_id = fan.get("config_id")
+    available = get_available_components(fan_config_id) if fan_config_id else []
+    id_map = {c['name']: c['id'] for c in available} if available else {}
+
+    for comp_name in selected:
+        comp_id = id_map.get(comp_name)
+        if comp_id is None:
+            continue
+        overrides = by_name.setdefault(comp_name, {}).setdefault("overrides", {})
+        fabrication_waste_percentage = overrides.get("fabrication_waste_pct")
+        fabrication_waste_factor = (fabrication_waste_percentage / 100.0) if fabrication_waste_percentage is not None else None
+        request_payload = {
+            "fan_configuration_id": fan_config_id,
+            "component_id": comp_id,
+            "blade_quantity": int(fan.get("blade_sets", 0)) if fan.get("blade_sets") else None,
+            "thickness_mm_override": overrides.get("material_thickness_mm"),
+            "fabrication_waste_factor_override": fabrication_waste_factor,
+            "markup_override": calc.get("markup_override"),
+        }
+        request_payload_tuple = tuple(sorted(request_payload.items()))
+        result = request_func(request_payload_tuple)
+        if result:
+            by_name.setdefault(comp_name, {})["calculated"] = result
+    # Stamp back
+    st.session_state.quote_data = qd
 
 
 def update_quote_data_top_level_key(qd_top_level_key: str, widget_sstate_key: str):
@@ -171,13 +243,7 @@ def update_quote_data_nested(path: List[str], widget_sstate_key: str, mirror_leg
         qd[mirror_legacy] = st.session_state[widget_sstate_key]
 
 
-def update_component_detail_from_widget_state(component_name: str, detail_key: str, widget_sstate_key: str):
-    if "quote_data" not in st.session_state:
-        return
-    qd = st.session_state.quote_data
-    component_dict = qd.setdefault("component_details", {}).setdefault(component_name, {})
-    if widget_sstate_key in st.session_state:
-        component_dict[detail_key] = st.session_state[widget_sstate_key]
+## Legacy update_component_detail_from_widget_state removed (nested overrides used directly)
 
 
 @st.cache_data
@@ -217,17 +283,13 @@ def _handle_fan_id_change():
     all_configs = get_all_fan_configs()
     if not all_configs:
         st.session_state.current_fan_config = None
-        # Reset nested fan node
         qd.setdefault("fan", {}).update({"config_id": None, "uid": None, "hub_size_mm": None, "blade_sets": None})
-        # Legacy keys for transitional tabs
-        qd.update({"fan_config_id": None, "fan_uid": None, "fan_hub": None, "blade_sets": None, "selected_components_unordered": []})
         qd.setdefault("components", {}).setdefault("selected", [])
         return
     selected_config = next((c for c in all_configs if c['uid'] == selected_fan_uid), None)
     if not selected_config:
         st.session_state.current_fan_config = None
         qd.setdefault("fan", {}).update({"config_id": None, "uid": None, "hub_size_mm": None, "blade_sets": None})
-        qd.update({"fan_config_id": None, "fan_uid": None, "fan_hub": None, "blade_sets": None, "selected_components_unordered": []})
         qd.setdefault("components", {}).setdefault("selected", [])
         return
 
@@ -238,10 +300,6 @@ def _handle_fan_id_change():
         "uid": selected_config.get('uid'),
         "hub_size_mm": selected_config.get('hub_size_mm'),
     })
-    # Mirror legacy
-    qd["fan_config_id"] = fan_node["config_id"]
-    qd["fan_uid"] = fan_node["uid"]
-    qd["fan_hub"] = fan_node["hub_size_mm"]
 
     available_blades = selected_config.get('available_blade_qtys', [])
     blades_str = [str(b) for b in available_blades]
@@ -251,8 +309,6 @@ def _handle_fan_id_change():
             fan_node["blade_sets"] = blades_str[0]
     else:
         fan_node["blade_sets"] = None
-    # Mirror legacy blade_sets
-    qd["blade_sets"] = fan_node.get("blade_sets")
 
     # Auto-selected components
     auto_select_ids = selected_config.get('auto_selected_components', [])
@@ -264,8 +320,6 @@ def _handle_fan_id_change():
             comp_sel = [id_to_name[i] for i in auto_select_ids if i in id_to_name]
     qd.setdefault("components", {}).setdefault("selected", [])
     qd["components"]["selected"] = comp_sel
-    # Mirror legacy
-    qd["selected_components_unordered"] = list(comp_sel)
 
 
 def render_sidebar_widgets():

@@ -18,6 +18,84 @@ logger = logging.getLogger(__name__)
 API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
 
 
+def _recompute_derived_totals_from_server(qd: dict) -> dict:
+	"""Compute client-side derived_totals using current quote_data and server_summary.
+
+	Priority order:
+	  1. calculation.server_summary.final_price (components aggregate)
+	  2. sum of components.by_name[*].calculated.total_cost_after_markup (if nested present)
+	Motor & buy-outs pulled directly from nested nodes if available.
+	"""
+	if not isinstance(qd, dict):
+		return {}
+	calc = qd.get("calculation", {}) or {}
+	server_summary = calc.get("server_summary") or {}
+	comps = qd.get("components", {}) or {}
+	by_name = comps.get("by_name", {}) or {}
+	motor = qd.get("motor", {}) or {}
+	buyouts = qd.get("buy_out_items", []) or []
+
+	comp_total = None
+	if isinstance(server_summary, dict):
+		comp_total = server_summary.get("final_price") or server_summary.get("total_cost_after_markup")
+	if comp_total is None:
+		# Fallback: sum calculated node values
+		comp_total = 0.0
+		for name, data in by_name.items():
+			if not isinstance(data, dict):
+				continue
+			calc_node = data.get("calculated", {}) or {}
+			val = calc_node.get("total_cost_after_markup") or calc_node.get("final_price")
+			if isinstance(val, (int, float)):
+				comp_total += float(val)
+
+	motor_total = motor.get("final_price") or 0.0
+
+	buyout_total = 0.0
+	if isinstance(buyouts, list):
+		for item in buyouts:
+			if not isinstance(item, dict):
+				continue
+			subtotal = item.get("subtotal")
+			if subtotal is None:
+				unit_cost = item.get("unit_cost") or item.get("cost") or 0
+				qty = item.get("qty") or item.get("quantity") or 0
+				subtotal = float(unit_cost) * float(qty)
+			buyout_total += float(subtotal or 0)
+
+	grand_total = float(comp_total or 0) + float(motor_total or 0) + float(buyout_total)
+	return {
+		"components_final_price": float(comp_total or 0),
+		"motor_final_price": float(motor_total or 0),
+		"buyout_total": float(buyout_total),
+		"grand_total": float(grand_total),
+	}
+
+
+def _build_rates_snapshot(summary_payload: dict) -> dict:
+	"""Capture pricing input snapshot for audit: overrides & key driving factors.
+
+	The server may apply its own logic with global settings; this captures what
+	the client sent (fan config id, blade qty, component ids, markup overrides).
+	"""
+	if not isinstance(summary_payload, dict):
+		return {}
+	return {
+		"fan_configuration_id": summary_payload.get("fan_configuration_id"),
+		"blade_quantity": summary_payload.get("blade_quantity"),
+		"markup_override": summary_payload.get("markup_override"),
+		"motor_markup_override": summary_payload.get("motor_markup_override"),
+		"components": [
+			{
+				"component_id": c.get("component_id"),
+				"thickness_mm_override": c.get("thickness_mm_override"),
+				"fabrication_waste_factor_override": c.get("fabrication_waste_factor_override"),
+			}
+			for c in summary_payload.get("components", []) if isinstance(c, dict)
+		],
+	}
+
+
 def fetch_components_map(fan_config_id: int) -> Dict[str, int]:
 	"""Return a {name: id} map for components of a fan config, or {} on error."""
 	if not fan_config_id:
@@ -32,37 +110,49 @@ def fetch_components_map(fan_config_id: int) -> Dict[str, int]:
 
 
 def ensure_server_summary_up_to_date(qd: dict) -> None:
-	"""
-	Build a summary payload from session state and POST to /quotes/components/summary
-	only when inputs change. Stores response in st.session_state.server_summary.
+	"""Update server-side component summary and persist aggregates in quote_data.
+
+	Responsibilities (Stage 4):
+	1. Detect input changes and POST to /quotes/components/summary.
+	2. Store raw server response in st.session_state.server_summary.
+	3. Persist a snapshot under qd["calculation"]["server_summary"].
+	4. Persist/refresh qd["calculation"]["derived_totals"] (client-side convenience).
+	5. Persist qd["calculation"]["rates_and_settings_used"] capturing pricing inputs.
+
+	Notes:
+	- Backend will still derive authoritative totals; client copy improves transparency.
+	- Idempotent: if payload unchanged, does nothing.
 	"""
 	logger.debug("ensure_server_summary_up_to_date called")
 	if not isinstance(qd, dict):
 		return
-	cd = qd.get("component_details", {}) or {}
-	fan_config_id = qd.get("fan_config_id") or qd.get("fan_id")
-	selected_names = qd.get("selected_components_unordered", []) or []
+	fan_node = qd.get("fan", {}) or {}
+	comp_node = qd.get("components", {}) or {}
+	calc_node = qd.get("calculation", {}) or {}
+	fan_config_id = fan_node.get("config_id")
+	selected_names = comp_node.get("selected", []) or []
 	if not fan_config_id or not selected_names:
 		return
 
 	name_to_id = fetch_components_map(int(fan_config_id))
 
+	by_name = comp_node.get("by_name", {}) or {}
 	comp_list = []
 	for name in selected_names:
 		comp_id = name_to_id.get(name)
-		overrides = cd.get(name, {}) if isinstance(cd, dict) else {}
+		ov = by_name.get(name, {}).get("overrides", {}) if isinstance(by_name.get(name), dict) else {}
 		comp_list.append({
 			"component_id": comp_id,
-			"thickness_mm_override": overrides.get("Material Thickness"),
-			"fabrication_waste_factor_override": (overrides.get("Fabrication Waste") / 100.0) if overrides.get("Fabrication Waste") is not None else None
+			"thickness_mm_override": ov.get("material_thickness_mm"),
+			"fabrication_waste_factor_override": (ov.get("fabrication_waste_pct") / 100.0) if ov.get("fabrication_waste_pct") is not None else None
 		})
 
 	payload = {
 		"fan_configuration_id": int(fan_config_id),
-		"blade_quantity": int(qd.get("blade_sets", 0)) if qd.get("blade_sets") else None,
+		"blade_quantity": int(fan_node.get("blade_sets", 0)) if fan_node.get("blade_sets") else None,
 		"components": comp_list,
-		"markup_override": qd.get("markup_override"),
-		"motor_markup_override": qd.get("motor_markup_override")
+		"markup_override": calc_node.get("markup_override"),
+		"motor_markup_override": qd.get("motor", {}).get("markup_override")
 	}
 
 	payload_hash = json.dumps(payload, sort_keys=True, default=str)
@@ -71,15 +161,26 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 
 	if st.session_state.get("last_summary_payload_hash") == payload_hash:
 		logger.debug("[DEBUG] Skipping API call - payload unchanged")
+		# Ensure persisted structures exist even if no call needed
+		_calc = qd.setdefault("calculation", {})
+		_calc.setdefault("server_summary", st.session_state.get("server_summary", {}))
+		_calc.setdefault("derived_totals", _recompute_derived_totals_from_server(qd))
+		_calc.setdefault("rates_and_settings_used", _build_rates_snapshot(payload))
 		return
 
 	logger.debug("[DEBUG] Making API call with payload:", payload)
 	try:
 		resp = requests.post(f"{API_BASE_URL}/quotes/components/summary", json=payload)
 		resp.raise_for_status()
-		st.session_state.server_summary = resp.json()
+		server_summary = resp.json() or {}
+		st.session_state.server_summary = server_summary
 		st.session_state.last_summary_payload_hash = payload_hash
-		# Add explicit rerun when the server summary changes
+		# Persist into nested quote_data.calculation
+		_calc = qd.setdefault("calculation", {})
+		_calc["server_summary"] = server_summary
+		_calc["derived_totals"] = _recompute_derived_totals_from_server(qd)
+		_calc["rates_and_settings_used"] = _build_rates_snapshot(payload)
+		# Trigger rerun so UI reflects new totals
 		st.rerun()
 	except requests.RequestException:
 		pass

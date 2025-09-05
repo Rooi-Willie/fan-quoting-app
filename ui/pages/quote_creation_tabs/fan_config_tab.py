@@ -6,8 +6,7 @@ import requests
 from config import COMPONENT_ORDER, COMPONENT_IMAGES, ROW_DEFINITIONS, IMAGE_FOLDER_PATH, CURRENCY_SYMBOL
 from utils import ensure_server_summary_up_to_date, build_summary_dataframe
 from pages.common import (
-    update_quote_data_top_level_key,  # (legacy helper still used by sidebar widgets)
-    update_component_detail_from_widget_state,  # will be adapted in Stage 2 clean-up
+    update_quote_data_top_level_key,  # legacy top-level updater (still imported if other tabs use)
     get_available_components,
     get_all_fan_configs,
     migrate_flat_to_nested_if_needed,
@@ -79,7 +78,7 @@ def render_main_content():
     by_name = comp_node.setdefault("by_name", {})
     calc_node = qd.setdefault("calculation", {})
     # Backwards compatible overrides location (legacy cd) -> transition into by_name.overrides
-    legacy_cd = qd.get("component_details") or {}
+    # legacy component_details removed; overrides live solely under components.by_name[name].overrides
 
     st.subheader("Configure Selected Fan Components")
 
@@ -95,7 +94,6 @@ def render_main_content():
 
     if not ordered_selected_components:
         st.info("Select fan components from the sidebar to configure them.")
-        st.session_state.component_calculations = {}
         return
 
     name_to_id_map = {comp['name']: comp['id'] for comp in available_components_list}
@@ -110,13 +108,7 @@ def render_main_content():
         # Overrides (material thickness, fabrication waste) now stored under components.by_name[name].overrides
         overrides = by_name.setdefault(comp_name, {}).setdefault("overrides", {})
         # Migrate legacy flat override labels if present
-        if comp_name in legacy_cd:
-            leg = legacy_cd[comp_name]
-            if isinstance(leg, dict):
-                if "Material Thickness" in leg and "material_thickness_mm" not in overrides:
-                    overrides["material_thickness_mm"] = leg["Material Thickness"]
-                if "Fabrication Waste" in leg and "fabrication_waste_pct" not in overrides:
-                    overrides["fabrication_waste_pct"] = leg["Fabrication Waste"]
+    # Legacy migration of overrides removed (already pruned)
         fabrication_waste_percentage = overrides.get("fabrication_waste_pct")
         fabrication_waste_factor = (fabrication_waste_percentage / 100.0) if fabrication_waste_percentage is not None else None
 
@@ -214,8 +206,6 @@ def render_main_content():
                         step=1.0,
                         format="%.1f",
                         key=widget_key,
-                        on_change=update_component_detail_from_widget_state,
-                        args=(comp_name, row_label, widget_key)
                     )
                     if row_label == "Fabrication Waste":
                         overrides["fabrication_waste_pct"] = user_value
@@ -236,8 +226,7 @@ def render_main_content():
     st.divider()
     st.subheader("Component Summary")
 
-    # safe accessor
-    component_calcs = {k: v.get("calculated", {}) for k, v in by_name.items() if k in ordered_selected_components}
+    # safe accessor (already built above)
 
     def _sum_field(name):
         return sum((c.get(name) or 0) for c in component_calcs.values())
@@ -322,6 +311,19 @@ def render_main_content():
                 st.warning("Could not update server totals. Check API logs.")
     with recalc_col2:
         st.caption("Use this to fetch server-calculated totals (recommended before finalising).")
+
+    # Status block for Stage 4 persistence keys
+    calc_node = qd.get("calculation", {}) or {}
+    status_cols = st.columns(3)
+    with status_cols[0]:
+        st.caption("server_summary")
+        st.write("✅" if calc_node.get("server_summary") else "❌")
+    with status_cols[1]:
+        st.caption("derived_totals")
+        st.write("✅" if calc_node.get("derived_totals") else "❌")
+    with status_cols[2]:
+        st.caption("rates_and_settings_used")
+        st.write("✅" if calc_node.get("rates_and_settings_used") else "❌")
 
     with st.expander("View Raw Calculation Results"):
         st.json(component_calcs)
