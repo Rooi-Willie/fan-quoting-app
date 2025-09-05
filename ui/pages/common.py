@@ -15,6 +15,7 @@ import requests
 import streamlit as st
 
 from utils import ensure_server_summary_up_to_date
+import requests
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
 
@@ -301,6 +302,21 @@ def _handle_fan_id_change():
         "hub_size_mm": selected_config.get('hub_size_mm'),
     })
 
+    # If no markup set yet, fetch default from global settings API
+    calc_node = qd.setdefault("calculation", {})
+    if calc_node.get("markup_override") in (None, ""):
+        try:
+            resp = requests.get(f"{API_BASE_URL}/settings/global")
+            if resp.ok:
+                settings = resp.json()
+                default_markup = settings.get("default_markup")
+                try:
+                    calc_node["markup_override"] = float(default_markup)
+                except (TypeError, ValueError):
+                    calc_node.setdefault("markup_override", 1.4)
+        except Exception:
+            calc_node.setdefault("markup_override", 1.4)
+
     available_blades = selected_config.get('available_blade_qtys', [])
     blades_str = [str(b) for b in available_blades]
     if blades_str:
@@ -412,8 +428,8 @@ def render_sidebar_widgets():
         valid_selection = [c for c in current_selection if c in component_options]
         comp_node["selected"] = valid_selection
 
-        # Markup override number input (nested calculation.markup_override)
-        st.number_input(
+    # Markup override number input (nested calculation.markup_override)
+    st.number_input(
             "Markup Override",
             min_value=1.0,
             value=float(calc_node.get("markup_override", 1.4)),
@@ -425,8 +441,7 @@ def render_sidebar_widgets():
             help="Override the default markup for the selected components.",
             disabled=is_disabled,
         )
-
-        st.multiselect(
+    st.multiselect(
             "Select Fan Components",
             options=component_options,
             default=valid_selection,
@@ -439,11 +454,9 @@ def render_sidebar_widgets():
             ),
             disabled=is_disabled,
         )
-
-        st.divider()
-        if st.sidebar.button("Test Direct Markup Update"):
+    st.divider()
+    if st.button("Test Direct Markup Update"):
             current_markup = calc_node.get("markup_override", 1.4)
             calc_node["markup_override"] = current_markup + 0.01
-            # No legacy mirror; nested only
             ensure_server_summary_up_to_date(qd)
             st.rerun()

@@ -5,6 +5,7 @@ from typing import Optional, List, Dict
 import requests
 from config import COMPONENT_ORDER, COMPONENT_IMAGES, ROW_DEFINITIONS, IMAGE_FOLDER_PATH, CURRENCY_SYMBOL
 from utils import ensure_server_summary_up_to_date, build_summary_dataframe
+from pages.common import recompute_all_components
 from pages.common import (
     update_quote_data_top_level_key,  # legacy top-level updater (still imported if other tabs use)
     get_available_components,
@@ -185,20 +186,22 @@ def render_main_content():
         for comp_idx, comp_name in enumerate(ordered_selected_components):
             with param_row_cols[comp_idx + 1]:
                 widget_key = f"fc_{comp_name}_{row_label.replace(' ', '_')}"
-                
                 api_value = component_calcs.get(comp_name, {}).get(api_field)
+
+                # IMPORTANT: fetch per-component overrides INSIDE loop.
+                # Previous bug: code referenced outer 'overrides' variable from
+                # the initial pre-fetch loop, so all widgets wrote to the LAST
+                # component's overrides dict. This rebind ensures isolation.
+                overrides_local = by_name.setdefault(comp_name, {}).setdefault("overrides", {})
 
                 if row_label in ["Material Thickness", "Fabrication Waste"]:
                     if row_label == "Fabrication Waste":
                         default_value = api_value if api_value is not None else 15.0
-                    else: # Material Thickness
+                        current_value = overrides_local.get("fabrication_waste_pct", default_value)
+                    else:  # Material Thickness
                         default_value = api_value if api_value is not None else 5.0
-                    # Map label to overrides key
-                    if row_label == "Fabrication Waste":
-                        current_value = overrides.get("fabrication_waste_pct", default_value)
-                    else:
-                        current_value = overrides.get("material_thickness_mm", default_value)
-                    
+                        current_value = overrides_local.get("material_thickness_mm", default_value)
+
                     user_value = st.number_input(
                         label=f"_{widget_key}",
                         label_visibility="collapsed",
@@ -207,16 +210,23 @@ def render_main_content():
                         format="%.1f",
                         key=widget_key,
                     )
+                    changed = (user_value != current_value)
                     if row_label == "Fabrication Waste":
-                        overrides["fabrication_waste_pct"] = user_value
+                        overrides_local["fabrication_waste_pct"] = user_value
                     else:
-                        overrides["material_thickness_mm"] = user_value
+                        overrides_local["material_thickness_mm"] = user_value
+                    if changed:
+                        recompute_all_components(get_component_details)
+                        ensure_server_summary_up_to_date(qd)
                 else:
                     if api_value is not None:
                         if isinstance(api_value, (int, float)):
-                            if unit == CURRENCY_SYMBOL: st.text(f"{api_value:.2f}")
-                            elif unit == "factor": st.text(f"{api_value:.3f}")
-                            else: st.text(f"{api_value:.1f}")
+                            if unit == CURRENCY_SYMBOL:
+                                st.text(f"{api_value:.2f}")
+                            elif unit == "factor":
+                                st.text(f"{api_value:.3f}")
+                            else:
+                                st.text(f"{api_value:.1f}")
                         else:
                             st.text(str(api_value))
                     else:

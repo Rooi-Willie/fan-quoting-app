@@ -158,10 +158,15 @@ def render_main_content():
 
         motor_markup_col1, motor_markup_col2 = st.columns([2, 1])
         with motor_markup_col1:
+            safe_existing_markup = motor.get("markup_override")
+            try:
+                initial_markup_val = float(safe_existing_markup) if safe_existing_markup is not None else float(default_motor_markup)
+            except (TypeError, ValueError):
+                initial_markup_val = float(default_motor_markup)
             motor_markup = st.number_input(
                 "Motor Markup Override",
                 min_value=1.0,
-                value=float(motor.get("markup_override", default_motor_markup)),
+                value=initial_markup_val,
                 step=0.01,
                 format="%.2f",
                 key="widget_motor_markup_override",
