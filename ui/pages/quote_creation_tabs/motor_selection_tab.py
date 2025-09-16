@@ -3,7 +3,6 @@ import os
 import requests
 import pandas as pd
 from typing import Optional, List, Dict
-from pages.common import migrate_flat_to_nested_if_needed
 
 # API_BASE_URL should be configured, e.g., via environment variable
 # Fallback is provided for local development.
@@ -48,11 +47,16 @@ def get_global_settings() -> Optional[Dict]:
 
 def render_main_content():
     st.header("2. Motor Selection")
-    # Ensure nested structure present
-    st.session_state.quote_data = migrate_flat_to_nested_if_needed(st.session_state.get("quote_data", {}))
+    
+    # Work with v3 schema structure
     qd = st.session_state.quote_data
-    motor = qd.setdefault("motor", {})
-    calc = qd.setdefault("calculation", {})
+    spec_section = qd.setdefault("specification", {})
+    pricing_section = qd.setdefault("pricing", {})
+    
+    # Motor specification and pricing in v3
+    motor_spec = spec_section.setdefault("motor", {})
+    motor_pricing = pricing_section.setdefault("motor", {})
+    
     fan_config = st.session_state.get("current_fan_config")
 
     # --- 1. Prerequisite Check: Ensure a fan is selected first. ---
@@ -138,14 +142,14 @@ def render_main_content():
             f"**Selected Motor:**   {selected_motor['supplier_name']} - {selected_motor['rated_output']} kW, {selected_motor['poles']} poles, {selected_motor['speed']} RPM ({selected_motor['product_range']})"
         )
 
-        # Store the full motor details in nested structure
-        motor['selection'] = selected_motor.to_dict()
+        # Store the full motor details in v3 structure
+        motor_spec['selection'] = selected_motor.to_dict()
 
         # Fixed to Flange mount for now
         st.caption("Foot mount option is currently unavailable.")
         st.divider()
-        motor['mount_type'] = "Flange"
-        motor['base_price'] = selected_motor['flange_price']
+        motor_spec['mount_type'] = "Flange"
+        motor_pricing['base_price'] = selected_motor['flange_price']
 
         # Default markup
         global_settings = get_global_settings()
@@ -158,7 +162,7 @@ def render_main_content():
 
         motor_markup_col1, motor_markup_col2 = st.columns([2, 1])
         with motor_markup_col1:
-            safe_existing_markup = motor.get("markup_override")
+            safe_existing_markup = motor_pricing.get("markup_override")
             try:
                 initial_markup_val = float(safe_existing_markup) if safe_existing_markup is not None else float(default_motor_markup)
             except (TypeError, ValueError):
@@ -176,12 +180,12 @@ def render_main_content():
             motor_markup_percentage = (motor_markup - 1) * 100
             st.metric("Motor Markup:", f"{motor_markup_percentage:.1f}%")
 
-        motor['markup_override'] = motor_markup
+        motor_pricing['markup_override'] = motor_markup
 
-        if pd.notna(motor.get('base_price')):
-            base_price = float(motor['base_price'])
+        if pd.notna(motor_pricing.get('base_price')):
+            base_price = float(motor_pricing['base_price'])
             marked_up_price = base_price * motor_markup
-            motor['final_price'] = marked_up_price
+            motor_pricing['final_price'] = marked_up_price
             price_cols = st.columns(2)
             with price_cols[0]:
                 st.metric("Base Motor Price", f"{selected_motor['currency']} {base_price:,.2f}")
@@ -192,4 +196,4 @@ def render_main_content():
 
         st.divider()
         with st.expander("Show all selected motor data"):
-            st.json(motor['selection'])
+            st.json(motor_spec['selection'])

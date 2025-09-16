@@ -81,15 +81,19 @@ def render_main_content():
     
     # Components in specification section
     components_list = spec_section.setdefault("components", [])
+    
+    # Component overrides in pricing section
+    component_overrides = pricing_section.setdefault("overrides", {})
 
     st.subheader("Configure Selected Fan Components")
 
     # Derive the ordered list for processing from the API-provided order
-    fan_config_id = fan_node.get("config_id")
+    fan_config_id = fan_config.get("id")
     available_components_list = get_available_components(fan_config_id)
     if available_components_list:
         ordered_available_names = [comp['name'] for comp in available_components_list]
-        user_selected_names = list(selected_list)
+        # Extract component names from v3 components list
+        user_selected_names = [comp.get("component_id") for comp in components_list if comp.get("component_id")]
         ordered_selected_components = [name for name in ordered_available_names if name in user_selected_names]
     else:
         ordered_selected_components = []
@@ -107,20 +111,19 @@ def render_main_content():
         component_id = name_to_id_map[comp_name]
         
         # Prepare request for this single component
-        # Overrides (material thickness, fabrication waste) now stored under components.by_name[name].overrides
-        overrides = by_name.setdefault(comp_name, {}).setdefault("overrides", {})
-        # Migrate legacy flat override labels if present
-    # Legacy migration of overrides removed (already pruned)
+        # Overrides stored in pricing.overrides[comp_name] in v3 structure
+        overrides = component_overrides.setdefault(comp_name, {})
+        
         fabrication_waste_percentage = overrides.get("fabrication_waste_pct")
         fabrication_waste_factor = (fabrication_waste_percentage / 100.0) if fabrication_waste_percentage is not None else None
 
         request_payload = {
             "fan_configuration_id": fan_config_id,
             "component_id": component_id,
-            "blade_quantity": int(fan_node.get("blade_sets", 0)) if fan_node.get("blade_sets") else None,
+            "blade_quantity": spec_section.get("blade_quantity") or int(fan_config.get("blade_sets", 0)) if fan_config.get("blade_sets") else None,
             "thickness_mm_override": overrides.get("material_thickness_mm"),
             "fabrication_waste_factor_override": fabrication_waste_factor,
-            "markup_override": calc_node.get("markup_override")
+            "markup_override": pricing_section.get("markup_override")
         }
         
         # Make it hashable for st.cache_data
@@ -129,7 +132,8 @@ def render_main_content():
         # Call API and store result
         result = get_component_details(request_payload_tuple)
         if result:
-            by_name.setdefault(comp_name, {})["calculated"] = result
+            # Store calculated results in calculations.components[comp_name] in v3 structure
+            calc_section.setdefault("components", {})[comp_name] = result
 
     # --- Display Area ---
     num_selected_components = len(ordered_selected_components)
@@ -171,7 +175,9 @@ def render_main_content():
     # dividers = [3, 7]
     dividers = [8]
 
-    component_calcs = {k: v.get("calculated", {}) for k, v in by_name.items() if k in ordered_selected_components}
+    # Extract calculated results from v3 structure
+    calculated_components = calc_section.get("components", {})
+    component_calcs = {k: v for k, v in calculated_components.items() if k in ordered_selected_components}
 
     for row_idx, (row_label, api_field, unit) in enumerate(api_response_rows):
         if row_idx in dividers:
@@ -193,7 +199,7 @@ def render_main_content():
                 # Previous bug: code referenced outer 'overrides' variable from
                 # the initial pre-fetch loop, so all widgets wrote to the LAST
                 # component's overrides dict. This rebind ensures isolation.
-                overrides_local = by_name.setdefault(comp_name, {}).setdefault("overrides", {})
+                overrides_local = component_overrides.setdefault(comp_name, {})
 
                 if row_label in ["Material Thickness", "Fabrication Waste"]:
                     if row_label == "Fabrication Waste":

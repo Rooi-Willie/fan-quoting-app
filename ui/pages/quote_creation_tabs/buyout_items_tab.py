@@ -1,22 +1,19 @@
 import streamlit as st
 from config import CURRENCY_SYMBOL
-from pages.common import migrate_flat_to_nested_if_needed, _new_nested_quote_data, NEW_SCHEMA_VERSION
+from pages.common import _new_v3_quote_data, NEW_SCHEMA_VERSION
 
 def render_main_content():
     st.header("4. Buy-out Items / Additional Costs")
 
-    # Ensure quote_data present & migrated
+    # Ensure quote_data present in v3 format
     if "quote_data" not in st.session_state or not isinstance(st.session_state.quote_data, dict):
-        st.session_state.quote_data = _new_nested_quote_data()
-    else:
-        st.session_state.quote_data = migrate_flat_to_nested_if_needed(st.session_state.quote_data)
+        st.session_state.quote_data = _new_v3_quote_data()
+    
     qd = st.session_state.quote_data
-
-    # Nested list location
-    buy_list = qd.setdefault("buy_out_items", [])
-
-    # Backward compatibility: mirror legacy list key while transitional
-    qd["buy_out_items_list"] = buy_list
+    pricing_section = qd.setdefault("pricing", {})
+    
+    # Buy-out items in pricing section for v3
+    buy_list = pricing_section.setdefault("buy_out_items", [])
 
     st.subheader("Add New Buy-out Item")
     with st.form("new_buyout_item_form", clear_on_submit=True):
@@ -38,7 +35,6 @@ def render_main_content():
                 "subtotal": new_cost * new_qty,
             }
             buy_list.append(new_item)
-            qd["buy_out_items_list"] = buy_list  # mirror legacy
             st.success(f"Added: {new_desc}")
 
     st.divider()

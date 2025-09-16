@@ -19,37 +19,36 @@ API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
 
 
 def _recompute_derived_totals_from_server(qd: dict) -> dict:
-	"""Compute client-side derived_totals using current quote_data and server_summary.
+	"""Compute client-side derived_totals using current quote_data and server_summary (v3 schema).
 
 	Priority order:
-	  1. calculation.server_summary.final_price (components aggregate)
-	  2. sum of components.by_name[*].calculated.total_cost_after_markup (if nested present)
-	Motor & buy-outs pulled directly from nested nodes if available.
+	  1. calculations.server_summary.final_price (components aggregate)
+	  2. sum of calculations.components[*].total_cost_after_markup (if nested present)
+	Motor & buy-outs pulled directly from v3 pricing sections.
 	"""
 	if not isinstance(qd, dict):
 		return {}
-	calc = qd.get("calculation", {}) or {}
+	calc = qd.get("calculations", {}) or {}
 	server_summary = calc.get("server_summary") or {}
-	comps = qd.get("components", {}) or {}
-	by_name = comps.get("by_name", {}) or {}
-	motor = qd.get("motor", {}) or {}
-	buyouts = qd.get("buy_out_items", []) or []
+	calculated_components = calc.get("components", {}) or {}
+	pricing_section = qd.get("pricing", {}) or {}
+	motor_pricing = pricing_section.get("motor", {}) or {}
+	buyouts = pricing_section.get("buy_out_items", []) or []
 
 	comp_total = None
 	if isinstance(server_summary, dict):
 		comp_total = server_summary.get("final_price") or server_summary.get("total_cost_after_markup")
 	if comp_total is None:
-		# Fallback: sum calculated node values
+		# Fallback: sum calculated component values from v3 calculations
 		comp_total = 0.0
-		for name, data in by_name.items():
-			if not isinstance(data, dict):
+		for name, calc_data in calculated_components.items():
+			if not isinstance(calc_data, dict):
 				continue
-			calc_node = data.get("calculated", {}) or {}
-			val = calc_node.get("total_cost_after_markup") or calc_node.get("final_price")
+			val = calc_data.get("total_cost_after_markup") or calc_data.get("final_price")
 			if isinstance(val, (int, float)):
 				comp_total += float(val)
 
-	motor_total = motor.get("final_price") or 0.0
+	motor_total = motor_pricing.get("final_price") or 0.0
 
 	buyout_total = 0.0
 	if isinstance(buyouts, list):
@@ -110,25 +109,31 @@ def fetch_components_map(fan_config_id: int) -> Dict[str, int]:
 
 
 def ensure_server_summary_up_to_date(qd: dict) -> None:
-	"""Update server-side component summary and persist aggregates in quote_data.
+	"""Update server-side component summary using v3 schema and persist aggregates in quote_data.
 
-	Responsibilities (Stage 4):
-	1. Detect input changes and POST to /quotes/components/summary.
+	Responsibilities (v3 Schema):
+	1. Detect input changes and POST to /components/v3-summary.
 	2. Store raw server response in st.session_state.server_summary.
-	3. Persist a snapshot under qd["calculation"]["server_summary"].
-	4. Persist/refresh qd["calculation"]["derived_totals"] (client-side convenience).
-	5. Persist qd["calculation"]["rates_and_settings_used"] capturing pricing inputs.
+	3. Persist a snapshot under qd["calculations"]["server_summary"].
+	4. Persist/refresh qd["calculations"]["derived_totals"] (client-side convenience).
+	5. Persist qd["calculations"]["rates_and_settings_used"] capturing pricing inputs.
 
 	Notes:
+	- Uses v3 schema structure with proper section organization
 	- Backend will still derive authoritative totals; client copy improves transparency.
 	- Idempotent: if payload unchanged, does nothing.
 	"""
 	logger.debug("ensure_server_summary_up_to_date called")
 	if not isinstance(qd, dict):
 		return
-	fan_node = qd.get("fan", {}) or {}
-	comp_node = qd.get("components", {}) or {}
-	calc_node = qd.get("calculation", {}) or {}
+	
+	# Get v3 schema sections
+	spec_section = qd.get("specification", {})
+	fan_node = spec_section.get("fan", {})
+	comp_node = spec_section.get("components", {})
+	calc_section = qd.get("calculations", {})
+	pricing_section = qd.get("pricing", {})
+	
 	fan_config_id = fan_node.get("config_id")
 	selected_names = comp_node.get("selected", []) or []
 	if not fan_config_id or not selected_names:
@@ -136,11 +141,11 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 
 	name_to_id = fetch_components_map(int(fan_config_id))
 
-	by_name = comp_node.get("by_name", {}) or {}
+	overrides = comp_node.get("overrides", {}) or {}
 	comp_list = []
 	for name in selected_names:
 		comp_id = name_to_id.get(name)
-		ov = by_name.get(name, {}).get("overrides", {}) if isinstance(by_name.get(name), dict) else {}
+		ov = overrides.get(name, {})
 		comp_list.append({
 			"component_id": comp_id,
 			"thickness_mm_override": ov.get("material_thickness_mm"),
@@ -151,8 +156,8 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 		"fan_configuration_id": int(fan_config_id),
 		"blade_quantity": int(fan_node.get("blade_sets", 0)) if fan_node.get("blade_sets") else None,
 		"components": comp_list,
-		"markup_override": calc_node.get("markup_override"),
-		"motor_markup_override": qd.get("motor", {}).get("markup_override")
+		"markup_override": calc_section.get("markup_override"),
+		"motor_markup_override": pricing_section.get("motor", {}).get("markup_override")
 	}
 
 	payload_hash = json.dumps(payload, sort_keys=True, default=str)
@@ -162,7 +167,7 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 	if st.session_state.get("last_summary_payload_hash") == payload_hash:
 		logger.debug("[DEBUG] Skipping API call - payload unchanged")
 		# Ensure persisted structures exist even if no call needed
-		_calc = qd.setdefault("calculation", {})
+		_calc = qd.setdefault("calculations", {})
 		_calc.setdefault("server_summary", st.session_state.get("server_summary", {}))
 		_calc.setdefault("derived_totals", _recompute_derived_totals_from_server(qd))
 		_calc.setdefault("rates_and_settings_used", _build_rates_snapshot(payload))
@@ -170,13 +175,14 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 
 	logger.debug("[DEBUG] Making API call with payload:", payload)
 	try:
-		resp = requests.post(f"{API_BASE_URL}/quotes/components/summary", json=payload)
+		# Use v3 endpoint
+		resp = requests.post(f"{API_BASE_URL}/components/v3-summary", json=payload)
 		resp.raise_for_status()
 		server_summary = resp.json() or {}
 		st.session_state.server_summary = server_summary
 		st.session_state.last_summary_payload_hash = payload_hash
-		# Persist into nested quote_data.calculation
-		_calc = qd.setdefault("calculation", {})
+		# Persist into nested quote_data.calculations (v3 schema)
+		_calc = qd.setdefault("calculations", {})
 		_calc["server_summary"] = server_summary
 		_calc["derived_totals"] = _recompute_derived_totals_from_server(qd)
 		_calc["rates_and_settings_used"] = _build_rates_snapshot(payload)

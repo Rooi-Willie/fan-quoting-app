@@ -4,7 +4,7 @@ import os
 import requests
 from config import CURRENCY_SYMBOL
 from utils import ensure_server_summary_up_to_date, build_summary_dataframe
-from pages.common import migrate_flat_to_nested_if_needed, _new_nested_quote_data
+from pages.common import _new_v3_quote_data
 
 # API_BASE_URL should be configured, e.g., via environment variable
 # Fallback is provided for local development.
@@ -13,52 +13,56 @@ API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
 def render_main_content():
     st.header("5. Review & Finalize Quote")
 
-    # Ensure nested schema
+    # Ensure v3 schema
     if "quote_data" not in st.session_state or not isinstance(st.session_state.quote_data, dict):
-        st.session_state.quote_data = _new_nested_quote_data()
-    else:
-        st.session_state.quote_data = migrate_flat_to_nested_if_needed(st.session_state.quote_data)
+        st.session_state.quote_data = _new_v3_quote_data()
+    
     qd = st.session_state.quote_data
-
-    project = qd.get("project", {})
-    fan = qd.get("fan", {})
-    motor_node = qd.get("motor", {})
-    calc_node = qd.get("calculation", {})
-    components_node = qd.get("components", {})
-    by_name = components_node.get("by_name", {})
+    
+    # Extract v3 sections
+    quote_section = qd.get("quote", {})
+    spec_section = qd.get("specification", {})
+    pricing_section = qd.get("pricing", {})
+    calc_section = qd.get("calculations", {})
+    
+    # Extract sub-sections
+    fan_config = spec_section.get("fan_configuration", {})
+    motor_spec = spec_section.get("motor", {})
+    motor_pricing = pricing_section.get("motor", {})
+    components = spec_section.get("components", [])
 
     # Project Information
     st.subheader("Project Information")
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown(f"**Project Name:** {project.get('name') or 'N/A'}")
-        st.markdown(f"**Client Name:** {project.get('client') or 'N/A'}")
-        st.markdown(f"**Quote Reference:** {project.get('reference') or 'N/A'}")
+        st.markdown(f"**Project Name:** {quote_section.get('project') or 'N/A'}")
+        st.markdown(f"**Client Name:** {quote_section.get('client') or 'N/A'}")
+        st.markdown(f"**Quote Reference:** {quote_section.get('reference') or 'N/A'}")
     with col2:
-        st.markdown(f"**Location:** {project.get('location') or 'N/A'}")
-        st.markdown(f"**Fan ID:** {fan.get('uid') or 'N/A'}")
+        st.markdown(f"**Location:** {quote_section.get('location') or 'N/A'}")
+        st.markdown(f"**Fan ID:** {fan_config.get('uid') or 'N/A'}")
     st.divider()
    
     # Motor Information
     st.subheader("Motor Information")
-    if motor_node.get('selection') and isinstance(motor_node['selection'], dict):
-        motor = motor_node['selection']
+    if motor_spec.get('selection') and isinstance(motor_spec['selection'], dict):
+        motor = motor_spec['selection']
         col1, col2, col3 = st.columns(3)
         with col1:
             st.markdown(f"**Supplier:** {motor.get('supplier_name', 'N/A')}")
             st.markdown(f"**Product Range:** {motor.get('product_range', 'N/A')}")
-            st.markdown(f"**Mount Type:** {motor_node.get('mount_type', 'N/A')}")
+            st.markdown(f"**Mount Type:** {motor_spec.get('mount_type', 'N/A')}")
         with col2:
             st.markdown(f"**Power:** {motor.get('rated_output', 0)} {motor.get('rated_output_unit', 'kW')}")
             st.markdown(f"**Poles:** {motor.get('poles', 'N/A')}")
             st.markdown(f"**Speed:** {motor.get('speed', 'N/A')} {motor.get('speed_unit', 'RPM')}")
         with col3:
-            base_price = motor_node.get('base_price') or motor.get('price_total', 0)
+            base_price = motor_pricing.get('base_price') or motor.get('price_total', 0)
             st.markdown(f"**Base Price:** {CURRENCY_SYMBOL} {float(base_price or 0):,.2f}")
-            motor_markup = float(motor_node.get('markup_override') or 1.0)
+            motor_markup = float(motor_pricing.get('markup_override') or 1.0)
             motor_markup_pct = (motor_markup - 1) * 100
             st.markdown(f"**Markup Applied:** {motor_markup:.2f} ({motor_markup_pct:.1f}%)")
-            final_price = motor_node.get('final_price')
+            final_price = motor_pricing.get('final_price')
             if final_price is not None:
                 st.markdown(f"**Final Price:** {CURRENCY_SYMBOL} {float(final_price):,.2f}")
     else:
@@ -87,9 +91,9 @@ def render_main_content():
                 "Cost After Markup": c.get("total_cost_after_markup"),
             })
     else:
-        # Fallback from nested per-component calculations if server summary absent
-        for name, node in by_name.items():
-            calc = (node or {}).get("calculated", {})
+        # Fallback from v3 calculations section
+        calculated_components = calc_section.get("components", {})
+        for name, calc in calculated_components.items():
             rows.append({
                 "Component": name,
                 "Length (mm)": calc.get("total_length_mm"),
@@ -136,9 +140,9 @@ def render_main_content():
         })
     
     # Add Motor section if a motor is selected
-    if motor_node.get('selection'):
-        motor = motor_node['selection']
-        motor_price = float(motor_node.get('final_price', 0) or 0)
+    if motor_spec.get('selection'):
+        motor = motor_spec['selection']
+        motor_price = float(motor_pricing.get('final_price', 0) or 0)
         
         # Add motor entry
         motor_name = f"{motor.get('supplier_name', '')} {motor.get('product_range', '')} - {motor.get('rated_output', 0)} {motor.get('rated_output_unit', 'kW')}"
@@ -155,9 +159,9 @@ def render_main_content():
             "Cost": motor_price
         })
     
-    # Add Buyout Items section placeholder
-    # Buy-out items subtotal
-    buyout_items = qd.get("buy_out_items", [])
+    # Add Buyout Items section
+    # Buy-out items subtotal from v3 pricing section
+    buyout_items = pricing_section.get("buy_out_items", [])
     buyout_total = 0.0
     if isinstance(buyout_items, list) and buyout_items:
         for bi in buyout_items:
@@ -176,7 +180,7 @@ def render_main_content():
     
     # Calculate and add Final Total
     components_total = server_summary.get("final_price", 0) or 0
-    motor_total = float(motor_node.get('final_price', 0) or 0)
+    motor_total = float(motor_pricing.get('final_price', 0) or 0)
     final_total = components_total + motor_total + buyout_total
     
     # Add Final Total Row
@@ -229,25 +233,28 @@ def render_main_content():
                     st.switch_page("pages/3_View_Existing_Quotes.py")
 
 def save_quote():
-    """Save the current quote to the database"""
+    """Save the current quote to the database using v3 schema"""
     try:
         # Get current user ID (use 1 for development until auth is implemented)
         user_id = 1
         qd = st.session_state.quote_data
-        project = qd.get("project", {}) if isinstance(qd, dict) else {}
+        
+        # Get data from v3 sections
+        quote_section = qd.get("quote", {})
+        project = quote_section.get("project", {})
 
-        # Prepare payload using nested project node
+        # Prepare payload using v3 structure
         payload = {
-            "quote_ref": project.get("reference") or qd.get("quote_ref"),
-            "client_name": project.get("client") or qd.get("client_name"),
+            "quote_ref": quote_section.get("reference") or qd.get("quote_ref"),
+            "client_name": quote_section.get("client") or qd.get("client_name"),
             "project_name": project.get("name") or qd.get("project_name"),
             "project_location": project.get("location") or qd.get("project_location"),
             "user_id": user_id,
             "quote_data": qd,
         }
         
-        # Call API
-        response = requests.post(f"{API_BASE_URL}/saved-quotes/", json=payload)
+        # Call v3 API endpoint
+        response = requests.post(f"{API_BASE_URL}/saved-quotes/v3", json=payload)
         response.raise_for_status()
         
         # Store the quote ID in session state for reference
