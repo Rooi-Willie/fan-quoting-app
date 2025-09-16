@@ -19,15 +19,14 @@ import requests
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
 
-# --- Stage 2 Nested Schema Support ---
-NEW_SCHEMA_VERSION = 2
+# --- Schema v3 Support ---
+NEW_SCHEMA_VERSION = 3
 
-def _new_nested_quote_data(username: str | None = None) -> Dict:
-    """Create a fresh nested quote_data structure (schema version 2).
+def _new_v3_quote_data(username: str | None = None) -> Dict:
+    """Create a fresh v3 quote_data structure (Business Context schema).
 
-    This will progressively replace the previous flat structure. Some
-    sections (motor, calculation.settings_snapshot) may start partially empty
-    and be populated later by user interaction or API calls.
+    This replaces the v2 nested structure with a clean, organized v3 schema.
+    No migration logic needed - new quotes start fresh with this structure.
     """
     import datetime as _dt
     ref_user = (username or "demo").split("@")[0]
@@ -38,132 +37,60 @@ def _new_nested_quote_data(username: str | None = None) -> Dict:
             "updated_at": _dt.datetime.utcnow().isoformat()+"Z",
             "created_by": ref_user,
         },
-        "project": {
-            "name": "",
+        "quote": {
+            "reference": f"Q{ref_user[:1].upper()}001",
             "client": "",
+            "project": "",
             "location": "",
             "notes": "",
-            "reference": f"Q{ref_user[:1].upper()}001",
         },
-        "fan": {
-            "config_id": None,
-            "uid": None,
-            "hub_size_mm": None,
-            "blade_sets": None,
+        "specification": {
+            "fan": {
+                "config_id": None,
+                "uid": None,
+                "fan_size_mm": None,
+                "hub_size_mm": None,
+                "blade_sets": None,
+            },
+            "motor": {
+                "selection_id": None,
+                "mount_type": None,
+                "supplier_name": None,
+                "rated_output": None,
+                "poles": None,
+            },
+            "components": [],
+            "buyouts": [],
         },
-        "components": {
-            "selected": [],  # ordered by API order
-            "by_name": {},   # name -> {overrides:{..}, calculated:{..}}
+        "pricing": {
+            "component_markup": 1.0,
+            "motor_markup": 1.2,
+            "overrides": {},
         },
-        "motor": {
-            "selection": None,  # dict from motor table
-            "mount_type": None,
-            "base_price": None,
-            "markup_override": None,
-            "final_price": None,
+        "calculations": {
+            "timestamp": None,
+            "components": {},
+            "component_totals": {
+                "total_length_mm": 0.0,
+                "total_mass_kg": 0.0,
+                "total_labour_cost": 0.0,
+                "total_material_cost": 0.0,
+                "subtotal_cost": 0.0,
+                "final_price": 0.0,
+            },
+            "totals": {
+                "components": 0.0,
+                "motor": 0.0,
+                "buyouts": 0.0,
+                "grand_total": 0.0,
+            },
         },
-        "buy_out_items": [],  # list of {id, description, qty, unit_cost, subtotal}
-        "calculation": {
-            "markup_override": 1.4,
-            "server_summary": {},
-            "derived_totals": {},
+        "context": {
+            "fan_configuration": {},
+            "motor_details": {},
+            "rates_and_settings": {},
         },
-        "settings_snapshot": {},
     }
-
-def migrate_flat_to_nested_if_needed(data: Dict) -> Dict:
-    """Upgrade an older flat quote_data dict to the new nested schema.
-
-    This is idempotent: if meta.version>=NEW_SCHEMA_VERSION returns unchanged.
-    Only minimal mapping for currently used fields; legacy keys are left in place
-    (can be pruned later) to avoid breaking code still transitioning.
-    """
-    if not isinstance(data, dict):
-        return _new_nested_quote_data()
-    meta = data.get("meta") or {}
-    if isinstance(meta, dict) and meta.get("version", 0) >= NEW_SCHEMA_VERSION:
-        return data  # Already new
-
-    # Create base new structure
-    username = meta.get("created_by") if isinstance(meta, dict) else None
-    upgraded = _new_nested_quote_data(username)
-
-    # Project fields
-    upgraded["project"]["name"] = data.get("project_name", "")
-    upgraded["project"]["client"] = data.get("client_name", "")
-    upgraded["project"]["location"] = data.get("project_location", "")
-    upgraded["project"]["notes"] = data.get("project_notes", "")
-    if data.get("quote_ref"):
-        upgraded["project"]["reference"] = data["quote_ref"]
-
-    # Fan
-    upgraded["fan"].update({
-        "config_id": data.get("fan_config_id"),
-        "uid": data.get("fan_uid"),
-        "hub_size_mm": data.get("fan_hub"),
-        "blade_sets": data.get("blade_sets"),
-    })
-
-    # Components selection
-    legacy_selected = data.get("selected_components_unordered") or []
-    upgraded["components"]["selected"] = list(legacy_selected)
-    legacy_details = data.get("component_details") or {}
-    for name, det in legacy_details.items():
-        overrides = {}
-        if isinstance(det, dict):
-            # Map known override labels
-            if "Material Thickness" in det:
-                overrides["material_thickness_mm"] = det["Material Thickness"]
-            if "Fabrication Waste" in det:
-                overrides["fabrication_waste_pct"] = det["Fabrication Waste"]
-        upgraded["components"]["by_name"][name] = {"overrides": overrides, "calculated": {}}
-
-    # Markup (general) -> calculation.markup_override
-    if "markup_override" in data:
-        upgraded["calculation"]["markup_override"] = data.get("markup_override")
-
-    # Motor
-    motor_selection = data.get("selected_motor_details")
-    if motor_selection:
-        upgraded["motor"]["selection"] = motor_selection
-        upgraded["motor"]["mount_type"] = data.get("motor_mount_type")
-        upgraded["motor"]["markup_override"] = data.get("motor_markup_override")
-        upgraded["motor"]["final_price"] = data.get("motor_price_after_markup")
-
-    # Buy-out items
-    legacy_buyouts = data.get("buy_out_items_list") or []
-    if isinstance(legacy_buyouts, list):
-        upgraded["buy_out_items"] = legacy_buyouts
-
-    # Server summary if present
-    if "server_summary" in st.session_state:
-        upgraded["calculation"]["server_summary"] = st.session_state.get("server_summary") or {}
-
-    # Stamp updated_at
-    from datetime import datetime as _dt
-    upgraded["meta"]["updated_at"] = _dt.utcnow().isoformat()+"Z"
-    # Prune legacy keys now that upgraded structure is created
-    upgraded = prune_legacy_flat_keys(upgraded)
-    return upgraded
-
-
-def prune_legacy_flat_keys(qd: Dict) -> Dict:
-    """Remove deprecated flat schema keys once nested schema is authoritative.
-
-    Safe to call multiple times; ignores missing keys. Only removes keys that
-    have migrated equivalents in the nested structure.
-    """
-    if not isinstance(qd, dict):
-        return qd
-    legacy_keys = [
-        "fan_config_id", "fan_uid", "fan_hub", "blade_sets", "selected_components_unordered",
-        "component_details", "markup_override", "motor_price_after_markup", "motor_markup_override",
-        "quote_ref", "buy_out_items_list", "server_summary"
-    ]
-    for k in legacy_keys:
-        qd.pop(k, None)
-    return qd
-
 
 def recompute_all_components(request_func) -> None:
     """Utility to recompute all selected components' calculated data in-place.
@@ -176,7 +103,50 @@ def recompute_all_components(request_func) -> None:
 
     Behavior
     --------
-    - Ensures quote_data migrated.
+    Ensures quote_data is v3 format.
+    Iterates specification.components preserving order.
+    Builds request payload per component using pricing.overrides and current fan node.
+    Writes results into calculations.components[name].
+    Silently skips components lacking an id mapping.
+    """
+    if "quote_data" not in st.session_state:
+        return
+    qd = st.session_state.quote_data
+    if not isinstance(qd, dict) or qd.get("meta", {}).get("version") != NEW_SCHEMA_VERSION:
+        return  # Only work with v3 schema
+    
+    spec = qd.get("specification", {})
+    fan = spec.get("fan", {})
+    pricing = qd.get("pricing", {})
+    calc = qd.setdefault("calculations", {})
+    selected = spec.get("components", [])
+    overrides = pricing.get("overrides", {})
+    fan_config_id = fan.get("config_id")
+    available = get_available_components(fan_config_id) if fan_config_id else []
+    id_map = {c['name']: c['id'] for c in available} if available else {}
+
+    for comp_name in selected:
+        comp_id = id_map.get(comp_name)
+        if not comp_id:
+            continue
+        
+        # Build request payload
+        comp_overrides = overrides.get(comp_name, {})
+        payload = {
+            "fan_configuration_id": fan_config_id,
+            "component_id": comp_id,
+            "blade_quantity": int(fan.get("blade_sets", 8)),
+            "thickness_mm_override": comp_overrides.get("thickness_mm"),
+            "fabrication_waste_factor_override": comp_overrides.get("waste_pct", 0) / 100.0 if comp_overrides.get("waste_pct") else None,
+        }
+        
+        # Call calculation function
+        result = request_func(tuple(sorted(payload.items())))
+        if result:
+            calc.setdefault("components", {})[comp_name] = result
+    
+    # Stamp back
+    st.session_state.quote_data = qd
     - Iterates components.selected preserving order.
     - Builds request payload per component (using overrides & current fan node).
     - Writes results into components.by_name[name].calculated.
@@ -272,50 +242,57 @@ def get_available_components(fan_config_id: int) -> Optional[List[Dict]]:
 
 
 def _handle_fan_id_change():
-    """Handle fan UID selection change updating nested schema (and legacy keys)."""
-    # Ensure quote_data exists & migrated
+    """Handle fan UID selection change updating v3 schema."""
+    # Ensure quote_data exists in v3 format
     if "quote_data" not in st.session_state or not isinstance(st.session_state.quote_data, dict):
-        st.session_state.quote_data = _new_nested_quote_data()
-    else:
-        st.session_state.quote_data = migrate_flat_to_nested_if_needed(st.session_state.quote_data)
-
+        st.session_state.quote_data = _new_v3_quote_data()
+    
     qd = st.session_state.quote_data
+    if qd.get("meta", {}).get("version") != NEW_SCHEMA_VERSION:
+        # If not v3, start fresh
+        st.session_state.quote_data = _new_v3_quote_data()
+        qd = st.session_state.quote_data
+
     selected_fan_uid = st.session_state.get("widget_fc_fan_id")
     all_configs = get_all_fan_configs()
     if not all_configs:
         st.session_state.current_fan_config = None
-        qd.setdefault("fan", {}).update({"config_id": None, "uid": None, "hub_size_mm": None, "blade_sets": None})
-        qd.setdefault("components", {}).setdefault("selected", [])
+        spec = qd.setdefault("specification", {})
+        spec.setdefault("fan", {}).update({"config_id": None, "uid": None, "fan_size_mm": None, "hub_size_mm": None, "blade_sets": None})
+        spec.setdefault("components", [])
         return
     selected_config = next((c for c in all_configs if c['uid'] == selected_fan_uid), None)
     if not selected_config:
         st.session_state.current_fan_config = None
-        qd.setdefault("fan", {}).update({"config_id": None, "uid": None, "hub_size_mm": None, "blade_sets": None})
-        qd.setdefault("components", {}).setdefault("selected", [])
+        spec = qd.setdefault("specification", {})
+        spec.setdefault("fan", {}).update({"config_id": None, "uid": None, "fan_size_mm": None, "hub_size_mm": None, "blade_sets": None})
+        spec.setdefault("components", [])
         return
 
     st.session_state.current_fan_config = selected_config
-    fan_node = qd.setdefault("fan", {})
+    spec = qd.setdefault("specification", {})
+    fan_node = spec.setdefault("fan", {})
     fan_node.update({
         "config_id": selected_config.get('id'),
         "uid": selected_config.get('uid'),
+        "fan_size_mm": selected_config.get('fan_size_mm'),
         "hub_size_mm": selected_config.get('hub_size_mm'),
     })
 
     # If no markup set yet, fetch default from global settings API
-    calc_node = qd.setdefault("calculation", {})
-    if calc_node.get("markup_override") in (None, ""):
+    pricing = qd.setdefault("pricing", {})
+    if pricing.get("component_markup") in (None, ""):
         try:
             resp = requests.get(f"{API_BASE_URL}/settings/global")
             if resp.ok:
                 settings = resp.json()
                 default_markup = settings.get("default_markup")
                 try:
-                    calc_node["markup_override"] = float(default_markup)
+                    pricing["component_markup"] = float(default_markup)
                 except (TypeError, ValueError):
-                    calc_node.setdefault("markup_override", 1.4)
+                    pricing.setdefault("component_markup", 1.0)
         except Exception:
-            calc_node.setdefault("markup_override", 1.4)
+            pricing.setdefault("component_markup", 1.0)
 
     available_blades = selected_config.get('available_blade_qtys', [])
     blades_str = [str(b) for b in available_blades]
@@ -334,28 +311,29 @@ def _handle_fan_id_change():
         if comps:
             id_to_name = {c['id']: c['name'] for c in comps}
             comp_sel = [id_to_name[i] for i in auto_select_ids if i in id_to_name]
-    qd.setdefault("components", {}).setdefault("selected", [])
-    qd["components"]["selected"] = comp_sel
+    spec.setdefault("components", [])
+    spec["components"] = comp_sel
 
 
 def render_sidebar_widgets():
-    """Render the sidebar using the nested schema.
-
-    Keeps legacy flat keys in sync temporarily for unmigrated tabs.
-    """
-    # Ensure quote_data exists & migrated
+    """Render the sidebar using the v3 schema."""
+    # Ensure quote_data exists in v3 format
     if "quote_data" not in st.session_state or not isinstance(st.session_state.quote_data, dict):
-        st.session_state.quote_data = _new_nested_quote_data()
-    else:
-        st.session_state.quote_data = migrate_flat_to_nested_if_needed(st.session_state.quote_data)
+        st.session_state.quote_data = _new_v3_quote_data()
+    
+    qd = st.session_state.quote_data
+    if qd.get("meta", {}).get("version") != NEW_SCHEMA_VERSION:
+        # If not v3, start fresh
+        st.session_state.quote_data = _new_v3_quote_data()
+        qd = st.session_state.quote_data
+        
     if "current_fan_config" not in st.session_state:
         st.session_state.current_fan_config = None
-    qd = st.session_state.quote_data
-    fan_node = qd.setdefault("fan", {})
-    calc_node = qd.setdefault("calculation", {})
-    comp_node = qd.setdefault("components", {})
-    comp_node.setdefault("selected", [])
-    calc_node.setdefault("markup_override", 1.4)
+    
+    spec = qd.setdefault("specification", {})
+    fan_node = spec.setdefault("fan", {})
+    pricing = qd.setdefault("pricing", {})
+    pricing.setdefault("component_markup", 1.0)
 
     with st.sidebar:
         st.divider()
@@ -395,7 +373,7 @@ def render_sidebar_widgets():
             index=blade_qty_idx,
             key="widget_fc_blade_sets",
             on_change=update_quote_data_nested,
-            args=(("fan","blade_sets"), "widget_fc_blade_sets",),
+            args=(("specification","fan","blade_sets"), "widget_fc_blade_sets",),
             disabled=blade_qty_disabled,
             help="Options populated after selecting a Fan ID."
         )
@@ -424,20 +402,20 @@ def render_sidebar_widgets():
             if comps:
                 component_options = [c['name'] for c in comps]
                 is_disabled = False
-        current_selection = comp_node.get("selected", [])
+        current_selection = spec.get("components", [])
         valid_selection = [c for c in current_selection if c in component_options]
-        comp_node["selected"] = valid_selection
+        spec["components"] = valid_selection
 
-    # Markup override number input (nested calculation.markup_override)
+    # Markup override number input (nested pricing.component_markup)
     st.number_input(
             "Markup Override",
             min_value=1.0,
-            value=float(calc_node.get("markup_override", 1.4)),
+            value=float(pricing.get("component_markup", 1.0)),
             step=0.01,
             format="%.2f",
             key="widget_markup_override",
             on_change=update_quote_data_nested,
-            args=(("calculation","markup_override"), "widget_markup_override"),
+            args=(("pricing","component_markup"), "widget_markup_override"),
             help="Override the default markup for the selected components.",
             disabled=is_disabled,
         )
@@ -447,7 +425,7 @@ def render_sidebar_widgets():
             default=valid_selection,
             key="widget_fc_multiselect_components",
             on_change=update_quote_data_nested,
-            args=(("components","selected"), "widget_fc_multiselect_components"),
+            args=(("specification","components"), "widget_fc_multiselect_components"),
             help=(
                 "Select a Fan ID to populate this list. "
                 "If ordering matters it will be handled later in the component tab."
@@ -456,7 +434,7 @@ def render_sidebar_widgets():
         )
     st.divider()
     if st.button("Test Direct Markup Update"):
-            current_markup = calc_node.get("markup_override", 1.4)
-            calc_node["markup_override"] = current_markup + 0.01
+            current_markup = pricing.get("component_markup", 1.0)
+            pricing["component_markup"] = current_markup + 0.01
             ensure_server_summary_up_to_date(qd)
             st.rerun()

@@ -560,6 +560,70 @@ def calculate_full_quote(db: Session, request: schemas.QuoteRequest) -> schemas.
         motor_details=motor_details
     )
 
+def _build_v3_calculations_section(
+    calculated_components_details: list, 
+    rates_and_settings: dict, 
+    markup: float, 
+    motor_details: dict = None
+) -> dict:
+    """
+    Helper function to build the v3 calculations section from component calculation results.
+    """
+    # Aggregate component totals
+    total_mass = sum(c.get('real_mass_kg', 0) for c in calculated_components_details)
+    total_length = sum(c.get('total_length_mm', 0) for c in calculated_components_details)
+    total_material_cost = sum(c.get('material_cost', 0) for c in calculated_components_details)
+    total_labour_cost = sum(c.get('labour_cost', 0) for c in calculated_components_details)
+    subtotal = total_material_cost + total_labour_cost
+    final_price = subtotal * markup
+
+    # Build components list for v3 format
+    components = []
+    for comp_data in calculated_components_details:
+        components.append({
+            "name": comp_data.get('name', ''),
+            "material_thickness_mm": round(comp_data.get('material_thickness_mm', 0), 2),
+            "fabrication_waste_percentage": round(comp_data.get('fabrication_waste_percentage', 0), 2),
+            "overall_diameter_mm": round(comp_data.get('overall_diameter_mm', 0), 2) if comp_data.get('overall_diameter_mm') else None,
+            "total_length_mm": round(comp_data.get('total_length_mm', 0), 2) if comp_data.get('total_length_mm') else None,
+            "stiffening_factor": round(comp_data.get('stiffening_factor', 0), 2) if comp_data.get('stiffening_factor') else None,
+            "ideal_mass_kg": round(comp_data.get('ideal_mass_kg', 0), 2),
+            "real_mass_kg": round(comp_data.get('real_mass_kg', 0), 2),
+            "feedstock_mass_kg": round(comp_data.get('feedstock_mass_kg', 0), 2),
+            "material_cost": round(comp_data.get('material_cost', 0), 2),
+            "labour_cost": round(comp_data.get('labour_cost', 0), 2),
+            "cost_before_markup": round(comp_data.get('total_cost_before_markup', 0), 2),
+            "cost_after_markup": round(comp_data.get('total_cost_after_markup', 0), 2)
+        })
+
+    calculations_section = {
+        "components": components,
+        "component_totals": {
+            "total_mass_kg": round(total_mass, 2),
+            "total_length_mm": round(total_length, 2),
+            "total_material_cost": round(total_material_cost, 2),
+            "total_labour_cost": round(total_labour_cost, 2),
+            "subtotal_cost": round(subtotal, 2),
+            "markup_applied": round(markup, 2),
+            "final_price": round(final_price, 2)
+        }
+    }
+
+    # Add motor calculations if provided
+    if motor_details:
+        calculations_section["motor"] = motor_details
+
+    return calculations_section
+
+def calculate_components_summary(db: Session, request: schemas.QuoteRequest) -> dict:
+    """
+    Calculate authoritative aggregated totals for the components included in `request`.
+    This reuses the same per-component calculators as calculate_full_quote but only
+    returns component-level totals (no motor / buy-outs).
+    
+    If motor_markup_override is provided, it will be stored in the response for the UI to use,
+    but this function does not calculate motor pricing.
+    """
 def calculate_components_summary(db: Session, request: schemas.QuoteRequest) -> dict:
     """
     Calculate authoritative aggregated totals for the components included in `request`.
@@ -635,5 +699,71 @@ def calculate_components_summary(db: Session, request: schemas.QuoteRequest) -> 
         "markup_applied": markup,
         "final_price": round(final_price, 2),
         "components": calculated_components_details,
+        "motor_markup_applied": motor_markup
+    }
+
+def calculate_v3_components_summary(db: Session, request: schemas.QuoteRequest) -> dict:
+    """
+    Calculate component calculations in v3 format for real-time UI updates.
+    Returns calculations section with components and totals in v3 structure.
+    """
+    # --- 1. Fetch fan & parameters ---
+    fan_config = crud.get_fan_configuration(db, request.fan_configuration_id)
+    if not fan_config:
+        raise ValueError("Fan configuration not found.")
+
+    component_ids = [c.component_id for c in request.components]
+    all_component_params = crud.get_parameters_for_calculation(db, fan_config.id, component_ids)
+    rates_and_settings = crud.get_rates_and_settings(db)
+
+    # Convert Decimal values to floats
+    for comp in all_component_params:
+        for k, v in list(comp.items()):
+            if isinstance(v, decimal.Decimal):
+                comp[k] = float(v)
+    for k, v in list(rates_and_settings.items()):
+        if isinstance(v, decimal.Decimal):
+            rates_and_settings[k] = float(v)
+    
+    markup = request.markup_override if request.markup_override is not None else rates_and_settings.get('default_markup', 1.0)
+
+    calculated_components_details = []
+    for comp_request in request.components:
+        params_for_this_comp = next((p for p in all_component_params if p['component_id'] == comp_request.component_id), None)
+        if not params_for_this_comp:
+            continue
+
+        resolved_params = _resolve_formulaic_parameters(
+            hub_size=fan_config.hub_size_mm,
+            fan_size=fan_config.fan_size_mm,
+            params=params_for_this_comp
+        )
+
+        calculator = get_calculator(resolved_params['mass_formula_type'])
+        request_params = {
+            "hub_size_mm": fan_config.hub_size_mm,
+            "fan_size_mm": fan_config.fan_size_mm,
+            "blade_quantity": request.blade_quantity,
+            "mass_per_blade_kg": float(fan_config.mass_per_blade_kg),
+            "overrides": comp_request.model_dump()
+        }
+
+        result_dict = calculator.calculate(request_params, resolved_params, rates_and_settings)
+        result_dict["total_cost_after_markup"] = result_dict["total_cost_before_markup"] * markup
+        calculated_components_details.append(result_dict)
+
+    # Build v3 calculations section
+    calculations_section = _build_v3_calculations_section(
+        calculated_components_details, 
+        rates_and_settings, 
+        markup
+    )
+
+    # Include motor markup for UI
+    motor_markup = request.motor_markup_override if request.motor_markup_override is not None else rates_and_settings.get('default_motor_markup', 1.0)
+    
+    return {
+        "fan_uid": fan_config.uid,
+        "calculations": calculations_section,
         "motor_markup_applied": motor_markup
     }

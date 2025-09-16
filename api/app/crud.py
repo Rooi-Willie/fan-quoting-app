@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from . import models, schemas
 from fastapi import HTTPException
-from .validation import validate_quote_data
+from .validation import validate_quote_data, validate_v3_quote_data
 
 
 # ===================== NESTED QUOTEDATA SUMMARY EXTRACTION ====================
@@ -82,6 +82,56 @@ def _extract_summary_from_quote_data(qd: Dict[str, Any]) -> Dict[str, Any]:
         "motor_supplier": motor_supplier,
         "motor_rated_output": motor_rated_output,
         "total_price": float(total_price),
+    }
+
+def _extract_summary_from_v3_quote_data(qd: Dict[str, Any]) -> Dict[str, Any]:
+    """Extract summary fields from v3 quote_data structure for database storage."""
+    if not isinstance(qd, dict):
+        return {"fan_uid": None, "fan_size_mm": None, "blade_sets": None, "component_list": [],
+                "markup": None, "total_price": None, "motor_supplier": None, "motor_rated_output": None}
+
+    # Extract from v3 structure
+    meta = qd.get("meta", {}) or {}
+    quote = qd.get("quote", {}) or {}
+    spec = qd.get("specification", {}) or {}
+    pricing = qd.get("pricing", {}) or {}
+    calculations = qd.get("calculations", {}) or {}
+
+    # Fan info from specification
+    fan_config = spec.get("fan_configuration", {}) or {}
+    fan_uid = fan_config.get("uid")
+    fan_size_mm = fan_config.get("fan_size_mm")
+    blade_sets = spec.get("blade_quantity")
+
+    # Components list
+    component_list = [comp.get("component_id") for comp in spec.get("components", []) if comp.get("component_id")]
+
+    # Pricing info
+    markup = pricing.get("markup_override")
+    
+    # Motor info
+    motor_info = pricing.get("motor", {}) or {}
+    motor_supplier = motor_info.get("supplier_name")
+    motor_rated_output = str(motor_info.get("rated_output")) if motor_info.get("rated_output") else None
+
+    # Calculate total price from calculations
+    component_totals = calculations.get("component_totals", {}) or {}
+    motor_calculations = calculations.get("motor", {}) or {}
+    buyout_total = sum(item.get("subtotal", 0) for item in pricing.get("buy_out_items", []))
+
+    components_final_price = component_totals.get("final_price", 0)
+    motor_final_price = motor_calculations.get("final_price", 0)
+    total_price = float(components_final_price) + float(motor_final_price) + float(buyout_total)
+
+    return {
+        "fan_uid": fan_uid,
+        "fan_size_mm": fan_size_mm,
+        "blade_sets": blade_sets,
+        "component_list": component_list,
+        "markup": markup,
+        "motor_supplier": motor_supplier,
+        "motor_rated_output": motor_rated_output,
+        "total_price": total_price,
     }
 
 
@@ -314,6 +364,29 @@ def create_quote(db: Session, quote: schemas.QuoteCreate):
     if _validation_issues:
         raise HTTPException(status_code=422, detail={"errors": _validation_issues})
     summary_fields = _extract_summary_from_quote_data(quote_data)
+
+    db_quote = models.Quote(
+        **quote.dict(exclude={"quote_data"}),
+        **summary_fields,
+        quote_data=quote_data
+    )
+    db.add(db_quote)
+    db.commit()
+    db.refresh(db_quote)
+    return db_quote
+
+def create_v3_quote(db: Session, quote: schemas.QuoteCreate):
+    """Create quote using v3 schema structure."""
+    # Process quote_data for v3 structure
+    quote_data = quote.quote_data if isinstance(quote.quote_data, dict) else {}
+    
+    # Stage 5: validation using v3 validator
+    _validation_issues = validate_v3_quote_data(quote_data)
+    if _validation_issues:
+        raise HTTPException(status_code=422, detail={"errors": _validation_issues})
+    
+    # Extract summary fields using v3 structure
+    summary_fields = _extract_summary_from_v3_quote_data(quote_data)
 
     db_quote = models.Quote(
         **quote.dict(exclude={"quote_data"}),

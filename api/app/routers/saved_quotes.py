@@ -21,6 +21,17 @@ def create_quote(quote: schemas.QuoteCreate, db: Session = Depends(get_db)):
             detail=f"Error creating quote: {str(e)}"
         )
 
+@router.post("/v3", response_model=schemas.Quote)
+def create_v3_quote(quote: schemas.QuoteCreate, db: Session = Depends(get_db)):
+    """Create a new quote using v3 schema structure"""
+    try:
+        return crud.create_v3_quote(db=db, quote=quote)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creating v3 quote: {str(e)}"
+        )
+
 @router.get("/", response_model=List[schemas.QuoteSummary])
 def read_quotes(
     skip: int = 0, 

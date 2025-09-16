@@ -1,22 +1,33 @@
 # Copilot Instructions for Fan Quoting App
 
 ## Project Overview
-This is a full-stack application for creating quotes for auxiliary axial fans, consisting of:
+Full-stack application for creating and managing quotes for auxiliary axial fans, consisting of:
 - **Backend API** (`/api`): FastAPI service with calculation engine for fan components
 - **Frontend UI** (`/ui`): Streamlit interface for quote creation and management
 - **Database** (`/database`): PostgreSQL with initialization scripts and CSV data
 
-## Architecture
+## Architecture & Data Flow
 
 ### Key Components
-1. **Database Layer**: PostgreSQL stores configurations, components, and materials
-2. **API Layer**: FastAPI service with endpoints for fan configurations, quotes, and calculations
-3. **UI Layer**: Streamlit interface with multi-tab workflow for quote creation
-4. **Docker**: Each component runs in a containerized environment
+1. **Database Layer**: PostgreSQL stores configurations, components, materials and quote data
+2. **API Layer**: FastAPI service for calculations and CRUD operations
+3. **UI Layer**: Streamlit with multi-tab workflow for quote creation and management
+4. **Docker**: Each component runs in a containerized environment (see `docker-compose.yml`)
 
-### Data Flow
-1. User creates quote in UI → API performs calculations → Quote saved to database
-2. Fan configurations define available components → Components have calculation formulas → Quotes include calculated components
+### Critical Data Model Concepts
+- **Quote Data Schema v2**: Nested JSON structure with versioned schema (`quote_data` column)
+  - Clear separation of user inputs (`overrides`) vs system outputs (`calculated`)
+  - Structure: `meta`, `project`, `fan`, `components`, `motor`, `buy_out_items`, `calculation`
+  - Full schema defined in `Documentation/quote_data_schema_v2.md`
+- **Fan configurations**: Define available components 
+- **Components**: Each has calculation parameters and formula types
+- **Legacy Quote Migration**: UI auto-migrates flat quotes to nested schema via `migrate_flat_to_nested_if_needed()`
+
+### Calculation Engine
+- Core logic in `api/app/logic/calculation_engine.py`
+- Each component uses specific calculator based on `mass_formula_type` from database
+- Formula types include: cylinder, cone, blade, empirical formulas
+- Component costs calculated based on material, labor, and markup formulas
 
 ## Development Workflow
 
@@ -26,51 +37,47 @@ This is a full-stack application for creating quotes for auxiliary axial fans, c
 docker-compose up -d
 
 # View logs
-docker-compose logs -f api  # For API logs
-docker-compose logs -f ui   # For UI logs
+docker-compose logs -f api  # API logs
+docker-compose logs -f ui   # UI logs
 ```
 
 ### Testing
-```bash
-# Run API tests
-cd api
-pytest tests/
+- Tests are in `api/tests/` directory
+- Test data in JSON files: `api/tests/test_data/`
+- Run tests: `cd api && pytest tests/`
+- Test database runs on port 5431 (separate from dev database on 5433)
 
-# Note: The test database runs on port 5431 separate from dev database on 5433
-```
+### Code Structure Patterns
+- **API Routes**: Organized by domain in `/api/app/routers/`
+- **Models**: SQLAlchemy models in `/api/app/models.py` map to DB tables
+- **Schemas**: Pydantic schemas in `/api/app/schemas.py` for API request/response
+- **UI Pages**: Streamlit multi-page app with numbered files in `/ui/pages/`
+- **Quote Creation Flow**: Tab-based workflow in `/ui/pages/quote_creation_tabs/`
 
-## Project-Specific Patterns
-
-### Calculation Engine
-- Each component type uses a specific calculator based on `mass_formula_type` in database
-- Calculators are implemented in `api/app/logic/calculation_engine.py`
-- Component costs are calculated based on material, labor, and markup formulas
-
-### Database Models
-- SQLAlchemy models in `api/app/models.py` map to database tables
-- Pydantic schemas in `api/app/schemas.py` define API request/response structures
-- Many-to-many relationships between fan configurations and components
-
-### API Structure
-- Router files in `api/app/routers/` organize endpoints by domain (fans, motors, quotes)
-- CRUD operations in `api/app/crud.py` handle database interactions
-- Main entry point in `api/app/main.py` configures FastAPI and registers routers
-
-### UI Structure
-- Main app in `ui/app.py` with Streamlit pages in `ui/pages/`
-- Multi-tab quote creation process in `ui/pages/quote_creation_tabs/`
-- Session state maintains quote data across page navigation
-
-## Key Integrations
-- API → Database: SQLAlchemy ORM with PostgreSQL
-- UI → API: HTTP requests to API endpoints
-- Authentication: Basic login page with session state
-
-## Environment Configuration
-- `.env` file needed at project root with database credentials
-- Docker network connects API, UI, and database containers
+### Python Conventions
+- Follow PEP 8 style guide (4 spaces for indentation)
+- Use type hints for all function signatures
+- Include docstrings for all functions and classes
+- Handle edge cases with clear exception handling
 
 ## Common Gotchas
-- Fan component calculations require specific parameters based on formula type
-- Quote calculations depend on global settings from database
-- Session state in Streamlit must be properly managed to maintain data across tabs
+1. **Quote Data Schema**: Must respect nested structure with separated `overrides` vs `calculated`
+2. **Component Calculations**: Each requires specific parameters based on formula type
+3. **Session State**: Streamlit requires careful management across tabs/pages
+4. **Docker Network**: API, UI, and DB containers communicate via internal network
+5. **Environment**: `.env` file required at project root with database credentials
+6. **Migration Code**: Must maintain idempotency in quote schema migration
+
+## Real-World Examples
+- Fan component calculation: `api/app/logic/calculation_engine.py` has specialized classes for each formula type
+- Quote creation workflow: `ui/pages/2_Create_New_Quote.py` orchestrates multi-tab UI flow
+- Schema migration: `ui/pages/common.py` contains `migrate_flat_to_nested_if_needed()` for legacy quotes
+
+### UI State Management (Streamlit)
+- **Primary Mechanism**: The app uses `st.session_state` extensively to maintain state across user interactions and page reruns.
+- **Central State Object**: `st.session_state.quote_data` holds the entire quote document being created or edited. It's the single source of truth for the UI.
+- **Initialization**: On the `2_Create_New_Quote.py` page, `st.session_state.quote_data` is initialized with a clean V2 schema structure using `_new_nested_quote_data()` from `ui/pages/common.py`.
+- **Authentication**: `st.session_state.logged_in` and `st.session_state.username` track user login status. Pages are protected by checking `st.session_state.logged_in`.
+- **Data Binding**: UI widgets in the quote creation tabs (e.g., in `ui/pages/quote_creation_tabs/`) directly bind to keys within `st.session_state.quote_data`. For example, a project name input reads from and writes to `st.session_state.quote_data['project']['name']`.
+- **State Reset**: The "Start New Quote" button uses `st.session_state.clear()` and then immediately restores auth state, providing a controlled reset of the form.
+- **Legacy Migration**: The `migrate_flat_to_nested_if_needed()` function in `ui/pages/common.py` transparently updates older quote data structures found in the session state to the current V2 schema.

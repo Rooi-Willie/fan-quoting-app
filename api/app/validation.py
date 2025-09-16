@@ -48,6 +48,7 @@ def validate_quote_data(qd: Dict[str, Any]) -> List[ValidationIssue]:
         for idx, name in enumerate(selected):
             if name not in by_name:
                 issues.append(ValidationIssue.make(f"/components/selected/{idx}", "missing_component_def", f"component '{name}' not present under by_name"))
+
         # Each selected has calculated total if calculated exists
         for cname, node in by_name.items():
             if not isinstance(node, dict):
@@ -108,6 +109,43 @@ def validate_quote_data(qd: Dict[str, Any]) -> List[ValidationIssue]:
                     expected = comp_val + motor_val + buy_val
                     if _is_number(grand) and abs(float(grand) - expected) > 0.01:
                         issues.append(ValidationIssue.make("/calculation/derived_totals/grand_total", "sum_mismatch", f"grand_total {grand} != sum({expected})"))
+
+    return issues
+
+
+def validate_v3_quote_data(qd: Dict[str, Any]) -> List[ValidationIssue]:
+    """Validation for v3 quote_data structure."""
+    issues: List[ValidationIssue] = []
+    if not isinstance(qd, dict):
+        issues.append(ValidationIssue.make(path="/", code="not_object", message="quote_data root must be an object"))
+        return issues
+
+    # Check main sections exist
+    required_sections = ["meta", "quote", "specification", "pricing", "calculations", "context"]
+    for section in required_sections:
+        if section not in qd:
+            issues.append(ValidationIssue.make(f"/{section}", "missing", f"Required section '{section}' is missing"))
+        elif not isinstance(qd[section], dict):
+            issues.append(ValidationIssue.make(f"/{section}", "type", f"Section '{section}' must be an object"))
+
+    # Validate specification section
+    spec = qd.get("specification", {})
+    if isinstance(spec, dict):
+        # Check fan configuration
+        fan_config = spec.get("fan_configuration")
+        if fan_config and not isinstance(fan_config, dict):
+            issues.append(ValidationIssue.make("/specification/fan_configuration", "type", "fan_configuration must be object"))
+        
+        # Check components list
+        components = spec.get("components", [])
+        if not isinstance(components, list):
+            issues.append(ValidationIssue.make("/specification/components", "type", "components must be list"))
+        else:
+            for idx, comp in enumerate(components):
+                if not isinstance(comp, dict):
+                    issues.append(ValidationIssue.make(f"/specification/components/{idx}", "type", "component must be object"))
+                elif "component_id" not in comp:
+                    issues.append(ValidationIssue.make(f"/specification/components/{idx}/component_id", "missing", "component_id is required"))
 
     return issues
 

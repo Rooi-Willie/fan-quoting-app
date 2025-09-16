@@ -277,3 +277,113 @@ class Quote(QuoteSummary):
     
     class Config:
         orm_mode = True
+
+
+# ======================= QUOTE DATA V3 SCHEMA MODELS ======================
+
+class QuoteMetaV3(BaseModel):
+    """Schema for quote metadata section in v3 format."""
+    version: int = 3
+    created_at: str
+    updated_at: str
+    created_by: str
+
+class QuoteInfoV3(BaseModel):
+    """Schema for quote information section in v3 format."""
+    reference: str
+    client: str
+    project: str
+    location: str
+    notes: Optional[str] = ""
+
+class FanSpecificationV3(BaseModel):
+    """Schema for fan specification in v3 format."""
+    config_id: int
+    uid: str
+    fan_size_mm: int
+    hub_size_mm: int
+    blade_sets: str
+
+class MotorSpecificationV3(BaseModel):
+    """Schema for motor specification in v3 format."""
+    selection_id: int
+    mount_type: str
+    supplier_name: str
+    rated_output: float
+    poles: int
+
+class BuyoutItemV3(BaseModel):
+    """Schema for individual buyout item in v3 format."""
+    description: str
+    unit_cost: float
+    qty: int
+    notes: Optional[str] = ""
+
+class SpecificationSectionV3(BaseModel):
+    """Schema for specification section in v3 format."""
+    fan: FanSpecificationV3
+    motor: MotorSpecificationV3
+    components: List[str]
+    buyouts: List[BuyoutItemV3]
+
+class ComponentOverrideV3(BaseModel):
+    """Schema for component override parameters in v3 format."""
+    thickness_mm: Optional[float] = None
+    waste_pct: Optional[float] = None
+
+class PricingSectionV3(BaseModel):
+    """Schema for pricing section in v3 format."""
+    component_markup: float
+    motor_markup: float
+    overrides: Dict[str, ComponentOverrideV3]
+
+class ComponentCalculationV3(BaseModel):
+    """Schema for individual component calculation in v3 format."""
+    overall_diameter_mm: Optional[float] = None
+    total_length_mm: Optional[float] = None
+    stiffening_factor: Optional[float] = None
+    ideal_mass_kg: float
+    real_mass_kg: float
+    feedstock_mass_kg: float
+    material_cost: float
+    labour_cost: float
+    cost_before_markup: float
+    cost_after_markup: float
+
+class ComponentTotalsV3(BaseModel):
+    """Schema for aggregated component totals in v3 format."""
+    total_length_mm: float
+    total_mass_kg: float
+    total_labour_cost: float
+    total_material_cost: float
+    subtotal_cost: float
+    final_price: float
+
+class QuoteTotalsV3(BaseModel):
+    """Schema for final quote totals in v3 format."""
+    components: float
+    motor: float
+    buyouts: float
+    grand_total: float
+
+class CalculationsSectionV3(BaseModel):
+    """Schema for calculations section in v3 format."""
+    timestamp: str
+    components: Dict[str, ComponentCalculationV3]
+    component_totals: ComponentTotalsV3
+    totals: QuoteTotalsV3
+
+class ContextSectionV3(BaseModel):
+    """Schema for context section in v3 format."""
+    fan_configuration: Dict[str, Any]
+    motor_details: Dict[str, Any]
+    rates_and_settings: Dict[str, Any]
+
+class QuoteDataV3(BaseModel):
+    """Complete schema for quote data in v3 format."""
+    meta: QuoteMetaV3
+    quote: QuoteInfoV3
+    specification: SpecificationSectionV3
+    pricing: PricingSectionV3
+    calculations: CalculationsSectionV3
+    context: ContextSectionV3

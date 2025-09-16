@@ -59,3 +59,17 @@ def components_summary(request: schemas.QuoteRequest, db: Session = Depends(get_
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An internal error occurred during components summary calculation: {e}")
+
+@router.post("/components/v3-summary")
+def components_v3_summary(request: schemas.QuoteRequest, db: Session = Depends(get_db)):
+    """
+    Return component calculations in v3 format for real-time UI updates.
+    Returns calculations section with components and totals in v3 structure.
+    """
+    try:
+        summary = calculation_engine.calculate_v3_components_summary(db=db, request=request)
+        return summary
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An internal error occurred during v3 components summary calculation: {e}")

@@ -7,10 +7,8 @@ from config import COMPONENT_ORDER, COMPONENT_IMAGES, ROW_DEFINITIONS, IMAGE_FOL
 from utils import ensure_server_summary_up_to_date, build_summary_dataframe
 from pages.common import recompute_all_components
 from pages.common import (
-    update_quote_data_top_level_key,  # legacy top-level updater (still imported if other tabs use)
     get_available_components,
     get_all_fan_configs,
-    migrate_flat_to_nested_if_needed,
 )
 import logging
 
@@ -70,16 +68,19 @@ def render_main_content():
         st.error("Quote data not initialized. Please start a new quote or refresh.")
         return
 
-    # Ensure nested schema
-    st.session_state.quote_data = migrate_flat_to_nested_if_needed(st.session_state.quote_data)
+    # Work with v3 schema structure
     qd = st.session_state.quote_data
-    fan_node = qd.setdefault("fan", {})
-    comp_node = qd.setdefault("components", {})
-    selected_list = comp_node.setdefault("selected", [])
-    by_name = comp_node.setdefault("by_name", {})
-    calc_node = qd.setdefault("calculation", {})
-    # Backwards compatible overrides location (legacy cd) -> transition into by_name.overrides
-    # legacy component_details removed; overrides live solely under components.by_name[name].overrides
+    
+    # Extract v3 sections
+    spec_section = qd.setdefault("specification", {})
+    pricing_section = qd.setdefault("pricing", {})
+    calc_section = qd.setdefault("calculations", {})
+    
+    # Fan configuration in specification section
+    fan_config = spec_section.setdefault("fan_configuration", {})
+    
+    # Components in specification section
+    components_list = spec_section.setdefault("components", [])
 
     st.subheader("Configure Selected Fan Components")
 
