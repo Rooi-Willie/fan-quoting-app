@@ -17,9 +17,6 @@ from pages.common import (
 # Page Configuration
 st.set_page_config(page_title=f"Create Quote - {APP_TITLE}", layout="wide")
 
-print(f"STREAMLIT VERSION IN APP: {st.__version__}") # Add this line
-st.write(f"Streamlit Version (displayed in app): {st.__version__}")
-
 if not st.session_state.get("logged_in"):
     st.warning("Please log in first through the main Login page.")
     if st.button("Go to Login"):
