@@ -76,24 +76,24 @@ def render_main_content():
     pricing_section = qd.setdefault("pricing", {})
     calc_section = qd.setdefault("calculations", {})
     
-    # Fan configuration in specification section
-    fan_config = spec_section.setdefault("fan_configuration", {})
+    # Fan configuration in specification.fan (v3 schema)
+    fan_config = spec_section.setdefault("fan", {})
     
-    # Components in specification section
+    # Components in specification.components (v3 schema - simple array of names)
     components_list = spec_section.setdefault("components", [])
     
-    # Component overrides in pricing section
+    # Component overrides in pricing.overrides (v3 schema)
     component_overrides = pricing_section.setdefault("overrides", {})
 
     st.subheader("Configure Selected Fan Components")
 
     # Derive the ordered list for processing from the API-provided order
-    fan_config_id = fan_config.get("id")
+    fan_config_id = fan_config.get("config_id")  # v3 uses config_id, not id
     available_components_list = get_available_components(fan_config_id)
     if available_components_list:
         ordered_available_names = [comp['name'] for comp in available_components_list]
-        # Extract component names from v3 components list
-        user_selected_names = [comp.get("component_id") for comp in components_list if comp.get("component_id")]
+        # In v3, components_list is a simple array of component names
+        user_selected_names = components_list  # components_list is already a list of names
         ordered_selected_components = [name for name in ordered_available_names if name in user_selected_names]
     else:
         ordered_selected_components = []
@@ -120,10 +120,10 @@ def render_main_content():
         request_payload = {
             "fan_configuration_id": fan_config_id,
             "component_id": component_id,
-            "blade_quantity": spec_section.get("blade_quantity") or int(fan_config.get("blade_sets", 0)) if fan_config.get("blade_sets") else None,
+            "blade_quantity": int(fan_config.get("blade_sets", 0)) if fan_config.get("blade_sets") else None,
             "thickness_mm_override": overrides.get("material_thickness_mm"),
             "fabrication_waste_factor_override": fabrication_waste_factor,
-            "markup_override": pricing_section.get("markup_override")
+            "markup_override": pricing_section.get("component_markup")  # v3: component markup location
         }
         
         # Make it hashable for st.cache_data

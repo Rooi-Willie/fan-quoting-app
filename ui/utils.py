@@ -156,20 +156,20 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 	# Get v3 schema sections
 	spec_section = qd.get("specification", {})
 	fan_node = spec_section.get("fan", {})
-	comp_node = spec_section.get("components", {})
+	selected_components = spec_section.get("components", [])  # This is an array in v3
 	calc_section = qd.get("calculations", {})
 	pricing_section = qd.get("pricing", {})
 	
 	fan_config_id = fan_node.get("config_id")
-	selected_names = comp_node.get("selected", []) or []
-	if not fan_config_id or not selected_names:
+	if not fan_config_id or not selected_components:
 		return
 
 	name_to_id = fetch_components_map(int(fan_config_id))
 
-	overrides = comp_node.get("overrides", {}) or {}
+	# In v3, overrides are in pricing.overrides, not component.overrides
+	overrides = pricing_section.get("overrides", {}) or {}
 	comp_list = []
-	for name in selected_names:
+	for name in selected_components:
 		comp_id = name_to_id.get(name)
 		ov = overrides.get(name, {})
 		comp_list.append({
@@ -182,8 +182,8 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 		"fan_configuration_id": int(fan_config_id),
 		"blade_quantity": int(fan_node.get("blade_sets", 0)) if fan_node.get("blade_sets") else None,
 		"components": comp_list,
-		"markup_override": calc_section.get("markup_override"),
-		"motor_markup_override": pricing_section.get("motor", {}).get("markup_override")
+		"markup_override": pricing_section.get("component_markup"),  # v3: component markup is in pricing
+		"motor_markup_override": pricing_section.get("motor_markup")  # v3: motor markup is also in pricing
 	}
 
 	payload_hash = json.dumps(payload, sort_keys=True, default=str)
