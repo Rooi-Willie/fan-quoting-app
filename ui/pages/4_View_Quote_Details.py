@@ -4,7 +4,7 @@ import datetime
 import json
 import os
 from config import APP_TITLE
-from pages.common import migrate_flat_to_nested_if_needed, _new_nested_quote_data
+from pages.common import _new_v3_quote_data
 
 # API_BASE_URL should be configured, e.g., via environment variable
 # Fallback is provided for local development.
@@ -27,6 +27,36 @@ if "viewing_quote_id" not in st.session_state:
     st.stop()
 
 quote_id = st.session_state.viewing_quote_id
+
+# Function to handle v2/v3 quote data compatibility
+def ensure_v3_compatibility(quote_data):
+    """Convert v2 quote data to v3 structure for display, or return v3 as-is."""
+    if not isinstance(quote_data, dict):
+        return _new_v3_quote_data()
+    
+    # Check if it's already v3
+    if quote_data.get("meta", {}).get("version") == 3:
+        return quote_data
+    
+    # If it's v2 or unversioned, create v3 structure with available data
+    # This is a simplified conversion for display purposes only
+    v3_data = _new_v3_quote_data()
+    
+    # Map v2 fields to v3 structure
+    if "fan" in quote_data:
+        v3_data["specification"]["fan"] = quote_data["fan"]
+    if "motor" in quote_data and "selection" in quote_data["motor"]:
+        v3_data["specification"]["motor"] = quote_data["motor"]["selection"]
+        if "final_price" in quote_data["motor"]:
+            v3_data["pricing"]["motor"]["final_price"] = quote_data["motor"]["final_price"]
+    if "components" in quote_data and "selected" in quote_data["components"]:
+        v3_data["specification"]["components"] = quote_data["components"]["selected"]
+    if "buy_out_items" in quote_data:
+        v3_data["specification"]["buyouts"] = quote_data["buy_out_items"]
+    if "calculation" in quote_data:
+        v3_data["calculations"] = quote_data["calculation"]
+    
+    return v3_data
 
 # Function to load quote details
 def load_quote_details(quote_id):
@@ -76,12 +106,13 @@ with project_cols[2]:
     st.metric("Location", quote["project_location"] or "N/A")
 
 # Quote details from the saved JSON
-quote_data = migrate_flat_to_nested_if_needed(quote.get("quote_data") or {})
+quote_data = ensure_v3_compatibility(quote.get("quote_data") or {})
 
-fan_node = quote_data.get("fan", {})
-calc_node = quote_data.get("calculation", {})
-components_node = quote_data.get("components", {})
-motor_node = quote_data.get("motor", {})
+# Extract v3 schema data paths
+fan_node = quote_data.get("specification", {}).get("fan", {})
+calc_node = quote_data.get("calculations", {})
+components_node = quote_data.get("specification", {}).get("components", {})
+motor_node = quote_data.get("specification", {}).get("motor", {})
 
 # Fan configuration section
 st.header("Fan Configuration")
@@ -106,7 +137,8 @@ if motor_node.get("selection"):
     with motor_cols[2]:
         st.metric("Speed", f"{motor.get('speed', 'N/A')} {motor.get('speed_unit', '')}")
     with motor_cols[3]:
-        st.metric("Final Price", f"R {float(motor_node.get('final_price') or 0):,.2f}")
+        motor_final_price = quote_data.get("pricing", {}).get("motor", {}).get("final_price", 0)
+        st.metric("Final Price", f"R {float(motor_final_price):,.2f}")
 
 if components_node.get("selected"):
     st.header("Components")
@@ -121,7 +153,7 @@ if components_node.get("selected"):
         })
     st.table(component_data)
 
-buyout_items = quote_data.get("buy_out_items", [])
+buyout_items = quote_data.get("specification", {}).get("buyouts", [])
 if buyout_items:
     st.header("Buy-out Items")
     buyout_data = []
@@ -143,7 +175,7 @@ price_cols = st.columns(4)
 
 with price_cols[0]:
     total_mass = 0.0
-    server_summary = quote_data.get("calculation", {}).get("server_summary", {}) or quote_data.get("server_summary", {})
+    server_summary = calc_node.get("server_summary", {})
     if server_summary:
         total_mass = server_summary.get("total_real_mass_kg") or server_summary.get("total_mass_kg") or 0.0
     st.metric("Total Mass", f"{float(total_mass):.2f} kg")
@@ -169,7 +201,7 @@ with price_cols[3]:
         final_price = server_summary.get("final_price") if server_summary else 0
     if not final_price:
         comp_total = server_summary.get("final_price", 0) if server_summary else 0
-        motor_total = motor_node.get("final_price") or 0
+        motor_total = quote_data.get("pricing", {}).get("motor", {}).get("final_price", 0)
         buyout_total = sum([float(it.get("subtotal") or 0) for it in buyout_items])
         final_price = comp_total + motor_total + buyout_total
     st.metric("Final Price", f"R {float(final_price):,.2f}", delta="Including Markup")
