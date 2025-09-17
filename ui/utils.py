@@ -24,7 +24,7 @@ def _recompute_derived_totals_from_server(qd: dict) -> dict:
 	Priority order:
 	  1. calculations.server_summary.final_price (components aggregate)
 	  2. sum of calculations.components[*].total_cost_after_markup (if nested present)
-	Motor & buy-outs pulled directly from v3 pricing sections.
+	Motor from v3 pricing sections, buy-outs from v3 specification.buyouts.
 	"""
 	if not isinstance(qd, dict):
 		return {}
@@ -32,8 +32,9 @@ def _recompute_derived_totals_from_server(qd: dict) -> dict:
 	server_summary = calc.get("server_summary") or {}
 	calculated_components = calc.get("components", {}) or {}
 	pricing_section = qd.get("pricing", {}) or {}
+	spec_section = qd.get("specification", {}) or {}
 	motor_pricing = pricing_section.get("motor", {}) or {}
-	buyouts = pricing_section.get("buy_out_items", []) or []
+	buyouts = spec_section.get("buyouts", []) or []
 
 	comp_total = None
 	if isinstance(server_summary, dict):
@@ -93,6 +94,31 @@ def _build_rates_snapshot(summary_payload: dict) -> dict:
 			for c in summary_payload.get("components", []) if isinstance(c, dict)
 		],
 	}
+
+
+def fetch_rates_and_settings() -> dict:
+	"""Fetch current rates and settings from the API for context population."""
+	try:
+		response = requests.get(f"{API_BASE_URL}/settings/global")
+		response.raise_for_status()
+		return response.json()
+	except requests.RequestException:
+		return {}
+
+
+def populate_context_rates_and_settings(qd: dict) -> None:
+	"""Populate context.rates_and_settings with current API rates and settings."""
+	if not isinstance(qd, dict):
+		return
+	
+	context_section = qd.setdefault("context", {})
+	rates_and_settings = fetch_rates_and_settings()
+	
+	if rates_and_settings:
+		context_section['rates_and_settings'] = {
+			'timestamp': pd.Timestamp.now().isoformat(),
+			'full_settings_data': rates_and_settings  # Complete settings record for reference
+		}
 
 
 def fetch_components_map(fan_config_id: int) -> Dict[str, int]:
@@ -171,6 +197,10 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 		_calc.setdefault("server_summary", st.session_state.get("server_summary", {}))
 		_calc.setdefault("derived_totals", _recompute_derived_totals_from_server(qd))
 		_calc.setdefault("rates_and_settings_used", _build_rates_snapshot(payload))
+		
+		# Populate context data for v3 schema
+		populate_context_rates_and_settings(qd)
+		
 		return
 
 	logger.debug("[DEBUG] Making API call with payload:", payload)
@@ -186,6 +216,10 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 		_calc["server_summary"] = server_summary
 		_calc["derived_totals"] = _recompute_derived_totals_from_server(qd)
 		_calc["rates_and_settings_used"] = _build_rates_snapshot(payload)
+		
+		# Populate context data for v3 schema
+		populate_context_rates_and_settings(qd)
+		
 		# Trigger rerun so UI reflects new totals
 		st.rerun()
 	except requests.RequestException:

@@ -10,10 +10,10 @@ def render_main_content():
         st.session_state.quote_data = _new_v3_quote_data()
     
     qd = st.session_state.quote_data
-    pricing_section = qd.setdefault("pricing", {})
+    spec_section = qd.setdefault("specification", {})
     
-    # Buy-out items in pricing section for v3
-    buy_list = pricing_section.setdefault("buy_out_items", [])
+    # Buy-out items in specification section for v3 schema (moved from pricing)
+    buy_list = spec_section.setdefault("buyouts", [])
 
     st.subheader("Add New Buy-out Item")
     with st.form("new_buyout_item_form", clear_on_submit=True):
@@ -59,7 +59,6 @@ def render_main_content():
             with cols_item[4]:
                 if st.button("✖️", key=f"remove_bo_{item['id']}", help="Remove item"):
                     buy_list.pop(i)
-                    qd["buy_out_items_list"] = buy_list  # mirror legacy
                     st.rerun()
             if i < len(buy_list) - 1:
                 st.markdown("---")  # lite divider

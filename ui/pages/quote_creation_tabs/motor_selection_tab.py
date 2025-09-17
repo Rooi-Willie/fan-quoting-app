@@ -144,6 +144,10 @@ def render_main_content():
 
         # Store the full motor details in v3 structure
         motor_spec['selection'] = selected_motor.to_dict()
+        
+        # Populate context.motor_details with comprehensive motor information
+        context_section = qd.setdefault("context", {})
+        context_section['motor_details'] = selected_motor.to_dict()  # Complete motor record for reference
 
         # Fixed to Flange mount for now
         st.caption("Foot mount option is currently unavailable.")

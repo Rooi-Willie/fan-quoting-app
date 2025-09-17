@@ -160,8 +160,8 @@ def render_main_content():
         })
     
     # Add Buyout Items section
-    # Buy-out items subtotal from v3 pricing section
-    buyout_items = pricing_section.get("buy_out_items", [])
+    # Buy-out items subtotal from v3 specification section (updated location)
+    buyout_items = spec_section.get("buyouts", [])
     buyout_total = 0.0
     if isinstance(buyout_items, list) and buyout_items:
         for bi in buyout_items:
