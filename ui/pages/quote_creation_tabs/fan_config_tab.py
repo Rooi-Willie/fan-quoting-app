@@ -222,9 +222,19 @@ def render_main_content():
                         overrides_local["fabrication_waste_pct"] = user_value
                     else:
                         overrides_local["material_thickness_mm"] = user_value
+                    
                     if changed:
+                        # CRITICAL: Ensure session state is synchronized and force recompute
+                        st.session_state.quote_data = qd
+                        # Clear any cached component details to force fresh calculations
+                        if hasattr(st.session_state, '_cache'):
+                            st.session_state._cache.clear()
+                        # Force cache clear for get_component_details
+                        get_component_details.clear()
                         recompute_all_components(get_component_details)
                         ensure_server_summary_up_to_date(qd)
+                        # Force UI refresh to show updated calculations
+                        st.rerun()
                 else:
                     if api_value is not None:
                         if isinstance(api_value, (int, float)):

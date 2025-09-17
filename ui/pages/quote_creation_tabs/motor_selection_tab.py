@@ -184,12 +184,20 @@ def render_main_content():
             motor_markup_percentage = (motor_markup - 1) * 100
             st.metric("Motor Markup:", f"{motor_markup_percentage:.1f}%")
 
+        # Check if markup changed and update session state
+        markup_changed = motor_pricing.get('markup_override') != motor_markup
         motor_pricing['markup_override'] = motor_markup
 
         if pd.notna(motor_pricing.get('base_price')):
             base_price = float(motor_pricing['base_price'])
             marked_up_price = base_price * motor_markup
             motor_pricing['final_price'] = marked_up_price
+            
+            # If markup changed, ensure session state is synchronized
+            if markup_changed:
+                st.session_state.quote_data = qd
+                st.rerun()
+                
             price_cols = st.columns(2)
             with price_cols[0]:
                 st.metric("Base Motor Price", f"{selected_motor['currency']} {base_price:,.2f}")
