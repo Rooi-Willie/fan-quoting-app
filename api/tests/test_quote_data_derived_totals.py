@@ -2,7 +2,92 @@ import pytest
 from app import crud
 
 
-def test_extract_summary_with_nested_component_totals():
+def test_extract_summary_with_v3_schema():
+    """Test v3 schema summary extraction with component and motor pricing."""
+    quote_data = {
+        "meta": {"version": 3, "created_at": "2025-01-01T00:00:00Z"},
+        "quote": {"id": "test-quote-123"},
+        "specification": {
+            "fan_configuration": {"uid": "fan-123", "fan_size_mm": 1200},
+            "blade_quantity": 12,
+            "components": [
+                {"component_id": "casing", "material_thickness_mm": 6},
+                {"component_id": "impeller", "material_thickness_mm": 4}
+            ],
+            "motor": {"supplier_name": "ACME", "rated_output": 55},
+            "buyouts": [
+                {"id": "b1", "description": "Crating", "unit_cost": 50.0, "qty": 2, "subtotal": 100.0},
+                {"id": "b2", "description": "Paint", "unit_cost": 30.0, "qty": 1, "subtotal": 30.0}
+            ]
+        },
+        "pricing": {
+            "markup_override": 1.4,
+            "motor": {"supplier_name": "ACME", "rated_output": 55, "final_price": 900.0},
+            "buy_out_items": []
+        },
+        "calculations": {
+            "component_totals": {"final_price": 368.0},
+            "motor": {"final_price": 900.0}
+        }
+    }
+
+    summary = crud._extract_summary_from_v3_quote_data(quote_data)
+
+    assert summary["fan_uid"] == "fan-123"
+    assert summary["fan_size_mm"] == 1200
+    assert summary["blade_sets"] == 12
+    assert summary["component_list"] == ["casing", "impeller"]
+    assert summary["markup"] == 1.4
+    assert summary["motor_supplier"] == "ACME"
+    assert summary["motor_rated_output"] == "55"
+    assert summary["total_price"] == pytest.approx(1398.0)  # 368 + 900 + 130
+
+
+def test_extract_summary_handles_missing_v3_nodes():
+    """Test v3 schema with missing optional nodes."""
+    quote_data = {
+        "meta": {"version": 3},
+        "quote": {},
+        "specification": {},
+        "pricing": {},
+        "calculations": {}
+    }
+    
+    summary = crud._extract_summary_from_v3_quote_data(quote_data)
+    
+    assert summary["fan_uid"] is None
+    assert summary["component_list"] == []
+    assert summary["total_price"] == 0.0
+
+
+def test_extract_summary_v3_buyout_calculation():
+    """Test v3 schema buyout total calculation."""
+    quote_data = {
+        "meta": {"version": 3},
+        "specification": {
+            "fan_configuration": {"uid": "fanX", "fan_size_mm": 1200},
+            "blade_quantity": 6,
+            "components": [{"component_id": "casing"}]
+        },
+        "pricing": {
+            "motor": {"supplier_name": "ACME", "rated_output": 55, "final_price": 500.0},
+            "buy_out_items": [{"id": "b", "subtotal": 20}]
+        },
+        "calculations": {
+            "component_totals": {"final_price": 230}
+        }
+    }
+    
+    summary = crud._extract_summary_from_v3_quote_data(quote_data)
+    
+    assert summary["fan_uid"] == "fanX"
+    assert summary["component_list"] == ["casing"]
+    assert summary["total_price"] == 750.0  # 230 + 500 + 20
+
+
+# Legacy v2 compatibility tests (keeping for regression testing)
+def test_extract_summary_with_nested_component_totals_v2():
+    """Test legacy v2 schema support."""
     quote_data = {
         "fan": {"uid": "fan-123", "config_id": 1},
         "components": {
@@ -34,8 +119,8 @@ def test_extract_summary_with_nested_component_totals():
     assert summary["component_list"] == ["casing", "impeller"]
     assert summary["total_price"] == pytest.approx(1398.0)
 
-
-def test_extract_summary_handles_missing_nodes():
+def test_extract_summary_handles_missing_nodes_v2():
+    """Test legacy v2 schema with missing nodes."""
     quote_data = {"calculation": {}}
     summary = crud._extract_summary_from_quote_data(quote_data)
     derived = quote_data.get("calculation", {}).get("derived_totals", {})
@@ -43,7 +128,8 @@ def test_extract_summary_handles_missing_nodes():
     assert summary["component_list"] == []
 
 
-def test_extract_summary_nested_only_consistency():
+def test_extract_summary_nested_only_consistency_v2():
+    """Test legacy v2 schema nested consistency."""
     quote_data = {
         "fan": {"uid": "fanX", "config_size_mm": 1200, "blade_sets": "6"},
         "components": {"selected": ["casing"], "by_name": {"casing": {"calculated": {"total_cost_after_markup": 230}}}},
@@ -61,7 +147,8 @@ def test_extract_summary_nested_only_consistency():
     assert derived["grand_total"] == 750.0
 
 
-def test_preserve_rates_and_settings_used():
+def test_preserve_rates_and_settings_used_v2():
+    """Test legacy v2 schema rates and settings preservation."""
     quote_data = {
         "calculation": {
             "rates_and_settings_used": {"fan_configuration_id": 5, "markup_override": 1.4},

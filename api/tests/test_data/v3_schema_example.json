@@ -1,0 +1,98 @@
+{
+  "example_v3_quote_data": {
+    "meta": {
+      "version": 3,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    },
+    "quote": {
+      "id": "Q-2025-001",
+      "client_name": "Test Client",
+      "project_name": "Test Project",
+      "project_location": "Test Location"
+    },
+    "specification": {
+      "fan_configuration": {
+        "id": 1,
+        "uid": "FAN-1200-STD",
+        "fan_size_mm": 1200,
+        "hub_diameter_mm": 400
+      },
+      "blade_quantity": 12,
+      "components": [
+        {
+          "component_id": "casing",
+          "material_thickness_mm": 6,
+          "fabrication_waste_pct": 25
+        },
+        {
+          "component_id": "impeller",
+          "material_thickness_mm": 4,
+          "fabrication_waste_pct": 20
+        }
+      ],
+      "motor": {
+        "supplier_name": "ACME Motors",
+        "rated_output": 55,
+        "rated_output_unit": "kW",
+        "speed": 1450,
+        "speed_unit": "rpm"
+      },
+      "buyouts": [
+        {
+          "id": "crating",
+          "description": "Wooden Crating",
+          "unit_cost": 50.0,
+          "qty": 2,
+          "subtotal": 100.0
+        }
+      ]
+    },
+    "pricing": {
+      "markup_override": 1.4,
+      "component_overrides": {
+        "casing": {
+          "material_thickness_mm": 6,
+          "fabrication_waste_pct": 25
+        }
+      },
+      "motor": {
+        "supplier_name": "ACME Motors",
+        "rated_output": 55,
+        "unit_price": 750.0,
+        "markup": 1.2,
+        "final_price": 900.0
+      }
+    },
+    "calculations": {
+      "component_totals": {
+        "material_cost": 1500.0,
+        "labour_cost": 800.0,
+        "total_before_markup": 2300.0,
+        "final_price": 3220.0
+      },
+      "motor": {
+        "unit_price": 750.0,
+        "markup": 1.2,
+        "final_price": 900.0
+      },
+      "server_summary": {
+        "total_mass_kg": 245.5,
+        "total_material_cost": 1500.0,
+        "total_labour_cost": 800.0,
+        "final_price": 4220.0
+      }
+    },
+    "context": {
+      "rates_used": {
+        "material_rate_per_kg": 25.0,
+        "labour_rate_per_hour": 35.0,
+        "markup_default": 1.4
+      },
+      "settings_snapshot": {
+        "fan_configuration_id": 1,
+        "markup_override": 1.4
+      }
+    }
+  }
+}
