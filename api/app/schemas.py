@@ -360,11 +360,17 @@ class QuoteTotalsV3(BaseModel):
     buyouts: float
     grand_total: float
 
+class MotorCalculationV3(BaseModel):
+    """Schema for motor calculation results in v3 format."""
+    base_price: float
+    final_price: float
+
 class CalculationsSectionV3(BaseModel):
     """Schema for calculations section in v3 format."""
-    timestamp: str
+    timestamp: Optional[str] = None
     components: Dict[str, ComponentCalculationV3]
     component_totals: ComponentTotalsV3
+    motor: Optional[MotorCalculationV3] = None
     totals: QuoteTotalsV3
 
 class ContextSectionV3(BaseModel):

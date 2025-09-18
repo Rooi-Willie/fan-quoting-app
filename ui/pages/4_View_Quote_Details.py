@@ -48,7 +48,7 @@ def ensure_v3_compatibility(quote_data):
     if "motor" in quote_data and "selection" in quote_data["motor"]:
         v3_data["specification"]["motor"] = quote_data["motor"]["selection"]
         if "final_price" in quote_data["motor"]:
-            v3_data["pricing"]["motor"]["final_price"] = quote_data["motor"]["final_price"]
+            v3_data["calculations"]["motor"]["final_price"] = quote_data["motor"]["final_price"]
     if "components" in quote_data and "selected" in quote_data["components"]:
         v3_data["specification"]["components"] = quote_data["components"]["selected"]
     if "buy_out_items" in quote_data:
@@ -137,7 +137,7 @@ if motor_node.get("motor_details"):
     with motor_cols[2]:
         st.metric("Speed", f"{motor.get('speed', 'N/A')} {motor.get('speed_unit', '')}")
     with motor_cols[3]:
-        motor_final_price = quote_data.get("pricing", {}).get("motor", {}).get("final_price", 0)
+        motor_final_price = quote_data.get("calculations", {}).get("motor", {}).get("final_price", 0)
         st.metric("Final Price", f"R {float(motor_final_price):,.2f}")
 
 if components_node.get("selected"):
@@ -201,7 +201,7 @@ with price_cols[3]:
         final_price = server_summary.get("final_price") if server_summary else 0
     if not final_price:
         comp_total = server_summary.get("final_price", 0) if server_summary else 0
-        motor_total = quote_data.get("pricing", {}).get("motor", {}).get("final_price", 0)
+        motor_total = quote_data.get("calculations", {}).get("motor", {}).get("final_price", 0)
         buyout_total = sum([float(it.get("subtotal") or 0) for it in buyout_items])
         final_price = comp_total + motor_total + buyout_total
     st.metric("Final Price", f"R {float(final_price):,.2f}", delta="Including Markup")

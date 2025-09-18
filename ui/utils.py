@@ -24,7 +24,7 @@ def _recompute_derived_totals_from_server(qd: dict) -> dict:
 	Priority order:
 	  1. calculations.server_summary.final_price (components aggregate)
 	  2. sum of calculations.components[*].total_cost_after_markup (if nested present)
-	Motor from v3 pricing sections, buy-outs from v3 specification.buyouts.
+	Motor from v3 calculations.motor section, buy-outs from v3 specification.buyouts.
 	"""
 	if not isinstance(qd, dict):
 		return {}
@@ -33,7 +33,7 @@ def _recompute_derived_totals_from_server(qd: dict) -> dict:
 	calculated_components = calc.get("components", {}) or {}
 	pricing_section = qd.get("pricing", {}) or {}
 	spec_section = qd.get("specification", {}) or {}
-	motor_pricing = pricing_section.get("motor", {}) or {}
+	motor_calculation = calc.get("motor", {}) or {}  # Motor pricing moved to calculations
 	buyouts = spec_section.get("buyouts", []) or []
 
 	comp_total = None
@@ -49,7 +49,7 @@ def _recompute_derived_totals_from_server(qd: dict) -> dict:
 			if isinstance(val, (int, float)):
 				comp_total += float(val)
 
-	motor_total = motor_pricing.get("final_price") or 0.0
+	motor_total = motor_calculation.get("final_price") or 0.0
 
 	buyout_total = 0.0
 	if isinstance(buyouts, list):

@@ -73,6 +73,10 @@ def _new_v3_quote_data(username: str | None = None) -> Dict:
                 "subtotal_cost": 0.0,
                 "final_price": 0.0,
             },
+            "motor": {
+                "base_price": 0.0,
+                "final_price": 0.0,
+            },
             "totals": {
                 "components": 0.0,
                 "motor": 0.0,

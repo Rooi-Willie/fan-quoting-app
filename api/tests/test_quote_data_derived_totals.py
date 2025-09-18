@@ -27,7 +27,7 @@ def test_extract_summary_with_v3_schema():
         },
         "pricing": {
             "markup_override": 1.4,
-            "motor": {"supplier_name": "ACME", "rated_output": 55, "final_price": 900.0},
+            "motor_markup": 1.2,
             "buy_out_items": []
         },
         "calculations": {
@@ -81,11 +81,12 @@ def test_extract_summary_v3_buyout_calculation():
             "components": [{"component_id": "casing"}]
         },
         "pricing": {
-            "motor": {"supplier_name": "ACME", "rated_output": 55, "final_price": 500.0},
+            "motor_markup": 1.2,
             "buy_out_items": [{"id": "b", "subtotal": 20}]
         },
         "calculations": {
-            "component_totals": {"final_price": 230}
+            "component_totals": {"final_price": 230},
+            "motor": {"final_price": 500.0}
         }
     }
     

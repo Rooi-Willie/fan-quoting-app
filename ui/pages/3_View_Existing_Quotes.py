@@ -30,7 +30,7 @@ def ensure_v3_compatibility(quote_data):
     if "motor" in quote_data and "selection" in quote_data["motor"]:
         v3_data["specification"]["motor"] = quote_data["motor"]["selection"]
         if "final_price" in quote_data["motor"]:
-            v3_data["pricing"]["motor"]["final_price"] = quote_data["motor"]["final_price"]
+            v3_data["calculations"]["motor"]["final_price"] = quote_data["motor"]["final_price"]
     if "components" in quote_data and "selected" in quote_data["components"]:
         v3_data["specification"]["components"] = quote_data["components"]["selected"]
     if "buy_out_items" in quote_data:

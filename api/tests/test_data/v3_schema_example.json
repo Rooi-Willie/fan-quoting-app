@@ -59,13 +59,7 @@
           "fabrication_waste_pct": 25
         }
       },
-      "motor": {
-        "supplier_name": "ACME Motors",
-        "rated_output": 55,
-        "unit_price": 750.0,
-        "markup": 1.2,
-        "final_price": 900.0
-      }
+      "motor_markup": 1.2
     },
     "calculations": {
       "component_totals": {
@@ -75,8 +69,7 @@
         "final_price": 3220.0
       },
       "motor": {
-        "unit_price": 750.0,
-        "markup": 1.2,
+        "base_price": 750.0,
         "final_price": 900.0
       },
       "server_summary": {

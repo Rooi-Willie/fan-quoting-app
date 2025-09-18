@@ -52,10 +52,12 @@ def render_main_content():
     qd = st.session_state.quote_data
     spec_section = qd.setdefault("specification", {})
     pricing_section = qd.setdefault("pricing", {})
+    calc_section = qd.setdefault("calculations", {})
     
-    # Motor specification and pricing in v3
+    # Motor specification in v3
     motor_spec = spec_section.setdefault("motor", {})
-    motor_pricing = pricing_section.setdefault("motor", {})
+    # Motor pricing moved to calculations section
+    motor_calc = calc_section.setdefault("motor", {})
     
     fan_config = st.session_state.get("current_fan_config")
 
@@ -151,7 +153,7 @@ def render_main_content():
         st.caption("Foot mount option is currently unavailable.")
         st.divider()
         motor_spec['mount_type'] = "Flange"
-        motor_pricing['base_price'] = selected_motor['flange_price']
+        motor_calc['base_price'] = selected_motor['flange_price']
 
         # Default markup
         global_settings = get_global_settings()
@@ -164,7 +166,7 @@ def render_main_content():
 
         motor_markup_col1, motor_markup_col2 = st.columns([2, 1])
         with motor_markup_col1:
-            safe_existing_markup = motor_pricing.get("markup_override")
+            safe_existing_markup = pricing_section.get("motor_markup")
             try:
                 initial_markup_val = float(safe_existing_markup) if safe_existing_markup is not None else float(default_motor_markup)
             except (TypeError, ValueError):
@@ -183,13 +185,13 @@ def render_main_content():
             st.metric("Motor Markup:", f"{motor_markup_percentage:.1f}%")
 
         # Check if markup changed and update session state
-        markup_changed = motor_pricing.get('markup_override') != motor_markup
-        motor_pricing['markup_override'] = motor_markup
+        markup_changed = pricing_section.get('motor_markup') != motor_markup
+        pricing_section['motor_markup'] = motor_markup
 
-        if pd.notna(motor_pricing.get('base_price')):
-            base_price = float(motor_pricing['base_price'])
+        if pd.notna(motor_calc.get('base_price')):
+            base_price = float(motor_calc['base_price'])
             marked_up_price = base_price * motor_markup
-            motor_pricing['final_price'] = marked_up_price
+            motor_calc['final_price'] = marked_up_price
             
             # If markup changed, ensure session state is synchronized
             if markup_changed:

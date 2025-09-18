@@ -29,7 +29,7 @@ def render_main_content():
     fan_section = spec_section.get("fan", {})
     fan_config = fan_section.get("fan_configuration", {})
     motor_spec = spec_section.get("motor", {})
-    motor_pricing = pricing_section.get("motor", {})
+    motor_calc = calc_section.get("motor", {})  # Motor pricing moved to calculations
     components = spec_section.get("components", [])
 
     # Project Information
@@ -58,12 +58,12 @@ def render_main_content():
             st.markdown(f"**Poles:** {motor.get('poles', 'N/A')}")
             st.markdown(f"**Speed:** {motor.get('speed', 'N/A')} {motor.get('speed_unit', 'RPM')}")
         with col3:
-            base_price = motor_pricing.get('base_price') or motor.get('price_total', 0)
+            base_price = motor_calc.get('base_price') or motor.get('price_total', 0)
             st.markdown(f"**Base Price:** {CURRENCY_SYMBOL} {float(base_price or 0):,.2f}")
-            motor_markup = float(motor_pricing.get('markup_override') or 1.0)
+            motor_markup = float(pricing_section.get('motor_markup') or 1.0)
             motor_markup_pct = (motor_markup - 1) * 100
             st.markdown(f"**Markup Applied:** {motor_markup:.2f} ({motor_markup_pct:.1f}%)")
-            final_price = motor_pricing.get('final_price')
+            final_price = motor_calc.get('final_price')
             if final_price is not None:
                 st.markdown(f"**Final Price:** {CURRENCY_SYMBOL} {float(final_price):,.2f}")
     else:
@@ -143,7 +143,7 @@ def render_main_content():
     # Add Motor section if a motor is selected
     if motor_spec.get('motor_details'):
         motor = motor_spec['motor_details']
-        motor_price = float(motor_pricing.get('final_price', 0) or 0)
+        motor_price = float(motor_calc.get('final_price', 0) or 0)
         
         # Add motor entry
         motor_name = f"{motor.get('supplier_name', '')} {motor.get('product_range', '')} - {motor.get('rated_output', 0)} {motor.get('rated_output_unit', 'kW')}"
@@ -181,7 +181,7 @@ def render_main_content():
     
     # Calculate and add Final Total
     components_total = server_summary.get("final_price", 0) or 0
-    motor_total = float(motor_pricing.get('final_price', 0) or 0)
+    motor_total = float(motor_calc.get('final_price', 0) or 0)
     final_total = components_total + motor_total + buyout_total
     
     # Add Final Total Row
