@@ -97,11 +97,12 @@ def _extract_summary_from_v3_quote_data(qd: Dict[str, Any]) -> Dict[str, Any]:
     pricing = qd.get("pricing", {}) or {}
     calculations = qd.get("calculations", {}) or {}
 
-    # Fan info from specification
-    fan_config = spec.get("fan_configuration", {}) or {}
+    # Fan info from specification (new v3 structure)
+    fan_section = spec.get("fan", {}) or {}
+    fan_config = fan_section.get("fan_configuration", {}) or {}
     fan_uid = fan_config.get("uid")
     fan_size_mm = fan_config.get("fan_size_mm")
-    blade_sets = spec.get("blade_quantity")
+    blade_sets = fan_section.get("blade_sets")
 
     # Components list
     component_list = [comp.get("component_id") for comp in spec.get("components", []) if comp.get("component_id")]
@@ -109,10 +110,11 @@ def _extract_summary_from_v3_quote_data(qd: Dict[str, Any]) -> Dict[str, Any]:
     # Pricing info
     markup = pricing.get("markup_override")
     
-    # Motor info
-    motor_info = pricing.get("motor", {}) or {}
-    motor_supplier = motor_info.get("supplier_name")
-    motor_rated_output = str(motor_info.get("rated_output")) if motor_info.get("rated_output") else None
+    # Motor info from specification (new v3 structure)
+    motor_section = spec.get("motor", {}) or {}
+    motor_details = motor_section.get("motor_details", {}) or {}
+    motor_supplier = motor_details.get("supplier_name")
+    motor_rated_output = str(motor_details.get("rated_output")) if motor_details.get("rated_output") else None
 
     # Calculate total price from calculations
     component_totals = calculations.get("component_totals", {}) or {}

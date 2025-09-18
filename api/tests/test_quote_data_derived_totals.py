@@ -8,13 +8,18 @@ def test_extract_summary_with_v3_schema():
         "meta": {"version": 3, "created_at": "2025-01-01T00:00:00Z"},
         "quote": {"id": "test-quote-123"},
         "specification": {
-            "fan_configuration": {"uid": "fan-123", "fan_size_mm": 1200},
-            "blade_quantity": 12,
+            "fan": {
+                "blade_sets": "12",
+                "fan_configuration": {"uid": "fan-123", "fan_size_mm": 1200}
+            },
+            "motor": {
+                "mount_type": "Flange",
+                "motor_details": {"supplier_name": "ACME", "rated_output": 55}
+            },
             "components": [
                 {"component_id": "casing", "material_thickness_mm": 6},
                 {"component_id": "impeller", "material_thickness_mm": 4}
             ],
-            "motor": {"supplier_name": "ACME", "rated_output": 55},
             "buyouts": [
                 {"id": "b1", "description": "Crating", "unit_cost": 50.0, "qty": 2, "subtotal": 100.0},
                 {"id": "b2", "description": "Paint", "unit_cost": 30.0, "qty": 1, "subtotal": 30.0}
@@ -65,8 +70,14 @@ def test_extract_summary_v3_buyout_calculation():
     quote_data = {
         "meta": {"version": 3},
         "specification": {
-            "fan_configuration": {"uid": "fanX", "fan_size_mm": 1200},
-            "blade_quantity": 6,
+            "fan": {
+                "blade_sets": "6",
+                "fan_configuration": {"uid": "fanX", "fan_size_mm": 1200}
+            },
+            "motor": {
+                "mount_type": "Flange",
+                "motor_details": {"supplier_name": "ACME", "rated_output": 55}
+            },
             "components": [{"component_id": "casing"}]
         },
         "pricing": {

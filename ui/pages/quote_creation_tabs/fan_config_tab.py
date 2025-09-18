@@ -76,7 +76,7 @@ def render_main_content():
     pricing_section = qd.setdefault("pricing", {})
     calc_section = qd.setdefault("calculations", {})
     
-    # Fan configuration in specification.fan (v3 schema)
+    # Fan configuration in specification.fan (v3 schema - updated structure)
     fan_config = spec_section.setdefault("fan", {})
     
     # Components in specification.components (v3 schema - simple array of names)
@@ -88,7 +88,8 @@ def render_main_content():
     st.subheader("Configure Selected Fan Components")
 
     # Derive the ordered list for processing from the API-provided order
-    fan_config_id = fan_config.get("config_id")  # v3 uses config_id, not id
+    fan_config_data = fan_config.get("fan_configuration", {})  # Get nested fan_configuration data
+    fan_config_id = fan_config_data.get("id")  # Use id from fan_configuration object
     available_components_list = get_available_components(fan_config_id)
     if available_components_list:
         ordered_available_names = [comp['name'] for comp in available_components_list]

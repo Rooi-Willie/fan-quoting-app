@@ -126,8 +126,8 @@ with fan_cols[2]:
 with fan_cols[3]:
     st.metric("Markup", f"{float(calc_node.get('markup_override', 1.4)):.2f}x")
 
-if motor_node.get("selection"):
-    motor = motor_node["selection"]
+if motor_node.get("motor_details"):
+    motor = motor_node["motor_details"]
     st.header("Motor Information")
     motor_cols = st.columns(4)
     with motor_cols[0]:

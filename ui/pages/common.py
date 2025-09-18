@@ -47,18 +47,12 @@ def _new_v3_quote_data(username: str | None = None) -> Dict:
         },
         "specification": {
             "fan": {
-                "config_id": None,
-                "uid": None,
-                "fan_size_mm": None,
-                "hub_size_mm": None,
                 "blade_sets": None,
+                "fan_configuration": {},
             },
             "motor": {
-                "selection_id": None,
                 "mount_type": None,
-                "supplier_name": None,
-                "rated_output": None,
-                "poles": None,
+                "motor_details": {},
             },
             "components": [],
             "buyouts": [],
@@ -87,8 +81,6 @@ def _new_v3_quote_data(username: str | None = None) -> Dict:
             },
         },
         "context": {
-            "fan_configuration": {},
-            "motor_details": {},
             "rates_and_settings": {},
         },
     }
@@ -183,15 +175,10 @@ def _handle_fan_id_change():
     spec = qd.setdefault("specification", {})
     fan_node = spec.setdefault("fan", {})
     fan_node.update({
-        "config_id": selected_config.get('id'),
-        "uid": selected_config.get('uid'),
-        "fan_size_mm": selected_config.get('fan_size_mm'),
-        "hub_size_mm": selected_config.get('hub_size_mm'),
+        "fan_configuration": selected_config,
     })
     
-    # Populate context.fan_configuration with complete fan configuration data
-    context_section = qd.setdefault("context", {})
-    context_section['fan_configuration'] = selected_config
+    # No longer populate context.fan_configuration as it's moved to specification.fan.fan_configuration
 
     # If no markup set yet, fetch default from global settings API
     pricing = qd.setdefault("pricing", {})
@@ -221,7 +208,7 @@ def _handle_fan_id_change():
     auto_select_ids = selected_config.get('auto_selected_components', [])
     comp_sel: List[str] = []
     if auto_select_ids:
-        comps = get_available_components(fan_node["config_id"])
+        comps = get_available_components(selected_config.get('id'))
         if comps:
             id_to_name = {c['id']: c['name'] for c in comps}
             comp_sel = [id_to_name[i] for i in auto_select_ids if i in id_to_name]

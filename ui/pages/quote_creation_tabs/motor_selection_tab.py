@@ -142,12 +142,10 @@ def render_main_content():
             f"**Selected Motor:**   {selected_motor['supplier_name']} - {selected_motor['rated_output']} kW, {selected_motor['poles']} poles, {selected_motor['speed']} RPM ({selected_motor['product_range']})"
         )
 
-        # Store the full motor details in v3 structure
-        motor_spec['selection'] = selected_motor.to_dict()
+        # Store the full motor details in v3 structure (renamed from 'selection' to 'motor_details')
+        motor_spec['motor_details'] = selected_motor.to_dict()
         
-        # Populate context.motor_details with comprehensive motor information
-        context_section = qd.setdefault("context", {})
-        context_section['motor_details'] = selected_motor.to_dict()  # Complete motor record for reference
+        # No longer populate context.motor_details as it's moved to specification.motor.motor_details
 
         # Fixed to Flange mount for now
         st.caption("Foot mount option is currently unavailable.")
@@ -208,4 +206,4 @@ def render_main_content():
 
         st.divider()
         with st.expander("Show all selected motor data"):
-            st.json(motor_spec['selection'])
+            st.json(motor_spec['motor_details'])

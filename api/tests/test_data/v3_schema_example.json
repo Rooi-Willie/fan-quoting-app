@@ -12,13 +12,23 @@
       "project_location": "Test Location"
     },
     "specification": {
-      "fan_configuration": {
-        "id": 1,
-        "uid": "FAN-1200-STD",
-        "fan_size_mm": 1200,
-        "hub_diameter_mm": 400
+      "fan": {
+        "blade_sets": "12",
+        "fan_configuration": {
+          "id": 1,
+          "uid": "FAN-1200-STD",
+          "fan_size_mm": 1200,
+          "hub_diameter_mm": 400
+        }
       },
-      "blade_quantity": 12,
+      "motor": {
+        "mount_type": "Flange",
+        "motor_details": {
+          "supplier_name": "Test Motor Co",
+          "rated_output": 45,
+          "poles": 2
+        }
+      },
       "components": [
         {
           "component_id": "casing",
@@ -31,13 +41,6 @@
           "fabrication_waste_pct": 20
         }
       ],
-      "motor": {
-        "supplier_name": "ACME Motors",
-        "rated_output": 55,
-        "rated_output_unit": "kW",
-        "speed": 1450,
-        "speed_unit": "rpm"
-      },
       "buyouts": [
         {
           "id": "crating",

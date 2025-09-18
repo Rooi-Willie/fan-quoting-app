@@ -298,19 +298,13 @@ class QuoteInfoV3(BaseModel):
 
 class FanSpecificationV3(BaseModel):
     """Schema for fan specification in v3 format."""
-    config_id: int
-    uid: str
-    fan_size_mm: int
-    hub_size_mm: int
     blade_sets: str
+    fan_configuration: Dict[str, Any]
 
 class MotorSpecificationV3(BaseModel):
     """Schema for motor specification in v3 format."""
-    selection_id: int
     mount_type: str
-    supplier_name: str
-    rated_output: float
-    poles: int
+    motor_details: Dict[str, Any]
 
 class BuyoutItemV3(BaseModel):
     """Schema for individual buyout item in v3 format."""
@@ -375,8 +369,6 @@ class CalculationsSectionV3(BaseModel):
 
 class ContextSectionV3(BaseModel):
     """Schema for context section in v3 format."""
-    fan_configuration: Dict[str, Any]
-    motor_details: Dict[str, Any]
     rates_and_settings: Dict[str, Any]
 
 class QuoteDataV3(BaseModel):

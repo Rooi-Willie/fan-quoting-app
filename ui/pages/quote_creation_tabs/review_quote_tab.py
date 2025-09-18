@@ -25,8 +25,9 @@ def render_main_content():
     pricing_section = qd.get("pricing", {})
     calc_section = qd.get("calculations", {})
     
-    # Extract sub-sections
-    fan_config = spec_section.get("fan_configuration", {})
+    # Extract sub-sections (updated for new v3 structure)
+    fan_section = spec_section.get("fan", {})
+    fan_config = fan_section.get("fan_configuration", {})
     motor_spec = spec_section.get("motor", {})
     motor_pricing = pricing_section.get("motor", {})
     components = spec_section.get("components", [])
@@ -45,8 +46,8 @@ def render_main_content():
    
     # Motor Information
     st.subheader("Motor Information")
-    if motor_spec.get('selection') and isinstance(motor_spec['selection'], dict):
-        motor = motor_spec['selection']
+    if motor_spec.get('motor_details') and isinstance(motor_spec['motor_details'], dict):
+        motor = motor_spec['motor_details']
         col1, col2, col3 = st.columns(3)
         with col1:
             st.markdown(f"**Supplier:** {motor.get('supplier_name', 'N/A')}")
@@ -140,8 +141,8 @@ def render_main_content():
         })
     
     # Add Motor section if a motor is selected
-    if motor_spec.get('selection'):
-        motor = motor_spec['selection']
+    if motor_spec.get('motor_details'):
+        motor = motor_spec['motor_details']
         motor_price = float(motor_pricing.get('final_price', 0) or 0)
         
         # Add motor entry

@@ -153,14 +153,15 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 	if not isinstance(qd, dict):
 		return
 	
-	# Get v3 schema sections
+	# Get v3 schema sections (updated for new structure)
 	spec_section = qd.get("specification", {})
-	fan_node = spec_section.get("fan", {})
+	fan_section = spec_section.get("fan", {})
+	fan_config = fan_section.get("fan_configuration", {})
 	selected_components = spec_section.get("components", [])  # This is an array in v3
 	calc_section = qd.get("calculations", {})
 	pricing_section = qd.get("pricing", {})
 	
-	fan_config_id = fan_node.get("config_id")
+	fan_config_id = fan_config.get("id")
 	if not fan_config_id or not selected_components:
 		return
 
@@ -180,7 +181,7 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 
 	payload = {
 		"fan_configuration_id": int(fan_config_id),
-		"blade_quantity": int(fan_node.get("blade_sets", 0)) if fan_node.get("blade_sets") else None,
+		"blade_quantity": int(fan_section.get("blade_sets", 0)) if fan_section.get("blade_sets") else None,
 		"components": comp_list,
 		"markup_override": pricing_section.get("component_markup"),  # v3: component markup is in pricing
 		"motor_markup_override": pricing_section.get("motor_markup")  # v3: motor markup is also in pricing
