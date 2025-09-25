@@ -77,8 +77,20 @@ def render_main_content():
     # Fan Component Cost & Mass Summary (DataFrame only)
     st.subheader("Fan Component Cost & Mass Summary")
 
-    server_components = (st.session_state.get("server_summary") or {}).get("components")
-
+    # Get components from v3 calculations structure
+    server_summary = st.session_state.get("server_summary", {})
+    server_calculations = server_summary.get("calculations", {})
+    server_components_dict = server_calculations.get("components", {})
+    
+    # Convert components dict to list for compatibility, with fallback to quote data
+    server_components = []
+    if server_components_dict:
+        server_components = list(server_components_dict.values())
+    elif calc_section.get("components"):
+        # Fallback to quote data calculations section
+        calc_components = calc_section.get("components", {})
+        server_components = list(calc_components.values())
+    
     rows = []
     if server_components:
         for c in server_components:
@@ -92,9 +104,9 @@ def render_main_content():
                 "Cost After Markup": c.get("total_cost_after_markup"),
             })
     else:
-        # Fallback from v3 calculations section
-        calculated_components = calc_section.get("components", {})
-        for name, calc in calculated_components.items():
+        # Last fallback: try to extract from any available components data
+        all_components = calc_section.get("components", {})
+        for name, calc in all_components.items():
             rows.append({
                 "Component": name,
                 "Length (mm)": calc.get("total_length_mm"),
@@ -116,8 +128,9 @@ def render_main_content():
     st.divider()
     st.subheader("Final Quote Cost Breakdown")
 
-    # Get data from session state
-    server_summary = st.session_state.get("server_summary", {})
+    # Get totals from v3 calculations structure
+    component_totals = calc_section.get("component_totals", {})
+    totals_section = calc_section.get("totals", {})
     
     # Initialize breakdown data
     breakdown_rows = []
@@ -132,13 +145,22 @@ def render_main_content():
                 "Cost": c.get("total_cost_after_markup", 0)
             })
         
-        # Add Component Subtotal
-        components_total = server_summary.get("final_price", 0)
+        # Add Component Subtotal using v3 totals structure
+        components_total = totals_section.get("components", 0) or component_totals.get("final_price", 0)
         breakdown_rows.append({
             "Item Type": "Subtotal",
             "Item": "Components Subtotal",
             "Cost": components_total
         })
+    else:
+        # Fallback: try to get components total even without individual components
+        components_total = totals_section.get("components", 0) or component_totals.get("final_price", 0)
+        if components_total > 0:
+            breakdown_rows.append({
+                "Item Type": "Subtotal",
+                "Item": "Components Subtotal",
+                "Cost": components_total
+            })
     
     # Add Motor section if a motor is selected
     if motor_spec.get('motor_details'):
@@ -179,10 +201,10 @@ def render_main_content():
             "Cost": 0
         })
     
-    # Calculate and add Final Total
-    components_total = server_summary.get("final_price", 0) or 0
-    motor_total = float(motor_calc.get('final_price', 0) or 0)
-    final_total = components_total + motor_total + buyout_total
+    # Calculate and add Final Total using v3 totals structure
+    components_total = totals_section.get("components", 0) or component_totals.get("final_price", 0)
+    motor_total = totals_section.get("motor", 0) or float(motor_calc.get('final_price', 0) or 0)
+    final_total = totals_section.get("grand_total", 0) or (components_total + motor_total + buyout_total)
     
     # Add Final Total Row
     breakdown_rows.append({
