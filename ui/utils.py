@@ -78,6 +78,11 @@ def update_quote_totals(qd: dict) -> None:
 	This function prefers backend-calculated component_totals when available (backend is authoritative),
 	and only falls back to client-side calculation when backend data is missing or incomplete.
 	UI is responsible for adding motor and buyout totals to the backend component totals.
+	
+	Performs consistency checking: if backend component_totals don't match the sum of individual 
+	components (indicating UI changes after backend caching), falls back to UI calculation.
+	
+	Logs which calculation method (BACKEND or UI FALLBACK) is used for transparency and debugging.
 	"""
 	if not isinstance(qd, dict):
 		return
@@ -93,12 +98,34 @@ def update_quote_totals(qd: dict) -> None:
 		existing_component_totals.get("final_price") > 0
 	)
 	
+	# If backend has totals, verify they're consistent with individual components
+	# If not consistent, fallback to UI calculation (individual components may have been updated)
+	if backend_has_totals:
+		components = calc_section.get("components", {})
+		ui_calculated_total = sum(
+			float(comp_data.get("total_cost_after_markup", 0) or 0)
+			for comp_data in components.values()
+			if isinstance(comp_data, dict)
+		)
+		backend_total = float(existing_component_totals.get("final_price", 0))
+		
+		# Allow for small rounding differences (within 0.01)
+		totals_are_consistent = abs(ui_calculated_total - backend_total) < 0.01
+		
+		if not totals_are_consistent:
+			logger.info(f"Backend component totals ({backend_total}) inconsistent with individual components ({ui_calculated_total}). Using UI calculation.")
+			backend_has_totals = False
+		else:
+			logger.debug(f"Backend component totals ({backend_total}) consistent with individual components ({ui_calculated_total}).")
+	
 	if backend_has_totals:
 		# Backend is authoritative - use its component calculations
 		component_final_price = float(existing_component_totals.get("final_price", 0))
+		logger.info(f"Using BACKEND calculations for component totals. Component final price: {component_final_price}")
 	else:
 		# Fallback: Calculate component totals from individual component calculations
 		components = calc_section.get("components", {})
+		logger.info(f"Using UI FALLBACK calculations for component totals. Found {len(components)} individual components to aggregate.")
 		
 		total_length_mm = 0
 		total_mass_kg = 0
@@ -118,6 +145,8 @@ def update_quote_totals(qd: dict) -> None:
 			total_labour_cost += float(comp_data.get("labour_cost", 0) or 0)
 			subtotal_cost += float(comp_data.get("total_cost_before_markup", 0) or 0)
 			component_final_price += float(comp_data.get("total_cost_after_markup", 0) or 0)
+		
+		logger.info(f"UI calculated component totals - Final price: {component_final_price}, Material: {total_material_cost}, Labour: {total_labour_cost}")
 		
 		# Update component_totals section only if backend didn't provide it
 		calc_section.setdefault("component_totals", {}).update({
@@ -157,6 +186,10 @@ def update_quote_totals(qd: dict) -> None:
 		"buyouts": round(buyout_total, 2),
 		"grand_total": round(grand_total, 2)
 	})
+	
+	# Log final calculation summary
+	calculation_method = "BACKEND" if backend_has_totals else "UI FALLBACK"
+	logger.info(f"Quote totals updated using {calculation_method} method. Components: {component_final_price}, Motor: {motor_total}, Buyouts: {buyout_total}, Grand Total: {grand_total}")
 
 
 def _build_rates_snapshot(summary_payload: dict) -> dict:
@@ -302,7 +335,7 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 		_calc.setdefault("derived_totals", _recompute_derived_totals_from_server(qd))
 		_calc.setdefault("rates_and_settings_used", _build_rates_snapshot(payload))
 		
-		# Update quote totals to ensure synchronization
+		# Update quote totals to ensure synchronization - this will handle consistency checking
 		update_quote_totals(qd)
 		
 		# Populate context data for v3 schema
