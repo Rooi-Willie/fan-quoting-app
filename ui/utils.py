@@ -72,6 +72,52 @@ def _recompute_derived_totals_from_server(qd: dict) -> dict:
 	}
 
 
+def update_quote_totals(qd: dict) -> None:
+	"""Update the calculations.totals section based on current components, motor, and buyouts.
+	
+	This function should be called whenever motor pricing or buyout data changes
+	to ensure the totals section stays synchronized.
+	"""
+	if not isinstance(qd, dict):
+		return
+		
+	calc_section = qd.get("calculations", {})
+	spec_section = qd.get("specification", {})
+	
+	# Get component total from component_totals section
+	component_totals = calc_section.get("component_totals", {})
+	component_total = float(component_totals.get("final_price", 0))
+	
+	# Get motor total from motor calculation
+	motor_calc = calc_section.get("motor", {})
+	motor_total = float(motor_calc.get("final_price", 0))
+	
+	# Calculate buyout total from specification buyouts
+	buyouts = spec_section.get("buyouts", []) or []
+	buyout_total = 0.0
+	if isinstance(buyouts, list):
+		for item in buyouts:
+			if not isinstance(item, dict):
+				continue
+			subtotal = item.get("subtotal")
+			if subtotal is None:
+				unit_cost = item.get("unit_cost") or item.get("cost") or 0
+				qty = item.get("qty") or item.get("quantity") or 0
+				subtotal = float(unit_cost) * float(qty)
+			buyout_total += float(subtotal or 0)
+	
+	# Calculate grand total
+	grand_total = component_total + motor_total + buyout_total
+	
+	# Update totals section
+	calc_section.setdefault("totals", {}).update({
+		"components": component_total,
+		"motor": motor_total,
+		"buyouts": buyout_total,
+		"grand_total": grand_total
+	})
+
+
 def _build_rates_snapshot(summary_payload: dict) -> dict:
 	"""Capture pricing input snapshot for audit: overrides & key driving factors.
 
@@ -195,9 +241,28 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 		logger.debug("[DEBUG] Skipping API call - payload unchanged")
 		# Ensure persisted structures exist even if no call needed
 		_calc = qd.setdefault("calculations", {})
-		_calc.setdefault("server_summary", st.session_state.get("server_summary", {}))
+		
+		# Extract calculations from cached server summary if available
+		cached_response = st.session_state.get("server_summary", {})
+		calculations_from_cache = cached_response.get("calculations", {})
+		
+		if calculations_from_cache:
+			# Update calculations section with cached data
+			if "components" in calculations_from_cache:
+				_calc["components"] = calculations_from_cache["components"]
+			if "component_totals" in calculations_from_cache:
+				_calc["component_totals"] = calculations_from_cache["component_totals"]
+			if "totals" in calculations_from_cache:
+				_calc["totals"] = calculations_from_cache["totals"]
+			if "motor" in calculations_from_cache:
+				_calc["motor"] = calculations_from_cache["motor"]
+		
+		_calc.setdefault("server_summary", cached_response)
 		_calc.setdefault("derived_totals", _recompute_derived_totals_from_server(qd))
 		_calc.setdefault("rates_and_settings_used", _build_rates_snapshot(payload))
+		
+		# Update quote totals to ensure synchronization
+		update_quote_totals(qd)
 		
 		# Populate context data for v3 schema
 		populate_context_rates_and_settings(qd)
@@ -209,14 +274,43 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 		# Use v3 endpoint
 		resp = requests.post(f"{API_BASE_URL}/components/v3-summary", json=payload)
 		resp.raise_for_status()
-		server_summary = resp.json() or {}
-		st.session_state.server_summary = server_summary
+		api_response = resp.json() or {}
+		
+		# Extract calculations section from API response
+		calculations_from_api = api_response.get("calculations", {})
+		
+		# Store the API response for backward compatibility  
+		st.session_state.server_summary = api_response
 		st.session_state.last_summary_payload_hash = payload_hash
+		
 		# Persist into nested quote_data.calculations (v3 schema)
 		_calc = qd.setdefault("calculations", {})
-		_calc["server_summary"] = server_summary
+		
+		# Update calculations section with API response data
+		if calculations_from_api:
+			# Store the individual component calculations
+			if "components" in calculations_from_api:
+				_calc["components"] = calculations_from_api["components"]
+			
+			# Store the component totals
+			if "component_totals" in calculations_from_api:
+				_calc["component_totals"] = calculations_from_api["component_totals"]
+			
+			# Store the final totals (components + motor + buyouts)
+			if "totals" in calculations_from_api:
+				_calc["totals"] = calculations_from_api["totals"]
+			
+			# Store motor calculations if present
+			if "motor" in calculations_from_api:
+				_calc["motor"] = calculations_from_api["motor"]
+		
+		# Keep legacy server_summary for backward compatibility
+		_calc["server_summary"] = api_response
 		_calc["derived_totals"] = _recompute_derived_totals_from_server(qd)
 		_calc["rates_and_settings_used"] = _build_rates_snapshot(payload)
+		
+		# Update quote totals to ensure synchronization
+		update_quote_totals(qd)
 		
 		# Populate context data for v3 schema
 		populate_context_rates_and_settings(qd)

@@ -577,35 +577,47 @@ def _build_v3_calculations_section(
     subtotal = total_material_cost + total_labour_cost
     final_price = subtotal * markup
 
-    # Build components list for v3 format
-    components = []
+    # Build components dictionary for v3 format (keyed by component name)
+    components = {}
     for comp_data in calculated_components_details:
-        components.append({
-            "name": comp_data.get('name', ''),
-            "material_thickness_mm": round(comp_data.get('material_thickness_mm', 0), 2),
-            "fabrication_waste_percentage": round(comp_data.get('fabrication_waste_percentage', 0), 2),
-            "overall_diameter_mm": round(comp_data.get('overall_diameter_mm', 0), 2) if comp_data.get('overall_diameter_mm') else None,
-            "total_length_mm": round(comp_data.get('total_length_mm', 0), 2) if comp_data.get('total_length_mm') else None,
-            "stiffening_factor": round(comp_data.get('stiffening_factor', 0), 2) if comp_data.get('stiffening_factor') else None,
-            "ideal_mass_kg": round(comp_data.get('ideal_mass_kg', 0), 2),
-            "real_mass_kg": round(comp_data.get('real_mass_kg', 0), 2),
-            "feedstock_mass_kg": round(comp_data.get('feedstock_mass_kg', 0), 2),
-            "material_cost": round(comp_data.get('material_cost', 0), 2),
-            "labour_cost": round(comp_data.get('labour_cost', 0), 2),
-            "cost_before_markup": round(comp_data.get('total_cost_before_markup', 0), 2),
-            "cost_after_markup": round(comp_data.get('total_cost_after_markup', 0), 2)
-        })
+        component_name = comp_data.get('name', '')
+        components[component_name] = {
+            "name": component_name,
+            "material_thickness_mm": comp_data.get('material_thickness_mm', 0),
+            "fabrication_waste_percentage": comp_data.get('fabrication_waste_percentage', 0),
+            "overall_diameter_mm": comp_data.get('overall_diameter_mm'),
+            "total_length_mm": comp_data.get('total_length_mm'),
+            "stiffening_factor": comp_data.get('stiffening_factor'),
+            "ideal_mass_kg": round(comp_data.get('ideal_mass_kg', 0), 6),
+            "real_mass_kg": round(comp_data.get('real_mass_kg', 0), 6),
+            "feedstock_mass_kg": round(comp_data.get('feedstock_mass_kg', 0), 6),
+            "material_cost": round(comp_data.get('material_cost', 0), 6),
+            "labour_cost": round(comp_data.get('labour_cost', 0), 6),
+            "total_cost_before_markup": round(comp_data.get('total_cost_before_markup', 0), 6),
+            "total_cost_after_markup": round(comp_data.get('total_cost_after_markup', 0), 6)
+        }
+
+    # Calculate aggregate totals for the final totals section
+    component_total = round(final_price, 2)
+    motor_total = round(motor_details.get('final_price', 0), 2) if motor_details else 0.0
+    buyout_total = 0.0  # Buyouts are handled separately in the UI
+    grand_total = component_total + motor_total + buyout_total
 
     calculations_section = {
         "components": components,
         "component_totals": {
-            "total_mass_kg": round(total_mass, 2),
             "total_length_mm": round(total_length, 2),
-            "total_material_cost": round(total_material_cost, 2),
+            "total_mass_kg": round(total_mass, 2),
             "total_labour_cost": round(total_labour_cost, 2),
+            "total_material_cost": round(total_material_cost, 2),
             "subtotal_cost": round(subtotal, 2),
-            "markup_applied": round(markup, 2),
             "final_price": round(final_price, 2)
+        },
+        "totals": {
+            "components": component_total,
+            "motor": motor_total,
+            "buyouts": buyout_total,
+            "grand_total": grand_total
         }
     }
 
