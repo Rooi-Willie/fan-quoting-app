@@ -38,6 +38,11 @@ else:
     if not isinstance(qd, dict) or qd.get("meta", {}).get("version") != NEW_SCHEMA_VERSION:
         st.session_state.quote_data = _new_v3_quote_data(st.session_state.get("username"))
 
+# Ensure totals are calculated if component data exists
+from utils import update_quote_totals
+if st.session_state.quote_data.get("calculations", {}).get("components"):
+    update_quote_totals(st.session_state.quote_data)
+
 if st.sidebar.button("🔄 Start New Quote / Reset Form", use_container_width=True):
     # Reset specific quote data, keep login info
     logged_in_status = st.session_state.get("logged_in", False)
@@ -52,9 +57,6 @@ if st.sidebar.button("🔄 Start New Quote / Reset Form", use_container_width=Tr
 
 # This section now renders the same sidebar content regardless of the active tab.
 render_sidebar_widgets()  # Always render shared sidebar widgets
-st.sidebar.divider()
-st.sidebar.json(st.session_state.quote_data, expanded=False) # For debugging
-
 
 # --- Define Tabs ---
 # The 'key' argument for st.tabs is not supported.

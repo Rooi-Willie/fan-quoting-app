@@ -420,3 +420,8 @@ def render_sidebar_widgets():
 			pricing["component_markup"] = current_markup + 0.01
 			ensure_server_summary_up_to_date(qd)
 			st.rerun()
+		
+		# Ensure totals are calculated if component data exists
+		from utils import update_quote_totals
+		if qd.get("calculations", {}).get("components"):
+			update_quote_totals(qd)

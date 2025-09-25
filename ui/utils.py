@@ -73,10 +73,10 @@ def _recompute_derived_totals_from_server(qd: dict) -> dict:
 
 
 def update_quote_totals(qd: dict) -> None:
-	"""Update the calculations.totals section based on current components, motor, and buyouts.
+	"""Update the calculations.totals and component_totals sections based on current components, motor, and buyouts.
 	
-	This function should be called whenever motor pricing or buyout data changes
-	to ensure the totals section stays synchronized.
+	This function calculates component_totals from individual component calculations
+	and updates the overall totals section.
 	"""
 	if not isinstance(qd, dict):
 		return
@@ -84,9 +84,37 @@ def update_quote_totals(qd: dict) -> None:
 	calc_section = qd.get("calculations", {})
 	spec_section = qd.get("specification", {})
 	
-	# Get component total from component_totals section
-	component_totals = calc_section.get("component_totals", {})
-	component_total = float(component_totals.get("final_price", 0))
+	# Calculate component totals from individual component calculations
+	components = calc_section.get("components", {})
+	
+	total_length_mm = 0
+	total_mass_kg = 0
+	total_material_cost = 0
+	total_labour_cost = 0
+	subtotal_cost = 0
+	component_final_price = 0
+	
+	for comp_name, comp_data in components.items():
+		if not isinstance(comp_data, dict):
+			continue
+			
+		# Sum up the individual component values
+		total_length_mm += float(comp_data.get("total_length_mm", 0) or 0)
+		total_mass_kg += float(comp_data.get("real_mass_kg", 0) or 0)
+		total_material_cost += float(comp_data.get("material_cost", 0) or 0)
+		total_labour_cost += float(comp_data.get("labour_cost", 0) or 0)
+		subtotal_cost += float(comp_data.get("total_cost_before_markup", 0) or 0)
+		component_final_price += float(comp_data.get("total_cost_after_markup", 0) or 0)
+	
+	# Update component_totals section
+	calc_section.setdefault("component_totals", {}).update({
+		"total_length_mm": round(total_length_mm, 2),
+		"total_mass_kg": round(total_mass_kg, 6),
+		"total_labour_cost": round(total_labour_cost, 2),
+		"total_material_cost": round(total_material_cost, 2),
+		"subtotal_cost": round(subtotal_cost, 2),
+		"final_price": round(component_final_price, 2)
+	})
 	
 	# Get motor total from motor calculation
 	motor_calc = calc_section.get("motor", {})
@@ -106,15 +134,15 @@ def update_quote_totals(qd: dict) -> None:
 				subtotal = float(unit_cost) * float(qty)
 			buyout_total += float(subtotal or 0)
 	
-	# Calculate grand total
-	grand_total = component_total + motor_total + buyout_total
+	# Calculate grand total using the calculated component total
+	grand_total = component_final_price + motor_total + buyout_total
 	
 	# Update totals section
 	calc_section.setdefault("totals", {}).update({
-		"components": component_total,
-		"motor": motor_total,
-		"buyouts": buyout_total,
-		"grand_total": grand_total
+		"components": round(component_final_price, 2),
+		"motor": round(motor_total, 2),
+		"buyouts": round(buyout_total, 2),
+		"grand_total": round(grand_total, 2)
 	})
 
 
