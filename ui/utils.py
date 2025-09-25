@@ -258,7 +258,7 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 	"""Update server-side component summary using v3 schema and persist aggregates in quote_data.
 
 	Responsibilities (v3 Schema):
-	1. Detect input changes and POST to /components/v3-summary.
+	1. Detect input changes and POST to /quotes/components/v3-summary.
 	2. Store raw server response in st.session_state.server_summary.
 	3. Persist a snapshot under qd["calculations"]["server_summary"].
 	4. Persist/refresh qd["calculations"]["derived_totals"] (client-side convenience).
@@ -345,8 +345,8 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 
 	logger.debug("[DEBUG] Making API call with payload:", payload)
 	try:
-		# Use v3 endpoint
-		resp = requests.post(f"{API_BASE_URL}/components/v3-summary", json=payload)
+		# Use v3 endpoint (correct path with quotes prefix)
+		resp = requests.post(f"{API_BASE_URL}/quotes/components/v3-summary", json=payload)
 		resp.raise_for_status()
 		api_response = resp.json() or {}
 		

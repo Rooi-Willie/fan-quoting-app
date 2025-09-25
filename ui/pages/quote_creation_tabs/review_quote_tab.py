@@ -262,16 +262,15 @@ def save_quote():
         user_id = 1
         qd = st.session_state.quote_data
         
-        # Get data from v3 sections
+        # Get data from v3 sections - handle v3 schema structure correctly
         quote_section = qd.get("quote", {})
-        project = quote_section.get("project", {})
 
         # Prepare payload using v3 structure
         payload = {
-            "quote_ref": quote_section.get("reference") or qd.get("quote_ref"),
-            "client_name": quote_section.get("client") or qd.get("client_name"),
-            "project_name": project.get("name") or qd.get("project_name"),
-            "project_location": project.get("location") or qd.get("project_location"),
+            "quote_ref": quote_section.get("reference") or qd.get("quote_ref", ""),
+            "client_name": quote_section.get("client") or qd.get("client_name", ""),
+            "project_name": quote_section.get("project") or qd.get("project_name", ""),  # v3: project is a string
+            "project_location": quote_section.get("location") or qd.get("project_location", ""),  # v3: location is a string
             "user_id": user_id,
             "quote_data": qd,
         }
