@@ -75,8 +75,9 @@ def _recompute_derived_totals_from_server(qd: dict) -> dict:
 def update_quote_totals(qd: dict) -> None:
 	"""Update the calculations.totals and component_totals sections based on current components, motor, and buyouts.
 	
-	This function calculates component_totals from individual component calculations
-	and updates the overall totals section.
+	This function prefers backend-calculated component_totals when available (backend is authoritative),
+	and only falls back to client-side calculation when backend data is missing or incomplete.
+	UI is responsible for adding motor and buyout totals to the backend component totals.
 	"""
 	if not isinstance(qd, dict):
 		return
@@ -84,37 +85,49 @@ def update_quote_totals(qd: dict) -> None:
 	calc_section = qd.get("calculations", {})
 	spec_section = qd.get("specification", {})
 	
-	# Calculate component totals from individual component calculations
-	components = calc_section.get("components", {})
+	# Check if backend has already provided authoritative component_totals
+	existing_component_totals = calc_section.get("component_totals", {})
+	backend_has_totals = (
+		existing_component_totals and 
+		existing_component_totals.get("final_price") is not None and
+		existing_component_totals.get("final_price") > 0
+	)
 	
-	total_length_mm = 0
-	total_mass_kg = 0
-	total_material_cost = 0
-	total_labour_cost = 0
-	subtotal_cost = 0
-	component_final_price = 0
-	
-	for comp_name, comp_data in components.items():
-		if not isinstance(comp_data, dict):
-			continue
-			
-		# Sum up the individual component values
-		total_length_mm += float(comp_data.get("total_length_mm", 0) or 0)
-		total_mass_kg += float(comp_data.get("real_mass_kg", 0) or 0)
-		total_material_cost += float(comp_data.get("material_cost", 0) or 0)
-		total_labour_cost += float(comp_data.get("labour_cost", 0) or 0)
-		subtotal_cost += float(comp_data.get("total_cost_before_markup", 0) or 0)
-		component_final_price += float(comp_data.get("total_cost_after_markup", 0) or 0)
-	
-	# Update component_totals section
-	calc_section.setdefault("component_totals", {}).update({
-		"total_length_mm": round(total_length_mm, 2),
-		"total_mass_kg": round(total_mass_kg, 6),
-		"total_labour_cost": round(total_labour_cost, 2),
-		"total_material_cost": round(total_material_cost, 2),
-		"subtotal_cost": round(subtotal_cost, 2),
-		"final_price": round(component_final_price, 2)
-	})
+	if backend_has_totals:
+		# Backend is authoritative - use its component calculations
+		component_final_price = float(existing_component_totals.get("final_price", 0))
+	else:
+		# Fallback: Calculate component totals from individual component calculations
+		components = calc_section.get("components", {})
+		
+		total_length_mm = 0
+		total_mass_kg = 0
+		total_material_cost = 0
+		total_labour_cost = 0
+		subtotal_cost = 0
+		component_final_price = 0
+		
+		for comp_name, comp_data in components.items():
+			if not isinstance(comp_data, dict):
+				continue
+				
+			# Sum up the individual component values
+			total_length_mm += float(comp_data.get("total_length_mm", 0) or 0)
+			total_mass_kg += float(comp_data.get("real_mass_kg", 0) or 0)
+			total_material_cost += float(comp_data.get("material_cost", 0) or 0)
+			total_labour_cost += float(comp_data.get("labour_cost", 0) or 0)
+			subtotal_cost += float(comp_data.get("total_cost_before_markup", 0) or 0)
+			component_final_price += float(comp_data.get("total_cost_after_markup", 0) or 0)
+		
+		# Update component_totals section only if backend didn't provide it
+		calc_section.setdefault("component_totals", {}).update({
+			"total_length_mm": round(total_length_mm, 2),
+			"total_mass_kg": round(total_mass_kg, 6),
+			"total_labour_cost": round(total_labour_cost, 2),
+			"total_material_cost": round(total_material_cost, 2),
+			"subtotal_cost": round(subtotal_cost, 2),
+			"final_price": round(component_final_price, 2)
+		})
 	
 	# Get motor total from motor calculation
 	motor_calc = calc_section.get("motor", {})
@@ -134,7 +147,7 @@ def update_quote_totals(qd: dict) -> None:
 				subtotal = float(unit_cost) * float(qty)
 			buyout_total += float(subtotal or 0)
 	
-	# Calculate grand total using the calculated component total
+	# Calculate grand total using the calculated component total (backend or client-side)
 	grand_total = component_final_price + motor_total + buyout_total
 	
 	# Update totals section

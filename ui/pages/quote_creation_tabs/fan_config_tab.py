@@ -310,7 +310,7 @@ def render_main_content():
         st.metric("Markup Applied", f"{markup_pct:.1f}%")
 
     st.divider()
-    st.caption("Provisional totals calculated from the component results currently in the UI. Press 'Recalculate server totals' before finalising to get authoritative values.")
+    st.caption("Provisional totals calculated from the component results currently in the UI. Backend calculations are automatically preferred when available.")
 
     # Per-component compact table for quick inspection
     if component_calcs:

@@ -603,6 +603,8 @@ def _build_v3_calculations_section(
     buyout_total = 0.0  # Buyouts are handled separately in the UI
     grand_total = component_total + motor_total + buyout_total
 
+    # Backend is the authoritative source for component calculations
+    # Always populate component_totals to avoid client-side calculation inconsistencies
     calculations_section = {
         "components": components,
         "component_totals": {
