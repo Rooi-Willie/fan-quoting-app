@@ -255,6 +255,74 @@ def render_main_content():
                 if st.button("View Saved Quotes"):
                     st.switch_page("pages/3_View_Existing_Quotes.py")
 
+def _convert_quote_data_for_api(qd: dict) -> dict:
+    """Convert UI quote data format to API-expected format"""
+    # Deep copy the quote data to avoid modifying the original
+    import copy
+    api_qd = copy.deepcopy(qd)
+    
+    # Convert components from string array to object array
+    spec = api_qd.get("specification", {})
+    if "components" in spec and isinstance(spec["components"], list):
+        # Get fan configuration to fetch available components
+        fan_config = spec.get("fan", {}).get("fan_configuration", {})
+        fan_config_id = fan_config.get("id")
+        
+        if fan_config_id:
+            try:
+                # Fetch available components for this fan
+                components_response = requests.get(f"{API_BASE_URL}/fans/{fan_config_id}/components")
+                if components_response.status_code == 200:
+                    available_components = components_response.json()
+                    name_to_id_map = {comp['name']: comp['id'] for comp in available_components}
+                    
+                    # Convert components to objects with proper IDs
+                    components_objects = []
+                    for component_name in spec["components"]:
+                        if isinstance(component_name, str):
+                            component_id = name_to_id_map.get(component_name)
+                            if component_id:
+                                components_objects.append({
+                                    "component_id": component_id,
+                                    "name": component_name
+                                })
+                        elif isinstance(component_name, dict):
+                            # Already in correct format
+                            components_objects.append(component_name)
+                    
+                    api_qd["specification"]["components"] = components_objects
+                else:
+                    # Fallback: use component names as IDs (might fail validation)
+                    components_objects = []
+                    for component_name in spec["components"]:
+                        if isinstance(component_name, str):
+                            components_objects.append({
+                                "component_id": component_name,
+                                "name": component_name
+                            })
+                        elif isinstance(component_name, dict):
+                            components_objects.append(component_name)
+                    
+                    api_qd["specification"]["components"] = components_objects
+                    
+            except Exception as e:
+                print(f"Error fetching component mapping: {e}")
+                # Fallback: use component names as IDs
+                components_objects = []
+                for component_name in spec["components"]:
+                    if isinstance(component_name, str):
+                        components_objects.append({
+                            "component_id": component_name,
+                            "name": component_name
+                        })
+                    elif isinstance(component_name, dict):
+                        components_objects.append(component_name)
+                
+                api_qd["specification"]["components"] = components_objects
+    
+    return api_qd
+
+
 def save_quote():
     """Save the current quote to the database using v3 schema"""
     try:
@@ -265,6 +333,9 @@ def save_quote():
         # Get data from v3 sections - handle v3 schema structure correctly
         quote_section = qd.get("quote", {})
 
+        # Convert quote data to API-expected format
+        api_quote_data = _convert_quote_data_for_api(qd)
+
         # Prepare payload using v3 structure
         payload = {
             "quote_ref": quote_section.get("reference") or qd.get("quote_ref", ""),
@@ -272,7 +343,7 @@ def save_quote():
             "project_name": quote_section.get("project") or qd.get("project_name", ""),  # v3: project is a string
             "project_location": quote_section.get("location") or qd.get("project_location", ""),  # v3: location is a string
             "user_id": user_id,
-            "quote_data": qd,
+            "quote_data": api_quote_data,
         }
         
         # Call v3 API endpoint
