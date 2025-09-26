@@ -104,8 +104,8 @@ def _extract_summary_from_v3_quote_data(qd: Dict[str, Any]) -> Dict[str, Any]:
     fan_size_mm = fan_config.get("fan_size_mm")
     blade_sets = fan_section.get("blade_sets")
 
-    # Components list
-    component_list = [comp.get("component_id") for comp in spec.get("components", []) if comp.get("component_id")]
+    # Components list - updated to use 'id' field in component objects
+    component_list = [comp.get("id") for comp in spec.get("components", []) if comp.get("id")]
 
     # Pricing info
     markup = pricing.get("markup_override")

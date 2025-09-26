@@ -79,7 +79,7 @@ def render_main_content():
     # Fan configuration in specification.fan (v3 schema - updated structure)
     fan_config = spec_section.setdefault("fan", {})
     
-    # Components in specification.components (v3 schema - simple array of names)
+    # Components in specification.components (v3 schema - array of objects with id and name)
     components_list = spec_section.setdefault("components", [])
     
     # Component overrides in pricing.overrides (v3 schema)
@@ -93,8 +93,9 @@ def render_main_content():
     available_components_list = get_available_components(fan_config_id)
     if available_components_list:
         ordered_available_names = [comp['name'] for comp in available_components_list]
-        # In v3, components_list is a simple array of component names
-        user_selected_names = components_list  # components_list is already a list of names
+        
+        # Extract component names from component objects
+        user_selected_names = [comp.get("name") for comp in components_list if isinstance(comp, dict) and "name" in comp]
         ordered_selected_components = [name for name in ordered_available_names if name in user_selected_names]
     else:
         ordered_selected_components = []

@@ -290,14 +290,19 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 	# In v3, overrides are in pricing.overrides, not component.overrides
 	overrides = pricing_section.get("overrides", {}) or {}
 	comp_list = []
-	for name in selected_components:
-		comp_id = name_to_id.get(name)
-		ov = overrides.get(name, {})
-		comp_list.append({
-			"component_id": comp_id,
-			"thickness_mm_override": ov.get("material_thickness_mm"),
-			"fabrication_waste_factor_override": (ov.get("fabrication_waste_pct") / 100.0) if ov.get("fabrication_waste_pct") is not None else None
-		})
+	
+	# Process component objects with id and name
+	for comp_item in selected_components:
+		comp_id = comp_item.get("id")
+		comp_name = comp_item.get("name")
+		
+		if comp_id and comp_name:
+			ov = overrides.get(comp_name, {})
+			comp_list.append({
+				"component_id": comp_id,
+				"thickness_mm_override": ov.get("material_thickness_mm"),
+				"fabrication_waste_factor_override": (ov.get("fabrication_waste_pct") / 100.0) if ov.get("fabrication_waste_pct") is not None else None
+			})
 
 	payload = {
 		"fan_configuration_id": int(fan_config_id),

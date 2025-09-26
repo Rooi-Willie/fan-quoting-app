@@ -144,8 +144,8 @@ def validate_v3_quote_data(qd: Dict[str, Any]) -> List[ValidationIssue]:
             for idx, comp in enumerate(components):
                 if not isinstance(comp, dict):
                     issues.append(ValidationIssue.make(f"/specification/components/{idx}", "type", "component must be object"))
-                elif "component_id" not in comp:
-                    issues.append(ValidationIssue.make(f"/specification/components/{idx}/component_id", "missing", "component_id is required"))
+                elif "id" not in comp:
+                    issues.append(ValidationIssue.make(f"/specification/components/{idx}/id", "missing", "id is required"))
 
     return issues
 

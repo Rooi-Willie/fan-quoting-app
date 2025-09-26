@@ -140,6 +140,41 @@ def get_available_components(fan_config_id: int) -> Optional[List[Dict]]:
         return None
 
 
+def _handle_component_selection():
+    """Handle component multiselect change - store components as objects with id and name."""
+    if "quote_data" not in st.session_state:
+        return
+    
+    selected_names = st.session_state.widget_fc_multiselect_components
+    qd = st.session_state.quote_data
+    
+    # Get current fan configuration to fetch available components with IDs
+    fan_config = st.session_state.get("current_fan_config")
+    if not fan_config:
+        return
+    
+    available_components = get_available_components(fan_config.get("id"))
+    if not available_components:
+        return
+    
+    # Create name to component mapping
+    name_to_component = {comp['name']: comp for comp in available_components}
+    
+    # Convert selected names to component objects
+    component_objects = []
+    for name in selected_names:
+        if name in name_to_component:
+            comp = name_to_component[name]
+            component_objects.append({
+                "id": comp["id"],
+                "name": comp["name"]
+            })
+    
+    # Store as objects in specification.components
+    spec = qd.setdefault("specification", {})
+    spec["components"] = component_objects
+
+
 def _handle_fan_id_change():
     """Handle fan UID selection change updating v3 schema."""
     # Ensure quote_data exists in v3 format
@@ -208,16 +243,20 @@ def _handle_fan_id_change():
     else:
         fan_node["blade_sets"] = None
 
-    # Auto-selected components
+    # Auto-selected components - store as objects with id and name
     auto_select_ids = selected_config.get('auto_selected_components', [])
-    comp_sel: List[str] = []
+    comp_objects = []
     if auto_select_ids:
         comps = get_available_components(selected_config.get('id'))
         if comps:
-            id_to_name = {c['id']: c['name'] for c in comps}
-            comp_sel = [id_to_name[i] for i in auto_select_ids if i in id_to_name]
+            id_to_component = {c['id']: c for c in comps}
+            comp_objects = [
+                {"id": comp_id, "name": id_to_component[comp_id]["name"]} 
+                for comp_id in auto_select_ids 
+                if comp_id in id_to_component
+            ]
     spec.setdefault("components", [])
-    spec["components"] = comp_sel
+    spec["components"] = comp_objects
 
 
 def recompute_all_components(request_func) -> None:
@@ -255,13 +294,12 @@ def recompute_all_components(request_func) -> None:
 	fan_config_id = fan_config.get("config_id")
 	markup_override = qd.get("pricing", {}).get("component_markup")
 	
-	# Get available components to map names to IDs
-	available = get_available_components(fan_config_id) if fan_config_id else []
-	id_map = {c['name']: c['id'] for c in available} if available else {}
-	
-	for comp_name in selected_components:
-		comp_id = id_map.get(comp_name)
-		if comp_id is None:
+	# Process component objects with id and name
+	for comp_item in selected_components:
+		comp_id = comp_item.get("id")
+		comp_name = comp_item.get("name")
+			
+		if comp_id is None or not comp_name:
 			continue
 			
 		# Get component overrides from pricing.overrides
@@ -382,9 +420,10 @@ def render_sidebar_widgets():
 				component_options = [c['name'] for c in comps]
 				is_disabled = False
 		
+		# Extract component names for multiselect from component objects
 		current_selection = spec.get("components", [])
-		valid_selection = [c for c in current_selection if c in component_options]
-		spec["components"] = valid_selection
+		current_names = [c.get("name") for c in current_selection if isinstance(c, dict) and "name" in c]
+		valid_selection = [c for c in current_names if c in component_options]
 
 		# Markup override number input (v3: pricing.component_markup)
 		st.number_input(
@@ -405,8 +444,7 @@ def render_sidebar_widgets():
 			options=component_options,
 			default=valid_selection,
 			key="widget_fc_multiselect_components",
-			on_change=update_quote_data_nested,
-			args=(["specification", "components"], "widget_fc_multiselect_components"),
+			on_change=_handle_component_selection,
 			help=(
 				"Select a Fan ID to populate this list. "
 				"If ordering matters it will be handled later in the component tab."
