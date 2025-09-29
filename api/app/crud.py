@@ -18,7 +18,7 @@ def _extract_summary_from_quote_data(qd: Dict[str, Any]) -> Dict[str, Any]:
     """
     if not isinstance(qd, dict):
         return {"fan_uid": None, "fan_size_mm": None, "blade_sets": None, "component_list": [],
-                "markup": None, "total_price": None, "motor_supplier": None, "motor_rated_output": None}
+                "component_markup": None, "motor_markup": None, "total_price": None, "motor_supplier": None, "motor_rated_output": None}
 
     fan = qd.get("fan", {}) or {}
     comps = qd.get("components", {}) or {}
@@ -78,7 +78,8 @@ def _extract_summary_from_quote_data(qd: Dict[str, Any]) -> Dict[str, Any]:
         "fan_size_mm": fan.get("config_size_mm"),
         "blade_sets": blade_sets,
         "component_list": component_list,
-        "markup": markup,
+        "component_markup": markup,
+        "motor_markup": None,  # v2 doesn't have separate motor markup
         "motor_supplier": motor_supplier,
         "motor_rated_output": motor_rated_output,
         "total_price": float(total_price),
@@ -88,7 +89,7 @@ def _extract_summary_from_v3_quote_data(qd: Dict[str, Any]) -> Dict[str, Any]:
     """Extract summary fields from v3 quote_data structure for database storage."""
     if not isinstance(qd, dict):
         return {"fan_uid": None, "fan_size_mm": None, "blade_sets": None, "component_list": [],
-                "markup": None, "total_price": None, "motor_supplier": None, "motor_rated_output": None}
+                "component_markup": None, "motor_markup": None, "total_price": None, "motor_supplier": None, "motor_rated_output": None}
 
     # Extract from v3 structure
     meta = qd.get("meta", {}) or {}
@@ -104,11 +105,12 @@ def _extract_summary_from_v3_quote_data(qd: Dict[str, Any]) -> Dict[str, Any]:
     fan_size_mm = fan_config.get("fan_size_mm")
     blade_sets = fan_section.get("blade_sets")
 
-    # Components list - updated to use 'id' field in component objects
-    component_list = [comp.get("id") for comp in spec.get("components", []) if comp.get("id")]
+    # Components list - updated to use 'name' field in component objects
+    component_list = [comp.get("name") for comp in spec.get("components", []) if comp.get("name")]
 
-    # Pricing info
-    markup = pricing.get("markup_override")
+    # Pricing info - extract both component and motor markup
+    component_markup = pricing.get("component_markup")
+    motor_markup = pricing.get("motor_markup")
     
     # Motor info from specification (new v3 structure)
     motor_section = spec.get("motor", {}) or {}
@@ -130,7 +132,8 @@ def _extract_summary_from_v3_quote_data(qd: Dict[str, Any]) -> Dict[str, Any]:
         "fan_size_mm": fan_size_mm,
         "blade_sets": blade_sets,
         "component_list": component_list,
-        "markup": markup,
+        "component_markup": component_markup,
+        "motor_markup": motor_markup,
         "motor_supplier": motor_supplier,
         "motor_rated_output": motor_rated_output,
         "total_price": total_price,

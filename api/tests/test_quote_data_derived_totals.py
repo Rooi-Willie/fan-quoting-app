@@ -17,8 +17,8 @@ def test_extract_summary_with_v3_schema():
                 "motor_details": {"supplier_name": "ACME", "rated_output": 55}
             },
             "components": [
-                {"component_id": "casing", "material_thickness_mm": 6},
-                {"component_id": "impeller", "material_thickness_mm": 4}
+                {"name": "casing", "material_thickness_mm": 6},
+                {"name": "impeller", "material_thickness_mm": 4}
             ],
             "buyouts": [
                 {"id": "b1", "description": "Crating", "unit_cost": 50.0, "qty": 2, "subtotal": 100.0},
@@ -26,7 +26,7 @@ def test_extract_summary_with_v3_schema():
             ]
         },
         "pricing": {
-            "markup_override": 1.4,
+            "component_markup": 1.4,
             "motor_markup": 1.2,
             "buy_out_items": []
         },
@@ -42,7 +42,8 @@ def test_extract_summary_with_v3_schema():
     assert summary["fan_size_mm"] == 1200
     assert summary["blade_sets"] == 12
     assert summary["component_list"] == ["casing", "impeller"]
-    assert summary["markup"] == 1.4
+    assert summary["component_markup"] == 1.4
+    assert summary["motor_markup"] == 1.2
     assert summary["motor_supplier"] == "ACME"
     assert summary["motor_rated_output"] == "55"
     assert summary["total_price"] == pytest.approx(1398.0)  # 368 + 900 + 130
@@ -78,7 +79,7 @@ def test_extract_summary_v3_buyout_calculation():
                 "mount_type": "Flange",
                 "motor_details": {"supplier_name": "ACME", "rated_output": 55}
             },
-            "components": [{"component_id": "casing"}]
+            "components": [{"name": "casing"}]
         },
         "pricing": {
             "motor_markup": 1.2,

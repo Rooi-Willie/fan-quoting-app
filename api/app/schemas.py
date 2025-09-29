@@ -263,7 +263,8 @@ class QuoteSummary(QuoteBase):
     fan_size_mm: Optional[int] = None
     blade_sets: Optional[int] = None
     component_list: Optional[List[str]] = None
-    markup: Optional[float] = None
+    component_markup: Optional[float] = None
+    motor_markup: Optional[float] = None
     motor_supplier: Optional[str] = None
     motor_rated_output: Optional[str] = None
     total_price: Optional[float] = None
