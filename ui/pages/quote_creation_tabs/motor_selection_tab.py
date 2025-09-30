@@ -29,20 +29,6 @@ def get_available_motors(available_kw: List[int], poles: Optional[int] = None) -
         st.error(f"API Error: Could not fetch available motors. {e}")
         return None
 
-@st.cache_data
-def get_global_settings() -> Optional[Dict]:
-    """
-    Fetches global settings from the API, including default markups.
-    Returns a dict of settings on success, or None on error.
-    """
-    try:
-        response = requests.get(f"{API_BASE_URL}/settings/global")
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        st.warning(f"Could not fetch global settings: {e}")
-        return None
-
 ## Local widget update helper removed (using common.update_quote_data_top_level_key)
 
 def render_main_content():
@@ -155,30 +141,26 @@ def render_main_content():
         motor_spec['mount_type'] = "Flange"
         motor_calc['base_price'] = selected_motor['flange_price']
 
-        # Default markup
-        global_settings = get_global_settings()
-        default_motor_markup = 1.0
-        if global_settings and "default_motor_markup" in global_settings:
-            try:
-                default_motor_markup = float(global_settings["default_motor_markup"])
-            except (ValueError, TypeError):
-                pass
+        # Get default motor markup from quote_data (already loaded from database in _new_v3_quote_data)
+        default_motor_markup = pricing_section.get("motor_markup", 1.2)  # Fallback to 1.2 if missing
 
         motor_markup_col1, motor_markup_col2 = st.columns([2, 1])
         with motor_markup_col1:
-            safe_existing_markup = pricing_section.get("motor_markup")
+            # Use existing motor markup from quote_data (loaded from database defaults)
+            current_motor_markup = pricing_section.get("motor_markup")
             try:
-                initial_markup_val = float(safe_existing_markup) if safe_existing_markup is not None else float(default_motor_markup)
+                initial_markup_val = float(current_motor_markup) if current_motor_markup is not None else float(default_motor_markup)
             except (TypeError, ValueError):
                 initial_markup_val = float(default_motor_markup)
+            
             motor_markup = st.number_input(
-                "Motor Markup Override",
+                "Motor Markup",
                 min_value=1.0,
                 value=initial_markup_val,
                 step=0.01,
                 format="%.2f",
                 key="widget_motor_markup_override",
-                help=f"Override the default markup ({default_motor_markup}) for the motor.",
+                help=f"Markup multiplier for motor pricing (default: {default_motor_markup:.2f} from database).",
             )
         with motor_markup_col2:
             motor_markup_percentage = (motor_markup - 1) * 100

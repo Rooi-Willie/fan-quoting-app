@@ -23,14 +23,51 @@ API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
 # --- Schema v3 Support ---
 NEW_SCHEMA_VERSION = 3
 
+def _fetch_default_markups() -> tuple[float, float]:
+    """Fetch default markup values from the global settings API.
+    
+    Returns:
+        tuple[float, float]: A tuple containing (component_markup, motor_markup)
+                           with fallback values if API call fails.
+    """
+    component_default = 1.0  # Fallback value
+    motor_default = 1.2      # Fallback value
+    
+    try:
+        resp = requests.get(f"{API_BASE_URL}/settings/global")
+        if resp.ok:
+            settings = resp.json()
+            # Get component markup from 'default_markup' key
+            if "default_markup" in settings:
+                try:
+                    component_default = float(settings["default_markup"])
+                except (TypeError, ValueError):
+                    pass  # Keep fallback value
+            
+            # Get motor markup from 'default_motor_markup' key
+            if "default_motor_markup" in settings:
+                try:
+                    motor_default = float(settings["default_motor_markup"])
+                except (TypeError, ValueError):
+                    pass  # Keep fallback value
+    except requests.exceptions.RequestException:
+        pass  # Keep fallback values
+    
+    return component_default, motor_default
+
 def _new_v3_quote_data(username: str | None = None) -> Dict:
     """Create a fresh v3 quote_data structure (Business Context schema).
 
     This replaces the v2 nested structure with a clean, organized v3 schema.
     No migration logic needed - new quotes start fresh with this structure.
+    Fetches default markup values from the global settings API.
     """
     import datetime as _dt
     ref_user = (username or "demo").split("@")[0]
+    
+    # Fetch default markup values from the API
+    component_markup, motor_markup = _fetch_default_markups()
+    
     return {
         "meta": {
             "version": NEW_SCHEMA_VERSION,
@@ -58,8 +95,8 @@ def _new_v3_quote_data(username: str | None = None) -> Dict:
             "buyouts": [],
         },
         "pricing": {
-            "component_markup": 1.0,
-            "motor_markup": 1.2,
+            "component_markup": component_markup,
+            "motor_markup": motor_markup,
             "overrides": {},
         },
         "calculations": {
@@ -218,21 +255,13 @@ def _handle_fan_id_change():
     })
     
     # No longer populate context.fan_configuration as it's moved to specification.fan.fan_configuration
-
-    # If no markup set yet, fetch default from global settings API
+    
+    # Ensure pricing section exists with defaults (should already be set from _new_v3_quote_data)
     pricing = qd.setdefault("pricing", {})
-    if pricing.get("component_markup") in (None, ""):
-        try:
-            resp = requests.get(f"{API_BASE_URL}/settings/global")
-            if resp.ok:
-                settings = resp.json()
-                default_markup = settings.get("default_markup")
-                try:
-                    pricing["component_markup"] = float(default_markup)
-                except (TypeError, ValueError):
-                    pricing.setdefault("component_markup", 1.0)
-        except Exception:
-            pricing.setdefault("component_markup", 1.0)
+    if "component_markup" not in pricing or pricing["component_markup"] is None:
+        # Fetch defaults if somehow missing (fallback safety)
+        component_markup, _ = _fetch_default_markups()
+        pricing["component_markup"] = component_markup
 
     available_blades = selected_config.get('available_blade_qtys', [])
     blades_str = [str(b) for b in available_blades]
@@ -425,17 +454,29 @@ def render_sidebar_widgets():
 		current_names = [c.get("name") for c in current_selection if isinstance(c, dict) and "name" in c]
 		valid_selection = [c for c in current_names if c in component_options]
 
-		# Markup override number input (v3: pricing.component_markup)
+		# Component markup number input (v3: pricing.component_markup)
+		# Get current markup value, ensuring it's a valid float
+		current_component_markup = pricing.get("component_markup")
+		if current_component_markup is None:
+			# Fallback: fetch from API if missing
+			current_component_markup, _ = _fetch_default_markups()
+			pricing["component_markup"] = current_component_markup
+		
+		try:
+			markup_value = float(current_component_markup)
+		except (TypeError, ValueError):
+			markup_value = 1.0  # Final fallback
+			
 		st.number_input(
-			"Markup Override",
+			"Component Markup",
 			min_value=1.0,
-			value=float(pricing.get("component_markup", 1.0)),
+			value=markup_value,
 			step=0.01,
 			format="%.2f",
 			key="widget_markup_override",
 			on_change=update_quote_data_nested,
 			args=(["pricing", "component_markup"], "widget_markup_override"),
-			help="Override the default markup for the selected components.",
+			help="Markup multiplier for component pricing (default loaded from database).",
 			disabled=is_disabled,
 		)
 		
