@@ -141,8 +141,8 @@ def _new_v3_quote_data(username: str | None = None) -> Dict:
         "context": {
             "rates_and_settings": {
                 "timestamp": _dt.datetime.utcnow().isoformat()+"Z",
-                "full_settings_data": rates_and_settings
-            } if rates_and_settings else {},
+                "full_settings_data": rates_and_settings if rates_and_settings else {}
+            },
         },
     }
 
