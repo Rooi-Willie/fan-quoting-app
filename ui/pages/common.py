@@ -55,6 +55,20 @@ def _fetch_default_markups() -> tuple[float, float]:
     
     return component_default, motor_default
 
+def _fetch_rates_and_settings() -> dict:
+    """Fetch current rates and settings from the API during quote initialization.
+    
+    Returns:
+        dict: A dictionary containing all rates and settings, or empty dict if API fails.
+    """
+    try:
+        resp = requests.get(f"{API_BASE_URL}/settings/rates-and-settings")
+        if resp.ok:
+            return resp.json()
+    except requests.exceptions.RequestException:
+        pass  # Return empty dict on error
+    return {}
+
 def _new_v3_quote_data(username: str | None = None) -> Dict:
     """Create a fresh v3 quote_data structure (Business Context schema).
 
@@ -67,6 +81,9 @@ def _new_v3_quote_data(username: str | None = None) -> Dict:
     
     # Fetch default markup values from the API
     component_markup, motor_markup = _fetch_default_markups()
+    
+    # Fetch rates and settings for context population
+    rates_and_settings = _fetch_rates_and_settings()
     
     return {
         "meta": {
@@ -122,7 +139,10 @@ def _new_v3_quote_data(username: str | None = None) -> Dict:
             },
         },
         "context": {
-            "rates_and_settings": {},
+            "rates_and_settings": {
+                "timestamp": _dt.datetime.utcnow().isoformat()+"Z",
+                "full_settings_data": rates_and_settings
+            } if rates_and_settings else {},
         },
     }
 

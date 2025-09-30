@@ -217,9 +217,16 @@ def _build_rates_snapshot(summary_payload: dict) -> dict:
 
 
 def fetch_rates_and_settings() -> dict:
-	"""Fetch current rates and settings from the API for context population."""
+	"""Fetch current rates and settings from the API for context population.
+	
+	Uses the /settings/rates-and-settings endpoint which includes:
+	- Global settings (markup defaults, etc.)
+	- Material costs and rates  
+	- Labor rates
+	- All consolidated settings for calculations
+	"""
 	try:
-		response = requests.get(f"{API_BASE_URL}/settings/global")
+		response = requests.get(f"{API_BASE_URL}/settings/rates-and-settings")
 		response.raise_for_status()
 		return response.json()
 	except requests.RequestException:
