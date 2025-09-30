@@ -148,9 +148,9 @@ with st.container():
     with fan_overview_cols[0]:
         st.markdown("**Fan Configuration**")
         config_id = fan_node.get("config_id") or fan_node.get("fan_configuration", {}).get("uid", "N/A")
-        st.markdown(f"• **<span style='color: #3b82f6; font-weight: bold;'>Configuration:</span>** {config_id}", unsafe_allow_html=True)
+        st.markdown(f"Configuration: <span style='color: #3b82f6; font-weight: bold;'>{config_id}</span>", unsafe_allow_html=True)
         blade_sets = str(fan_node.get("blade_sets") or "N/A")
-        st.markdown(f"• **Blade Sets:** {blade_sets}")
+        st.markdown(f"Blade sets: <span style='color: #10b981; font-weight: bold;'>{blade_sets}</span>", unsafe_allow_html=True)
         
     with fan_overview_cols[1]:
         st.markdown("**Fan Size**")
