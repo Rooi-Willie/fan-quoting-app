@@ -440,7 +440,7 @@ def render_sidebar_widgets():
 		st.divider()
 		st.subheader("Base Fan Parameters")
 		all_fan_configs = get_all_fan_configs()
-		fan_uid_options = ["--- Please select a Fan ID ---"]
+		fan_uid_options = ["--- Please select a Fan Configuration ---"]
 		if all_fan_configs:
 			sorted_configs = sorted(all_fan_configs, key=lambda c: c['fan_size_mm'])
 			fan_uid_options.extend([c['uid'] for c in sorted_configs])
@@ -450,7 +450,7 @@ def render_sidebar_widgets():
 		current_fan_uid = fan_node.get("uid")
 		fan_uid_idx = fan_uid_options.index(current_fan_uid) if current_fan_uid in fan_uid_options else 0
 		st.selectbox(
-			"Fan ID",
+			"Fan Configuration",
 			options=fan_uid_options,
 			index=fan_uid_idx,
 			key="widget_fc_fan_id",
