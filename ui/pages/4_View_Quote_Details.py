@@ -16,7 +16,7 @@ st.set_page_config(page_title=f"Quote Details - {APP_TITLE}", layout="wide")
 if not st.session_state.get("logged_in"):
     st.warning("Please log in first through the main Login page.")
     if st.button("Go to Login"):
-        st.switch_page("login_page.py")
+        st.switch_page("Login_Page.py")
     st.stop()
 
 # Check if we have a quote ID to view

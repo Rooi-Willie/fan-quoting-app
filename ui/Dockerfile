@@ -7,7 +7,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Remove this line for development
-COPY ./login_page.py /app/login_page.py 
+COPY ./Login_Page.py /app/Login_Page.py
 
 # Dont know if this should be added??
 # COPY ./.streamlit ./.streamlit
@@ -16,4 +16,4 @@ COPY ./login_page.py /app/login_page.py
 EXPOSE 8501
 
 # Command to run the application
-CMD ["streamlit", "run", "login_page.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "Login_Page.py", "--server.port=8501", "--server.address=0.0.0.0"]

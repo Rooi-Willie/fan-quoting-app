@@ -14,7 +14,7 @@ st.set_page_config(page_title=f"Home - {APP_TITLE}", layout="wide")
 if not st.session_state.get("logged_in"):
     st.warning("Please log in first through the main Login page.")
     if st.button("Go to Login"):
-        st.switch_page("login_page.py") # Path relative to the main app script
+        st.switch_page("Login_Page.py") # Path relative to the main app script
     st.stop()
 
 # --- Sidebar for Home Page ---
