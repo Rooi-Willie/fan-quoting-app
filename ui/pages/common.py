@@ -69,6 +69,42 @@ def _fetch_rates_and_settings() -> dict:
         pass  # Return empty dict on error
     return {}
 
+def initialize_session_state_from_quote_data(qd: dict) -> None:
+    """Initialize session state variables from loaded quote_data.
+    
+    This function is called when a quote is loaded for editing to ensure
+    all session state variables are properly populated from the quote_data.
+    
+    Args:
+        qd: The quote_data dictionary (v3 schema)
+    """
+    if not isinstance(qd, dict):
+        return
+    
+    # Extract sections
+    spec_section = qd.get("specification", {})
+    fan_section = spec_section.get("fan", {})
+    fan_config_data = fan_section.get("fan_configuration", {})
+    
+    # 1. Initialize current_fan_config from quote_data
+    if fan_config_data and isinstance(fan_config_data, dict):
+        st.session_state.current_fan_config = fan_config_data
+        
+        # Also verify the fan config exists in the API and get fresh data if needed
+        fan_id = fan_config_data.get("id")
+        if fan_id:
+            all_configs = get_all_fan_configs()
+            if all_configs:
+                matching_config = next((c for c in all_configs if c.get("id") == fan_id), None)
+                if matching_config:
+                    # Use the fresh API data but preserve any quote-specific overrides
+                    st.session_state.current_fan_config = matching_config
+    else:
+        st.session_state.current_fan_config = None
+    
+    # Note: We don't set widget values here as that causes conflicts
+    # Widgets will read their values from quote_data in render functions
+
 def _new_v3_quote_data(username: str | None = None) -> Dict:
     """Create a fresh v3 quote_data structure (Business Context schema).
 
@@ -447,7 +483,9 @@ def render_sidebar_widgets():
 		else:
 			st.caption("Could not load Fan IDs from API.")
 		
-		current_fan_uid = fan_node.get("uid")
+		# Get fan UID from fan_configuration or legacy uid field
+		fan_config_obj = fan_node.get("fan_configuration", {})
+		current_fan_uid = fan_config_obj.get("uid") if isinstance(fan_config_obj, dict) else fan_node.get("uid")
 		fan_uid_idx = fan_uid_options.index(current_fan_uid) if current_fan_uid in fan_uid_options else 0
 		st.selectbox(
 			"Fan Configuration",

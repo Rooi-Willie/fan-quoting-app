@@ -12,6 +12,7 @@ from pages.common import (
     render_sidebar_widgets,  # Shared sidebar renderer
     _new_v3_quote_data,
     NEW_SCHEMA_VERSION,
+    initialize_session_state_from_quote_data,
 )
 
 # Page Configuration
@@ -37,6 +38,10 @@ else:
     qd = st.session_state.quote_data
     if not isinstance(qd, dict) or qd.get("meta", {}).get("version") != NEW_SCHEMA_VERSION:
         st.session_state.quote_data = _new_v3_quote_data(st.session_state.get("username"))
+    else:
+        # If quote_data exists and is v3, initialize session state from it
+        # This handles the case where a quote was loaded for editing
+        initialize_session_state_from_quote_data(st.session_state.quote_data)
 
 # Ensure totals are calculated if component data exists
 from utils import update_quote_totals

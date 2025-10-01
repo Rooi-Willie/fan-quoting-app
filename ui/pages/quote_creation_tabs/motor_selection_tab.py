@@ -81,6 +81,16 @@ def render_main_content():
     motors_df = pd.DataFrame(motors_list)
     # Store the full dataframe in session state to access it after rerun on selection
     st.session_state.available_motors_df = motors_df
+    
+    # Check if a motor is already selected in quote_data (for loaded quotes)
+    existing_motor = motor_spec.get('motor_details')
+    if existing_motor and isinstance(existing_motor, dict):
+        existing_motor_id = existing_motor.get('id')
+        st.info(f"**Currently Selected Motor:** {existing_motor.get('supplier_name', 'Unknown')} - "
+                f"{existing_motor.get('rated_output', 'N/A')} kW, {existing_motor.get('poles', 'N/A')} poles, "
+                f"{existing_motor.get('speed', 'N/A')} RPM ({existing_motor.get('product_range', 'N/A')})")
+        st.caption("Select a different motor from the table below to change the selection, or keep the current motor.")
+        st.divider()
 
     # Prepare a user-friendly dataframe for display
     display_df = motors_df.copy()
