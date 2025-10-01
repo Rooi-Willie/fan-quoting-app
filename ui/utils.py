@@ -83,6 +83,8 @@ def update_quote_totals(qd: dict) -> None:
 	components (indicating UI changes after backend caching), falls back to UI calculation.
 	
 	Logs which calculation method (BACKEND or UI FALLBACK) is used for transparency and debugging.
+	
+	ENHANCED: Now called immediately when inputs change to prevent calculation lag.
 	"""
 	if not isinstance(qd, dict):
 		return

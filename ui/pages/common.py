@@ -169,6 +169,29 @@ def update_quote_data_nested(path: List[str], widget_sstate_key: str):
         cur = cur.setdefault(k, {})
     cur[path[-1]] = st.session_state[widget_sstate_key]
 
+def update_quote_data_with_recalc(path: List[str], widget_sstate_key: str):
+    """Enhanced updater that updates quote_data AND triggers immediate calculation refresh.
+    
+    This prevents the "one step behind" issue by ensuring calculations are updated
+    synchronously with UI input changes.
+    """
+    # First update the quote data
+    update_quote_data_nested(path, widget_sstate_key)
+    
+    # Immediately trigger calculation updates
+    if "quote_data" in st.session_state:
+        qd = st.session_state.quote_data
+        
+        # Import here to avoid circular imports
+        from utils import update_quote_totals, ensure_server_summary_up_to_date
+        
+        # Force server summary refresh if components exist
+        if qd.get("calculations", {}).get("components"):
+            ensure_server_summary_up_to_date(qd)
+        
+        # Update local totals immediately
+        update_quote_totals(qd)
+
 
 ## Legacy update_component_detail_from_widget_state removed (nested overrides used directly)
 
@@ -230,6 +253,22 @@ def _handle_component_selection():
     # Store as objects in specification.components
     spec = qd.setdefault("specification", {})
     spec["components"] = component_objects
+    
+    # ENHANCED: Clear calculations cache and trigger immediate recalculation
+    # This prevents stale totals when components are added/removed
+    calculations = qd.setdefault("calculations", {})
+    
+    # Clear component calculations that are no longer selected
+    if "components" in calculations:
+        selected_names_set = set(selected_names)
+        calculations["components"] = {
+            name: calc_data for name, calc_data in calculations["components"].items()
+            if name in selected_names_set
+        }
+    
+    # Trigger immediate total recalculation
+    from utils import update_quote_totals
+    update_quote_totals(qd)
 
 
 def _handle_fan_id_change():
@@ -494,7 +533,7 @@ def render_sidebar_widgets():
 			step=0.01,
 			format="%.2f",
 			key="widget_markup_override",
-			on_change=update_quote_data_nested,
+			on_change=update_quote_data_with_recalc,
 			args=(["pricing", "component_markup"], "widget_markup_override"),
 			help="Markup multiplier for component pricing (default loaded from database).",
 			disabled=is_disabled,
@@ -518,6 +557,9 @@ def render_sidebar_widgets():
 			current_markup = pricing.get("component_markup", 1.0)
 			pricing["component_markup"] = current_markup + 0.01
 			ensure_server_summary_up_to_date(qd)
+			# ENHANCED: Update totals immediately to prevent lag
+			from utils import update_quote_totals
+			update_quote_totals(qd)
 			st.rerun()
 		
 		# Ensure totals are calculated if component data exists

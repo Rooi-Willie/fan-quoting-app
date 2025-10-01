@@ -235,6 +235,11 @@ def render_main_content():
                         get_component_details.clear()
                         recompute_all_components(get_component_details)
                         ensure_server_summary_up_to_date(qd)
+                        
+                        # ENHANCED: Update totals immediately before rerun to prevent lag
+                        from utils import update_quote_totals
+                        update_quote_totals(qd)
+                        
                         # Force UI refresh to show updated calculations
                         st.rerun()
                 else:

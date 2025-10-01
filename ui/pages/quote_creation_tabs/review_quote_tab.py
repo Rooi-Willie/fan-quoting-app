@@ -73,6 +73,10 @@ def render_main_content():
 
     # Auto-refresh authoritative server totals when inputs change
     ensure_server_summary_up_to_date(qd)
+    
+    # ENHANCED: Ensure local totals are immediately updated to prevent display lag
+    from utils import update_quote_totals
+    update_quote_totals(qd)
 
     # Fan Component Cost & Mass Summary (DataFrame only)
     st.subheader("Fan Component Cost & Mass Summary")

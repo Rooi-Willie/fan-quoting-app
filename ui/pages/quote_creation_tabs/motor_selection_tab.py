@@ -175,11 +175,11 @@ def render_main_content():
             marked_up_price = base_price * motor_markup
             motor_calc['final_price'] = marked_up_price
             
-            # If markup changed, ensure session state is synchronized and update totals
+            # ENHANCED: Update totals immediately when markup changes to prevent lag
             if markup_changed:
                 from utils import update_quote_totals
-                update_quote_totals(qd)
-                st.session_state.quote_data = qd
+                st.session_state.quote_data = qd  # Sync session state first
+                update_quote_totals(qd)  # Calculate totals immediately
                 st.rerun()
                 
             price_cols = st.columns(2)
