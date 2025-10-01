@@ -4,7 +4,7 @@ import datetime
 import json
 import os
 from config import APP_TITLE
-from pages.common import _new_v3_quote_data
+from common import _new_v3_quote_data
 
 # API_BASE_URL should be configured, e.g., via environment variable
 # Fallback is provided for local development.

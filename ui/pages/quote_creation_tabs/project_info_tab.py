@@ -1,5 +1,5 @@
 import streamlit as st
-from pages.common import NEW_SCHEMA_VERSION
+from common import NEW_SCHEMA_VERSION
 
 def render_main_content():
     st.header("1. Project Information")

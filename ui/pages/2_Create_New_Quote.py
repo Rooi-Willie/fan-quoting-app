@@ -8,7 +8,7 @@ from pages.quote_creation_tabs import (
     buyout_items_tab,
     review_quote_tab
 )
-from pages.common import (
+from common import (
     render_sidebar_widgets,  # Shared sidebar renderer
     _new_v3_quote_data,
     NEW_SCHEMA_VERSION,

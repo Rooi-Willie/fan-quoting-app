@@ -1,6 +1,6 @@
 import streamlit as st
 from config import CURRENCY_SYMBOL
-from pages.common import _new_v3_quote_data, NEW_SCHEMA_VERSION
+from common import _new_v3_quote_data, NEW_SCHEMA_VERSION
 
 def render_main_content():
     st.header("4. Buy-out Items / Additional Costs")

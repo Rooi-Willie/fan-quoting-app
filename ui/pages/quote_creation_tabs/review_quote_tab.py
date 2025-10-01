@@ -4,7 +4,7 @@ import os
 import requests
 from config import CURRENCY_SYMBOL
 from utils import ensure_server_summary_up_to_date, build_summary_dataframe
-from pages.common import _new_v3_quote_data
+from common import _new_v3_quote_data
 
 # API_BASE_URL should be configured, e.g., via environment variable
 # Fallback is provided for local development.

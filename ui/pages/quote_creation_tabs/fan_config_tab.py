@@ -5,8 +5,8 @@ from typing import Optional, List, Dict
 import requests
 from config import COMPONENT_ORDER, COMPONENT_IMAGES, ROW_DEFINITIONS, IMAGE_FOLDER_PATH, CURRENCY_SYMBOL
 from utils import ensure_server_summary_up_to_date, build_summary_dataframe
-from pages.common import recompute_all_components
-from pages.common import (
+from common import recompute_all_components
+from common import (
     get_available_components,
     get_all_fan_configs,
 )
