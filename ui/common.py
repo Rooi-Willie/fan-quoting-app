@@ -582,25 +582,15 @@ def render_sidebar_widgets():
 			options=component_options,
 			default=valid_selection,
 			key="widget_fc_multiselect_components",
-			on_change=_handle_component_selection,
-			help=(
-				"Select a Fan ID to populate this list. "
-				"If ordering matters it will be handled later in the component tab."
-			),
-			disabled=is_disabled,
-		)
-		
-		st.divider()
-		if st.button("Test Direct Markup Update"):
-			current_markup = pricing.get("component_markup", 1.0)
-			pricing["component_markup"] = current_markup + 0.01
-			ensure_server_summary_up_to_date(qd)
-			# ENHANCED: Update totals immediately to prevent lag
-			from utils import update_quote_totals
-			update_quote_totals(qd)
-			st.rerun()
-		
-		# Ensure totals are calculated if component data exists
-		from utils import update_quote_totals
-		if qd.get("calculations", {}).get("components"):
-			update_quote_totals(qd)
+		on_change=_handle_component_selection,
+		help=(
+			"Select a Fan ID to populate this list. "
+			"If ordering matters it will be handled later in the component tab."
+		),
+		disabled=is_disabled,
+	)
+	
+	# Ensure totals are calculated if component data exists
+	from utils import update_quote_totals
+	if qd.get("calculations", {}).get("components"):
+		update_quote_totals(qd)

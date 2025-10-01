@@ -334,30 +334,5 @@ def render_main_content():
         styler = build_summary_dataframe(rows, CURRENCY_SYMBOL)
         st.write(styler)
 
-    # Action to explicitly request authoritative server totals (using shared helper)
-    recalc_col1, recalc_col2 = st.columns([1, 3])
-    with recalc_col1:
-        if st.button("Recalculate server totals"):
-            ensure_server_summary_up_to_date(qd)
-            if st.session_state.get("server_summary"):
-                st.success("Server totals updated.")
-            else:
-                st.warning("Could not update server totals. Check API logs.")
-    with recalc_col2:
-        st.caption("Use this to fetch server-calculated totals (recommended before finalising).")
-
-    # Status block for Stage 4 persistence keys
-    calc_node = qd.get("calculation", {}) or {}
-    status_cols = st.columns(3)
-    with status_cols[0]:
-        st.caption("server_summary")
-        st.write("✅" if calc_node.get("server_summary") else "❌")
-    with status_cols[1]:
-        st.caption("derived_totals")
-        st.write("✅" if calc_node.get("derived_totals") else "❌")
-    with status_cols[2]:
-        st.caption("rates_and_settings_used")
-        st.write("✅" if calc_node.get("rates_and_settings_used") else "❌")
-
     with st.expander("View Raw Calculation Results"):
         st.json(component_calcs)
