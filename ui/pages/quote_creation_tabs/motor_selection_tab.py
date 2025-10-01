@@ -82,13 +82,38 @@ def render_main_content():
     # Store the full dataframe in session state to access it after rerun on selection
     st.session_state.available_motors_df = motors_df
     
+    # Check if user has made a new selection from the table
+    has_new_selection = bool(st.session_state.get("motor_selection_df", {}).get("selection", {}).get("rows"))
+    
     # Check if a motor is already selected in quote_data (for loaded quotes)
+    # Only show this if there's NO new selection from the table
     existing_motor = motor_spec.get('motor_details')
-    if existing_motor and isinstance(existing_motor, dict):
+    if existing_motor and isinstance(existing_motor, dict) and not has_new_selection:
         existing_motor_id = existing_motor.get('id')
+        
+        # Get motor pricing information
+        motor_base_price = motor_calc.get('base_price', 0)
+        motor_final_price = motor_calc.get('final_price', 0)
+        current_motor_markup = pricing_section.get('motor_markup', 1.0)
+        currency = existing_motor.get('currency', 'ZAR')
+        
+        # Display motor information
         st.info(f"**Currently Selected Motor:** {existing_motor.get('supplier_name', 'Unknown')} - "
                 f"{existing_motor.get('rated_output', 'N/A')} kW, {existing_motor.get('poles', 'N/A')} poles, "
                 f"{existing_motor.get('speed', 'N/A')} RPM ({existing_motor.get('product_range', 'N/A')})")
+        
+        # Display pricing information on a new line with proper formatting
+        price_cols = st.columns(3)
+        with price_cols[0]:
+            markup_percentage = (float(current_motor_markup) - 1.0) * 100
+            st.metric("Motor Markup", f"{markup_percentage:.1f}%")
+        
+        with price_cols[1]:
+            st.metric("Base Price", f"{currency} {float(motor_base_price):,.2f}")
+        
+        with price_cols[2]:
+            st.metric("Final Price", f"{currency} {float(motor_final_price):,.2f}")
+        
         st.caption("Select a different motor from the table below to change the selection, or keep the current motor.")
         st.divider()
 
