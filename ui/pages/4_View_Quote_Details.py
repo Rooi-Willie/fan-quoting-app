@@ -5,6 +5,7 @@ import json
 import os
 from config import APP_TITLE
 from common import _new_v3_quote_data
+from export_utils import generate_docx, generate_filename
 
 # API_BASE_URL should be configured, e.g., via environment variable
 # Fallback is provided for local development.
@@ -486,8 +487,30 @@ with action_cols[0]:
         st.session_state.quote_data = quote_data
         st.switch_page("pages/2_Create_New_Quote.py")
     
-    if st.button("📄 Generate PDF", use_container_width=True):
-        st.info("PDF generation functionality will be implemented")
+    # Download Word Document button
+    try:
+        docx_bytes = generate_docx(quote_data)
+        filename = generate_filename(quote_data, extension="docx")
+        
+        st.download_button(
+            label="📄 Download Word Document",
+            data=docx_bytes,
+            file_name=filename,
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            use_container_width=True,
+        )
+    except FileNotFoundError as e:
+        if st.button("📄 Download Word Document", use_container_width=True, disabled=True):
+            pass
+        st.error(f"Template not found. Please ensure quote_template.docx is in ui/templates/")
+    except Exception as e:
+        if st.button("📄 Download Word Document", use_container_width=True, disabled=True):
+            pass
+        st.error(f"Error: {str(e)}")
+    
+    # PDF placeholder button
+    if st.button("📄 Download PDF (Coming Soon)", use_container_width=True, disabled=True):
+        st.info("PDF export functionality will be implemented in a future update.")
 
 with action_cols[1]:
     st.markdown("**Status**")

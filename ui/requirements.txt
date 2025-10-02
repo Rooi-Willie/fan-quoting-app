@@ -2,3 +2,6 @@ streamlit>=1.11.0
 requests
 pandas # If UI also needs pandas for display
 python-dotenv
+docxtpl  # For Word document template processing
+python-docx  # For Word document manipulation
+pytz  # For timezone handling in export utilities

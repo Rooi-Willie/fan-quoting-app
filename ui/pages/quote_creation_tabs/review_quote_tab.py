@@ -5,6 +5,7 @@ import requests
 from config import CURRENCY_SYMBOL
 from utils import ensure_server_summary_up_to_date, build_summary_dataframe
 from common import _new_v3_quote_data
+from export_utils import generate_docx, generate_filename
 
 # API_BASE_URL should be configured, e.g., via environment variable
 # Fallback is provided for local development.
@@ -242,17 +243,39 @@ def render_main_content():
     st.table(styled_df)
 
     st.divider()
-    col1, col2 = st.columns(2)
     
-    with col1:
-        # Existing Generate PDF button
-        if st.button("📄 Generate Quote Document", use_container_width=True):
-            st.success("Quote document generation logic would be triggered here!")
-            st.balloons()
+    # Export and Save buttons
+    st.subheader("Export & Save Quote")
     
-    with col2:
-        # New Save Quote button
-        if st.button("💾 Save Quote", use_container_width=True):
+    export_col1, export_col2, export_col3 = st.columns(3)
+    
+    with export_col1:
+        # Download DOCX button
+        try:
+            docx_bytes = generate_docx(qd)
+            filename = generate_filename(qd, extension="docx")
+            
+            st.download_button(
+                label="📄 Download Word Document",
+                data=docx_bytes,
+                file_name=filename,
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                use_container_width=True,
+            )
+        except FileNotFoundError as e:
+            st.error(f"Template not found: {str(e)}")
+            st.info("Please ensure quote_template.docx is in the ui/templates/ directory.")
+        except Exception as e:
+            st.error(f"Error generating Word document: {str(e)}")
+    
+    with export_col2:
+        # PDF placeholder button
+        if st.button("📄 Download PDF (Coming Soon)", use_container_width=True, disabled=True):
+            st.info("PDF export functionality will be implemented in a future update.")
+    
+    with export_col3:
+        # Save Quote button
+        if st.button("💾 Save Quote", use_container_width=True, type="primary"):
             if save_quote():
                 st.success("Quote saved successfully!")
                 # Add option to view the quote or continue editing
