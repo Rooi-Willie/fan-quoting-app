@@ -29,3 +29,21 @@ def read_motors(
     """
     motors = crud.get_motors(db=db, available_kw=available_kw, poles=poles, supplier=supplier)
     return motors
+
+
+@router.get("/supplier-discount/{supplier_name}", response_model=Optional[schemas.MotorSupplierDiscount])
+def read_motor_supplier_discount(
+    supplier_name: str,
+    db: Session = Depends(get_db),
+    effective_date: Optional[str] = Query(None, description="Optional effective date in ISO format (YYYY-MM-DD)")
+):
+    """
+    Retrieve the most recent active discount for a motor supplier.
+    
+    - **supplier_name**: The name of the motor supplier
+    - **effective_date**: Optional date to query historical discounts (defaults to current date)
+    
+    Returns the discount percentage and details, or null if no discount exists.
+    """
+    discount = crud.get_motor_supplier_discount(db=db, supplier_name=supplier_name, effective_date=effective_date)
+    return discount

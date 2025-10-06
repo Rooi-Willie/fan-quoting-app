@@ -1,0 +1,2 @@
+supplier_name,discount_percentage,date_effective,currency,notes,is_active
+Actom,70.00,2023-01-01,ZAR,Standard corporate discount,TRUE

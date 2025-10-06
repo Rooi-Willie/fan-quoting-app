@@ -2,7 +2,7 @@
 # directly to your database tables. Each class represents a table, and instances
 # of that class represent rows in that table.
 import enum
-from sqlalchemy import (ARRAY, Column, Date, DateTime, ForeignKey, Integer, Numeric,
+from sqlalchemy import (ARRAY, Boolean, Column, Date, DateTime, ForeignKey, Integer, Numeric,
                         SmallInteger, String, Enum as SQLAlchemyEnum, Text, UniqueConstraint)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship, backref
@@ -97,6 +97,24 @@ class MotorPrice(Base):
     motor = relationship("Motor", back_populates="prices")
 
     __table_args__ = (UniqueConstraint('motor_id', 'date_effective', name='_motor_price_uc'),)
+
+
+class MotorSupplierDiscount(Base):
+    """
+    Represents supplier-specific discount rates for motors.
+    Maps to the 'motor_supplier_discounts' table.
+    """
+    __tablename__ = "motor_supplier_discounts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    supplier_name = Column(String(100), nullable=False)
+    discount_percentage = Column(Numeric(5, 2), nullable=False, comment="Discount percentage (e.g., 5.00 for 5%)")
+    date_effective = Column(Date, nullable=False)
+    currency = Column(String(3), default="ZAR")
+    notes = Column(Text)
+    is_active = Column(Boolean, default=True, comment="True for active, False for inactive")
+
+    __table_args__ = (UniqueConstraint('supplier_name', 'date_effective', name='_supplier_discount_uc'),)
 
 
 # --- Models for Calculation Engine ---

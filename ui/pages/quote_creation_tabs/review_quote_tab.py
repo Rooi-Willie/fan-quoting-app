@@ -61,6 +61,16 @@ def render_main_content():
         with col3:
             base_price = motor_calc.get('base_price') or motor.get('price_total', 0)
             st.markdown(f"**Base Price:** {CURRENCY_SYMBOL} {float(base_price or 0):,.2f}")
+            
+            # Show supplier discount
+            discount_data = pricing_section.get('motor_supplier_discount', {})
+            supplier_discount = discount_data.get('applied_discount', 0.0)
+            if supplier_discount > 0:
+                discount_multiplier = 1.0 - (supplier_discount / 100.0)
+                discounted_price = float(base_price or 0) * discount_multiplier
+                st.markdown(f"**Supplier Discount:** {supplier_discount:.2f}% ({discount_data.get('notes', '')})")
+                st.markdown(f"**After Discount:** {CURRENCY_SYMBOL} {discounted_price:,.2f}")
+            
             motor_markup = float(pricing_section.get('motor_markup') or 1.0)
             motor_markup_pct = (motor_markup - 1) * 100
             st.markdown(f"**Markup Applied:** {motor_markup:.2f} ({motor_markup_pct:.1f}%)")

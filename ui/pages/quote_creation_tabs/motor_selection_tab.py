@@ -157,6 +157,7 @@ def render_main_content():
 
     # --- 4. Handle the selection and finalize ---
     selection = st.session_state.get("motor_selection_df", {}).get("selection", {})
+    
     if selection.get("rows"):
         selected_index = selection["rows"][0]
         selected_motor = st.session_state.available_motors_df.iloc[selected_index]
@@ -165,16 +166,95 @@ def render_main_content():
             f"**Selected Motor:**   {selected_motor['supplier_name']} - {selected_motor['rated_output']} kW, {selected_motor['poles']} poles, {selected_motor['speed']} RPM ({selected_motor['product_range']})"
         )
 
+        # Track current supplier for change detection
+        new_supplier = selected_motor['supplier_name']
+        old_supplier = st.session_state.get('last_confirmed_motor_supplier', None)
+        
+        # Update session state to track this supplier for next selection
+        if old_supplier != new_supplier:
+            st.session_state['last_confirmed_motor_supplier'] = new_supplier
+        
         # Store the full motor details in v3 structure (renamed from 'selection' to 'motor_details')
         motor_spec['motor_details'] = selected_motor.to_dict()
-        
-        # No longer populate context.motor_details as it's moved to specification.motor.motor_details
 
         # Fixed to Flange mount for now
         st.caption("Foot mount option is currently unavailable.")
         st.divider()
         motor_spec['mount_type'] = "Flange"
         motor_calc['base_price'] = selected_motor['flange_price']
+
+        # ========== MOTOR SUPPLIER DISCOUNT WIDGET ==========
+        st.subheader("Motor Supplier Discount")
+        
+        @st.cache_data(ttl=300)  # Cache for 5 minutes
+        def fetch_supplier_discount(supplier: str) -> float:
+            """Fetch motor supplier discount from API."""
+            try:
+                response = requests.get(f"{API_BASE_URL}/motors/supplier-discount/{supplier}")
+                if response.status_code == 200:
+                    data = response.json()
+                    if data:
+                        return float(data.get('discount_percentage', 0.0))
+            except Exception as e:
+                st.error(f"Error fetching supplier discount: {e}")
+            return 0.0
+        
+        # Fetch default discount for current supplier
+        default_discount = fetch_supplier_discount(new_supplier)
+        
+        # Get current discount data from quote_data
+        discount_data = pricing_section.setdefault('motor_supplier_discount', {
+            "supplier_name": None,
+            "discount_percentage": 0.0,
+            "is_override": False,
+            "applied_discount": 0.0,
+            "notes": ""
+        })
+        
+        # If supplier changed, reset discount to default for new supplier
+        if discount_data.get('supplier_name') != new_supplier:
+            discount_data['supplier_name'] = new_supplier
+            discount_data['discount_percentage'] = default_discount
+            discount_data['is_override'] = False
+            discount_data['applied_discount'] = default_discount
+            discount_data['notes'] = "Default supplier discount"
+        
+        # Get current applied discount (user may have overridden)
+        current_discount = discount_data.get('applied_discount', default_discount)
+        
+        # CRITICAL: Use supplier-specific widget key to force reset when supplier changes
+        widget_key = f"widget_motor_supplier_discount_{new_supplier}"
+        
+        discount_col1, discount_col2 = st.columns([2, 1])
+        with discount_col1:
+            discount_percentage = st.number_input(
+                "Supplier Discount (%)",
+                min_value=0.0,
+                max_value=100.0,
+                value=float(current_discount),
+                step=0.5,
+                format="%.2f",
+                key=widget_key,
+                help=f"Default discount for {new_supplier}: {default_discount:.2f}%. You can override this value."
+            )
+        with discount_col2:
+            is_override = abs(discount_percentage - default_discount) > 0.01
+            discount_type = "Override" if is_override else "Default"
+            st.metric("Discount Type", discount_type)
+        
+        # Update discount data based on user input
+        discount_changed = discount_data.get('applied_discount') != discount_percentage
+        
+        discount_data['discount_percentage'] = default_discount
+        discount_data['is_override'] = is_override
+        discount_data['applied_discount'] = discount_percentage
+        if is_override:
+            discount_data['notes'] = f"User override: {discount_percentage}% (default: {default_discount}%)"
+        else:
+            discount_data['notes'] = f"Default supplier discount"
+        
+        st.divider()
+        # ========== END MOTOR SUPPLIER DISCOUNT WIDGET ==========
 
         # Get default motor markup from quote_data (already loaded from database in _new_v3_quote_data)
         default_motor_markup = pricing_section.get("motor_markup", 1.2)  # Fallback to 1.2 if missing
@@ -207,21 +287,30 @@ def render_main_content():
 
         if pd.notna(motor_calc.get('base_price')):
             base_price = float(motor_calc['base_price'])
-            marked_up_price = base_price * motor_markup
-            motor_calc['final_price'] = marked_up_price
             
-            # ENHANCED: Update totals immediately when markup changes to prevent lag
-            if markup_changed:
+            # Apply supplier discount BEFORE markup
+            discount_multiplier = 1.0 - (discount_percentage / 100.0)
+            discounted_price = base_price * discount_multiplier
+            
+            # Apply markup to discounted price
+            final_price = discounted_price * motor_markup
+            motor_calc['final_price'] = final_price
+            
+            # ENHANCED: Update totals immediately when markup or discount changes to prevent lag
+            if markup_changed or discount_changed:
                 from utils import update_quote_totals
                 st.session_state.quote_data = qd  # Sync session state first
                 update_quote_totals(qd)  # Calculate totals immediately
                 st.rerun()
                 
-            price_cols = st.columns(2)
+            price_cols = st.columns(3)
             with price_cols[0]:
                 st.metric("Base Motor Price", f"{selected_motor['currency']} {base_price:,.2f}")
             with price_cols[1]:
-                st.metric("Final Motor Price (after markup)", f"{selected_motor['currency']} {marked_up_price:,.2f}")
+                st.metric("After Discount", f"{selected_motor['currency']} {discounted_price:,.2f}", 
+                         delta=f"-{discount_percentage:.1f}%")
+            with price_cols[2]:
+                st.metric("Final Price (after markup)", f"{selected_motor['currency']} {final_price:,.2f}")
         else:
             st.metric("Final Motor Price", "N/A")
 

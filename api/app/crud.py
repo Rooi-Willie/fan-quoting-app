@@ -215,6 +215,42 @@ def get_motors(db: Session, available_kw: Optional[List[int]] = None, poles: Opt
     return motors_with_prices
 
 
+def get_motor_supplier_discount(db: Session, supplier_name: str, effective_date: Optional[str] = None) -> Optional[schemas.MotorSupplierDiscount]:
+    """
+    Retrieve the most recent active discount for a motor supplier.
+    
+    Args:
+        db: Database session
+        supplier_name: Name of the motor supplier
+        effective_date: Optional date string (ISO format) to query historical discounts.
+                       If None, uses current date.
+    
+    Returns:
+        MotorSupplierDiscount schema or None if no discount found
+    """
+    from datetime import datetime
+    
+    if effective_date:
+        query_date = datetime.fromisoformat(effective_date).date()
+    else:
+        query_date = datetime.now().date()
+    
+    # Query for the most recent discount that:
+    # 1. Matches the supplier name (case-insensitive)
+    # 2. Is active
+    # 3. Has an effective date on or before the query date
+    discount = db.query(models.MotorSupplierDiscount)\
+        .filter(models.MotorSupplierDiscount.supplier_name.ilike(supplier_name))\
+        .filter(models.MotorSupplierDiscount.is_active == True)\
+        .filter(models.MotorSupplierDiscount.date_effective <= query_date)\
+        .order_by(models.MotorSupplierDiscount.date_effective.desc())\
+        .first()
+    
+    if discount:
+        return schemas.MotorSupplierDiscount.model_validate(discount)
+    return None
+
+
 # ======================= CALCULATION DATA CRUD ========================
 
 def get_materials(db: Session) -> List[models.Material]:

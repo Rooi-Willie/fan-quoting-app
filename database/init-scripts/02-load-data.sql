@@ -10,6 +10,9 @@ INSERT INTO motors ( supplier_name, product_range, part_number, poles, rated_out
 INSERT INTO motor_prices ( motor_id, date_effective, foot_price, flange_price, currency ) SELECT m.id, s.date_effective, s.foot_price, s.flange_price, s.currency FROM motors_staging s JOIN motors m ON s.supplier_name = m.supplier_name AND s.product_range = m.product_range AND s.poles = m.poles AND s.rated_output = m.rated_output AND s.speed = m.speed AND (s.frame_size = m.frame_size OR (s.frame_size IS NULL AND m.frame_size IS NULL));
 DROP TABLE motors_staging;
 
+-- Load motor supplier discounts
+COPY motor_supplier_discounts(supplier_name, discount_percentage, date_effective, currency, notes, is_active) FROM '/csv_data/motor_supplier_discounts.csv' WITH (FORMAT csv, HEADER true);
+
 -- Load quoting logic data
 COPY fan_configurations (
     uid,

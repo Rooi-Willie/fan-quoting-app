@@ -6,6 +6,7 @@ DROP TABLE IF EXISTS component_parameters;
 DROP TABLE IF EXISTS global_settings;
 DROP TABLE IF EXISTS components;
 DROP TABLE IF EXISTS fan_configurations;
+DROP TABLE IF EXISTS motor_supplier_discounts;
 DROP TABLE IF EXISTS motor_prices;
 DROP TABLE IF EXISTS motors_staging;
 DROP TABLE IF EXISTS motors;
@@ -55,6 +56,16 @@ CREATE TABLE motor_prices (
     flange_price NUMERIC(12, 2), 
     currency VARCHAR(3) DEFAULT 'ZAR', 
     UNIQUE(motor_id, date_effective) 
+);
+CREATE TABLE motor_supplier_discounts (
+    id SERIAL PRIMARY KEY,
+    supplier_name VARCHAR(100) NOT NULL,
+    discount_percentage NUMERIC(5, 2) NOT NULL,
+    date_effective DATE NOT NULL,
+    currency VARCHAR(3) DEFAULT 'ZAR',
+    notes TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    UNIQUE(supplier_name, date_effective)
 );
 CREATE TABLE motors_staging (
     supplier_name VARCHAR(100),

@@ -93,6 +93,21 @@ class MotorWithLatestPrice(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class MotorSupplierDiscount(BaseModel):
+    """
+    Schema for representing a motor supplier discount.
+    """
+    id: int
+    supplier_name: str
+    discount_percentage: float
+    date_effective: date
+    currency: Optional[str] = None
+    notes: Optional[str] = None
+    is_active: Optional[bool] = True
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class FanConfiguration(BaseModel):
     """
     Schema for representing a fan configuration in API responses.
@@ -142,6 +157,7 @@ class QuoteRequest(BaseModel):
     components: List[ComponentQuoteRequest]
     markup_override: Optional[float] = None
     motor_markup_override: Optional[float] = None
+    motor_supplier_discount_override: Optional[float] = None
     motor_id: Optional[int] = None
     motor_mount_type: Optional[str] = None
 
@@ -326,10 +342,19 @@ class ComponentOverrideV3(BaseModel):
     thickness_mm: Optional[float] = None
     waste_pct: Optional[float] = None
 
+class MotorSupplierDiscountV3(BaseModel):
+    """Schema for motor supplier discount in v3 format."""
+    supplier_name: Optional[str] = None
+    discount_percentage: float = 0.0
+    is_override: bool = False
+    applied_discount: float = 0.0
+    notes: Optional[str] = ""
+
 class PricingSectionV3(BaseModel):
     """Schema for pricing section in v3 format."""
     component_markup: float
     motor_markup: float
+    motor_supplier_discount: Optional[MotorSupplierDiscountV3] = None
     overrides: Dict[str, ComponentOverrideV3]
 
 class ComponentCalculationV3(BaseModel):

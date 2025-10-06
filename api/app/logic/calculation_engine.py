@@ -536,10 +536,30 @@ def calculate_full_quote(db: Session, request: schemas.QuoteRequest) -> schemas.
                 motor_base_price = motor_info.foot_price
 
             if motor_base_price is not None:
+                # Apply supplier discount BEFORE markup
+                supplier_discount_percentage = 0.0
+                if request.motor_supplier_discount_override is not None:
+                    # User has overridden the discount
+                    supplier_discount_percentage = request.motor_supplier_discount_override
+                else:
+                    # Fetch default discount from database
+                    supplier_discount = crud.get_motor_supplier_discount(db, motor_info.supplier_name)
+                    if supplier_discount:
+                        supplier_discount_percentage = float(supplier_discount.discount_percentage)
+                
+                # Calculate discounted price
+                discount_multiplier = 1.0 - (supplier_discount_percentage / 100.0)
+                discounted_price = motor_base_price * discount_multiplier
+                
+                # Apply markup to discounted price
                 motor_markup = request.motor_markup_override if request.motor_markup_override is not None else rates_and_settings.get('default_motor_markup', 1.0)
                 motor_markup_applied = motor_markup
-                motor_final_price = motor_base_price * motor_markup
+                motor_final_price = discounted_price * motor_markup
+                
                 motor_details = schemas.MotorWithLatestPrice.from_orm(motor_info).dict()
+                # Add discount info to motor details for downstream use
+                motor_details['supplier_discount_percentage'] = supplier_discount_percentage
+                motor_details['discounted_price'] = round(discounted_price, 2)
 
     # --- 5. Assemble the final response object using Pydantic models ---
     total_quote_price = final_price + (motor_final_price or 0)

@@ -150,6 +150,13 @@ def _new_v3_quote_data(username: str | None = None) -> Dict:
         "pricing": {
             "component_markup": component_markup,
             "motor_markup": motor_markup,
+            "motor_supplier_discount": {
+                "supplier_name": None,
+                "discount_percentage": 0.0,
+                "is_override": False,
+                "applied_discount": 0.0,
+                "notes": ""
+            },
             "overrides": {},
         },
         "calculations": {
