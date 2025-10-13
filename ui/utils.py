@@ -315,7 +315,7 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 
 	payload = {
 		"fan_configuration_id": int(fan_config_id),
-		"blade_quantity": int(fan_section.get("blade_sets", 0)) if fan_section.get("blade_sets") else None,
+		"blade_quantity": int(fan_section.get("blade_sets") or 0),
 		"components": comp_list,
 		"markup_override": pricing_section.get("component_markup"),  # v3: component markup is in pricing
 		"motor_markup_override": pricing_section.get("motor_markup")  # v3: motor markup is also in pricing

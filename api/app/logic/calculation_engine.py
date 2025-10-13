@@ -595,11 +595,11 @@ def _build_v3_calculations_section(
     """
     Helper function to build the v3 calculations section from component calculation results.
     """
-    # Aggregate component totals
-    total_mass = sum(c.get('real_mass_kg', 0) for c in calculated_components_details)
-    total_length = sum(c.get('total_length_mm', 0) for c in calculated_components_details)
-    total_material_cost = sum(c.get('material_cost', 0) for c in calculated_components_details)
-    total_labour_cost = sum(c.get('labour_cost', 0) for c in calculated_components_details)
+    # Aggregate component totals (handle None values explicitly)
+    total_mass = sum((c.get('real_mass_kg') or 0) for c in calculated_components_details)
+    total_length = sum((c.get('total_length_mm') or 0) for c in calculated_components_details)
+    total_material_cost = sum((c.get('material_cost') or 0) for c in calculated_components_details)
+    total_labour_cost = sum((c.get('labour_cost') or 0) for c in calculated_components_details)
     subtotal = total_material_cost + total_labour_cost
     final_price = subtotal * markup
 

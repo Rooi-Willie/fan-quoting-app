@@ -429,11 +429,12 @@ def recompute_all_components(request_func) -> None:
 	
 	# Get v3 schema sections
 	spec = qd.get("specification", {})
-	fan_config = spec.get("fan", {})
+	fan_section = spec.get("fan", {})
+	fan_config = fan_section.get("fan_configuration", {})
 	selected_components = spec.get("components", [])
 	calculations_components = qd.setdefault("calculations", {}).setdefault("components", {})
 	
-	fan_config_id = fan_config.get("config_id")
+	fan_config_id = fan_config.get("id")
 	markup_override = qd.get("pricing", {}).get("component_markup")
 	
 	# Process component objects with id and name
@@ -454,7 +455,7 @@ def recompute_all_components(request_func) -> None:
 		request_payload = {
 			"fan_configuration_id": fan_config_id,
 			"component_id": comp_id,
-			"blade_quantity": int(fan_config.get("blade_sets", 0)) if fan_config.get("blade_sets") else None,
+			"blade_quantity": int(fan_section.get("blade_sets") or 0),
 			"thickness_mm_override": comp_overrides.get("material_thickness_mm"),
 			"fabrication_waste_factor_override": fabrication_waste_factor,
 			"markup_override": markup_override,

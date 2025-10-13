@@ -51,8 +51,10 @@ def get_component_details(request_payload_tuple: tuple) -> Optional[Dict]:
         return response.json()
     except requests.exceptions.RequestException as e:
         st.error(f"API Error: Could not calculate component details. {e}")
+        st.error(f"Request payload: {request_payload}")
         try:
-            st.json(response.json())
+            error_detail = response.json()
+            st.json(error_detail)
         except:
             st.text(response.text)
         return None
@@ -122,7 +124,7 @@ def render_main_content():
         request_payload = {
             "fan_configuration_id": fan_config_id,
             "component_id": component_id,
-            "blade_quantity": int(fan_config.get("blade_sets", 0)) if fan_config.get("blade_sets") else None,
+            "blade_quantity": int(fan_config.get("blade_sets") or 0),
             "thickness_mm_override": overrides.get("material_thickness_mm"),
             "fabrication_waste_factor_override": fabrication_waste_factor,
             "markup_override": pricing_section.get("component_markup")  # v3: component markup location
