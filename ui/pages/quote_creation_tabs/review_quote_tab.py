@@ -270,9 +270,15 @@ def render_main_content():
         if st.button("💾 Save Quote", use_container_width=True, type="primary"):
             if save_quote():
                 st.success("Quote saved successfully!")
-                # Add option to view the quote or continue editing
-                if st.button("View Saved Quotes"):
-                    st.switch_page("pages/3_View_Existing_Quotes.py")
+                st.session_state["show_view_quotes_button"] = True
+                st.rerun()
+    
+    # Show "View Saved Quotes" button after successful save (persists across reruns)
+    if st.session_state.get("show_view_quotes_button", False):
+        if st.button("📋 View Saved Quotes", use_container_width=True):
+            # Clear the flag and navigate
+            st.session_state["show_view_quotes_button"] = False
+            st.switch_page("pages/3_View_Existing_Quotes.py")
 
 def save_quote():
     """Save the current quote to the database using v3 schema"""
