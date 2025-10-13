@@ -98,6 +98,9 @@ def prepare_component_pricing_table(quote_data: Dict[str, Any]) -> List[Dict[str
     """
     Prepare component pricing data for the dynamic table in the Word template.
     
+    Components are ordered according to the database order_by column for consistent
+    presentation across all outputs (UI tables and Word exports).
+    
     Parameters:
         quote_data (dict): The v3 quote data structure
         
@@ -113,8 +116,16 @@ def prepare_component_pricing_table(quote_data: Dict[str, Any]) -> List[Dict[str
         if not components_calc:
             return component_rows
         
-        # Iterate through each component
-        for comp_name, comp_data in components_calc.items():
+        # Get ordered component names from DB order_by column
+        from utils import get_ordered_component_names
+        ordered_names = get_ordered_component_names(quote_data)
+        
+        # Build rows in correct DB order
+        for comp_name in ordered_names:
+            if comp_name not in components_calc:
+                continue
+                
+            comp_data = components_calc[comp_name]
             if not isinstance(comp_data, dict):
                 continue
             

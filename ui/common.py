@@ -293,6 +293,11 @@ def _handle_component_selection():
                 "name": comp["name"]
             })
     
+    # Sort component objects by DB order_by column
+    # available_components is already sorted by order_by from the API
+    ordered_names = [comp['name'] for comp in available_components]
+    component_objects.sort(key=lambda x: ordered_names.index(x['name']) if x['name'] in ordered_names else 999)
+    
     # Store as objects in specification.components
     spec = qd.setdefault("specification", {})
     spec["components"] = component_objects
@@ -386,6 +391,12 @@ def _handle_fan_id_change():
                 for comp_id in auto_select_ids 
                 if comp_id in id_to_component
             ]
+            
+            # Sort component objects by DB order_by column
+            # comps is already sorted by order_by from the API
+            ordered_names = [comp['name'] for comp in comps]
+            comp_objects.sort(key=lambda x: ordered_names.index(x['name']) if x['name'] in ordered_names else 999)
+    
     spec.setdefault("components", [])
     spec["components"] = comp_objects
 
