@@ -237,6 +237,17 @@ if motor_node.get("motor_details") or quote_data.get("calculations", {}).get("mo
         
         if base_price > 0:
             st.markdown(f"**Base Price:** R {float(base_price):,.2f}")
+            
+            # Show supplier discount if applicable
+            pricing_section = quote_data.get("pricing", {})
+            discount_data = pricing_section.get('motor_supplier_discount', {})
+            supplier_discount = discount_data.get('applied_discount', 0.0)
+            if supplier_discount > 0:
+                discount_multiplier = 1.0 - (supplier_discount / 100.0)
+                discounted_price = float(base_price) * discount_multiplier
+                st.markdown(f"**Supplier Discount:** {supplier_discount:.2f}% ({discount_data.get('notes', '')})")
+                st.markdown(f"**After Discount:** R {discounted_price:,.2f}")
+            
             st.markdown(f"**Markup Applied:** {markup_pct:.0f}%")
             st.markdown(f"**Final Price:** <span style='font-size: 1.3rem; font-weight: bold; color: #10b981;'>R {float(final_price):,.2f}</span>", unsafe_allow_html=True)
         else:
