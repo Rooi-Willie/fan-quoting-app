@@ -64,7 +64,10 @@ def _resolve_formulaic_parameters(hub_size: float, fan_size: float, params: dict
             params['length_mm'] = (0.125 * fan_size) / math.tan(math.radians(3.5))
         elif params.get('length_formula_type') == 'LENGTH_D_X_MULTIPLIER':
             # The length is the Fan Size (not hub) times a multiplier
-            params['length_mm'] = fan_size * params['length_multiplier']
+            length_multiplier = params.get('length_multiplier')
+            if length_multiplier is None:
+                raise ValueError(f"Component '{params.get('name')}' requires length_multiplier but it is None. Check component_parameters table.")
+            params['length_mm'] = fan_size * float(length_multiplier)
 
     # --- Resolve Stiffening Factor (if it's a formula) ---
     if params.get('stiffening_factor') is None:
@@ -98,6 +101,9 @@ class CylinderSurfaceCalculator(BaseCalculator):
         # Get fixed or formula-driven values
         length = component_params['length_mm']
         stiffening_factor = component_params['stiffening_factor']
+        # If stiffening_factor is None, use 0.0 as default (no stiffening)
+        if stiffening_factor is None:
+            stiffening_factor = 0.0
         diameter = request_params['fan_size_mm']
 
         print("--- CylinderSurfaceCalculator Inputs ---")

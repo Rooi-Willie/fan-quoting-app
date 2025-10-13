@@ -338,6 +338,7 @@ def get_parameters_for_calculation(db: Session, fan_config_id: int, component_id
             Comp.id.label("component_id"),
             Comp.name,
             CompParam.mass_formula_type,
+            CompParam.cost_formula_type,
             CompParam.diameter_formula_type,
             CompParam.length_formula_type,
             CompParam.stiffening_formula_type,
