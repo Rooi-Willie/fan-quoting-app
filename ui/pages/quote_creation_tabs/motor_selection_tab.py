@@ -102,17 +102,51 @@ def render_main_content():
                 f"{existing_motor.get('rated_output', 'N/A')} kW, {existing_motor.get('poles', 'N/A')} poles, "
                 f"{existing_motor.get('speed', 'N/A')} RPM ({existing_motor.get('product_range', 'N/A')})")
         
-        # Display pricing information on a new line with proper formatting
-        price_cols = st.columns(3)
-        with price_cols[0]:
-            markup_percentage = (float(current_motor_markup) - 1.0) * 100
-            st.metric("Motor Markup", f"{markup_percentage:.1f}%")
+        # Display pricing information with supplier discount
+        # Get supplier discount data
+        discount_data = pricing_section.get('motor_supplier_discount', {})
+        supplier_discount = discount_data.get('applied_discount', 0.0)
         
-        with price_cols[1]:
-            st.metric("Base Price", f"{currency} {float(motor_base_price):,.2f}")
-        
-        with price_cols[2]:
-            st.metric("Final Price", f"{currency} {float(motor_final_price):,.2f}")
+        # Show pricing breakdown with discount if applicable
+        if supplier_discount > 0:
+            # Calculate price after discount
+            discount_multiplier = 1.0 - (supplier_discount / 100.0)
+            price_after_discount = float(motor_base_price) * discount_multiplier
+            
+            # Custom CSS to reduce font size for better fit with 5 columns
+            st.markdown("""
+            <style>
+            [data-testid="stMetricValue"] {
+                font-size: 1.2rem !important;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+            
+            price_cols = st.columns(5)
+            with price_cols[0]:
+                st.metric("Base Price", f"{currency} {float(motor_base_price):,.2f}")
+            with price_cols[1]:
+                discount_notes = discount_data.get('notes', 'Supplier discount')
+                st.metric("Supplier Discount", f"{supplier_discount:.1f}%", 
+                         help=discount_notes)
+            with price_cols[2]:
+                st.metric("After Discount", f"{currency} {price_after_discount:,.2f}",
+                         delta=f"-{supplier_discount:.1f}%")
+            with price_cols[3]:
+                markup_percentage = (float(current_motor_markup) - 1.0) * 100
+                st.metric("Motor Markup", f"{markup_percentage:.1f}%")
+            with price_cols[4]:
+                st.metric("Final Price", f"{currency} {float(motor_final_price):,.2f}")
+        else:
+            # Original display without discount
+            price_cols = st.columns(3)
+            with price_cols[0]:
+                markup_percentage = (float(current_motor_markup) - 1.0) * 100
+                st.metric("Motor Markup", f"{markup_percentage:.1f}%")
+            with price_cols[1]:
+                st.metric("Base Price", f"{currency} {float(motor_base_price):,.2f}")
+            with price_cols[2]:
+                st.metric("Final Price", f"{currency} {float(motor_final_price):,.2f}")
         
         st.caption("Select a different motor from the table below to change the selection, or keep the current motor.")
         st.divider()
