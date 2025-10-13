@@ -3,7 +3,7 @@ import pandas as pd
 import os
 import requests
 from config import CURRENCY_SYMBOL
-from utils import ensure_server_summary_up_to_date, build_summary_dataframe
+from utils import ensure_server_summary_up_to_date, build_summary_dataframe, get_ordered_component_names, build_ordered_component_rows
 from common import _new_v3_quote_data
 from export_utils import generate_docx, generate_filename
 
@@ -97,40 +97,22 @@ def render_main_content():
     server_calculations = server_summary.get("calculations", {})
     server_components_dict = server_calculations.get("components", {})
     
-    # Convert components dict to list for compatibility, with fallback to quote data
-    server_components = []
-    if server_components_dict:
-        server_components = list(server_components_dict.values())
-    elif calc_section.get("components"):
-        # Fallback to quote data calculations section
-        calc_components = calc_section.get("components", {})
-        server_components = list(calc_components.values())
+    # Determine which components dict to use
+    components_dict = server_components_dict if server_components_dict else calc_section.get("components", {})
     
-    rows = []
-    if server_components:
-        for c in server_components:
-            rows.append({
-                "Component": c.get("name"),
-                "Length (mm)": c.get("total_length_mm"),
-                "Real Mass (kg)": c.get("real_mass_kg"),
-                "Material Cost": c.get("material_cost"),
-                "Labour Cost": c.get("labour_cost"),
-                "Cost Before Markup": c.get("total_cost_before_markup"),
-                "Cost After Markup": c.get("total_cost_after_markup"),
-            })
-    else:
-        # Last fallback: try to extract from any available components data
-        all_components = calc_section.get("components", {})
-        for name, calc in all_components.items():
-            rows.append({
-                "Component": name,
-                "Length (mm)": calc.get("total_length_mm"),
-                "Real Mass (kg)": calc.get("real_mass_kg"),
-                "Material Cost": calc.get("material_cost"),
-                "Labour Cost": calc.get("labour_cost"),
-                "Cost Before Markup": calc.get("total_cost_before_markup"),
-                "Cost After Markup": calc.get("total_cost_after_markup"),
-            })
+    if not components_dict:
+        st.info("No fan components configured yet. Please go to the 'Fan Configuration' tab.")
+        return
+    
+    # Use ordered component names from DB order_by column
+    ordered_names = get_ordered_component_names(qd)
+    rows = build_ordered_component_rows(components_dict, ordered_names)
+    
+    # Also build ordered server_components list for use in breakdown section below
+    server_components = []
+    for comp_name in ordered_names:
+        if comp_name in components_dict:
+            server_components.append(components_dict[comp_name])
 
     if not rows:
         st.info("No fan components configured yet. Please go to the 'Fan Configuration' tab.")

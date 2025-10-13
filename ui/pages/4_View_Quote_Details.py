@@ -285,26 +285,20 @@ if isinstance(components_node, list) and components_node:
     
     st.markdown("**Fan Component Cost & Mass Summary**")
     
-    # Use the same table structure from review_quote_tab.py
-    rows = []
-    
+    # Use the same table structure from review_quote_tab.py with proper ordering
     if components_calc:
-        for comp_name, comp_calc in components_calc.items():
-            rows.append({
-                "Component": comp_calc.get("name", comp_name),
-                "Length (mm)": comp_calc.get("total_length_mm"),
-                "Real Mass (kg)": comp_calc.get("real_mass_kg"),
-                "Material Cost": comp_calc.get("material_cost"),
-                "Labour Cost": comp_calc.get("labour_cost"),
-                "Cost Before Markup": comp_calc.get("total_cost_before_markup"),
-                "Cost After Markup": comp_calc.get("total_cost_after_markup"),
-            })
-    
-    if rows:
-        # Use the build_summary_dataframe function to create a table with totals row
-        from utils import build_summary_dataframe
-        styler = build_summary_dataframe(rows, "R")
-        st.write(styler)
+        # Import ordering utilities
+        from utils import build_summary_dataframe, get_ordered_component_names, build_ordered_component_rows
+        
+        # Use ordered component names from DB order_by column
+        ordered_names = get_ordered_component_names(quote_data)
+        rows = build_ordered_component_rows(components_calc, ordered_names)
+        
+        if rows:
+            styler = build_summary_dataframe(rows, "R")
+            st.write(styler)
+        else:
+            st.info("No components selected for this quote.")
     else:
         st.info("No components selected for this quote.")
     

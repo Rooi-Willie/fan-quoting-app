@@ -4,7 +4,7 @@ import pandas as pd  # Keep for potential future use
 from typing import Optional, List, Dict
 import requests
 from config import COMPONENT_ORDER, COMPONENT_IMAGES, ROW_DEFINITIONS, IMAGE_FOLDER_PATH, CURRENCY_SYMBOL
-from utils import ensure_server_summary_up_to_date, build_summary_dataframe
+from utils import ensure_server_summary_up_to_date, build_summary_dataframe, get_ordered_component_names, build_ordered_component_rows
 from common import recompute_all_components
 from common import (
     get_available_components,
@@ -320,17 +320,9 @@ def render_main_content():
 
     # Per-component compact table for quick inspection
     if component_calcs:
-        rows = []
-        for name, c in component_calcs.items():
-            rows.append({
-                "Component": name,
-                "Length (mm)": c.get("total_length_mm"),
-                "Real Mass (kg)": c.get("real_mass_kg"),
-                "Material Cost": c.get("material_cost"),
-                "Labour Cost": c.get("labour_cost"),
-                "Cost Before Markup": c.get("total_cost_before_markup"),
-                "Cost After Markup": c.get("total_cost_after_markup"),
-            })
+        # Use ordered component names from DB order_by column
+        ordered_names = get_ordered_component_names(qd)
+        rows = build_ordered_component_rows(component_calcs, ordered_names)
         styler = build_summary_dataframe(rows, CURRENCY_SYMBOL)
         st.write(styler)
 

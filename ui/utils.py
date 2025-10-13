@@ -446,3 +446,69 @@ def build_summary_dataframe(rows: List[Dict], currency_symbol: str) -> Styler:
 		"Cost After Markup": _fmt_currency,
 	})
 	return styler
+
+
+def get_ordered_component_names(quote_data: dict) -> List[str]:
+	"""
+	Get component names ordered by the database order_by column.
+	
+	Returns component names in the correct display order based on the fan configuration's
+	available_components API response (which respects the components.order_by column).
+	
+	This ensures consistent component ordering across all UI tables (Fan Config tab,
+	Review tab, and View Quote Details page).
+	
+	Args:
+		quote_data: The v3 quote_data dict
+		
+	Returns:
+		List of component names in DB order, or empty list if ordering cannot be determined
+	"""
+	from common import get_available_components
+	
+	# Get fan config ID from v3 schema
+	spec_section = quote_data.get("specification", {})
+	fan_section = spec_section.get("fan", {})
+	fan_config_data = fan_section.get("fan_configuration", {})
+	fan_config_id = fan_config_data.get("id")
+	
+	if not fan_config_id:
+		return []
+	
+	# Get available components from API (already ordered by order_by column)
+	available_components = get_available_components(fan_config_id)
+	if not available_components:
+		return []
+	
+	# Extract ordered names
+	return [comp['name'] for comp in available_components]
+
+
+def build_ordered_component_rows(component_calcs: Dict, ordered_names: List[str]) -> List[Dict]:
+	"""
+	Build component rows for summary table in the correct DB order.
+	
+	This function ensures that component rows appear in the same order as defined
+	in the database components.order_by column, rather than dict insertion order.
+	
+	Args:
+		component_calcs: Dict mapping component name to calculation results
+		ordered_names: List of component names in desired display order (from get_ordered_component_names)
+		
+	Returns:
+		List of row dicts ordered correctly for DataFrame display
+	"""
+	rows = []
+	for comp_name in ordered_names:
+		if comp_name in component_calcs:
+			c = component_calcs[comp_name]
+			rows.append({
+				"Component": c.get("name", comp_name),
+				"Length (mm)": c.get("total_length_mm"),
+				"Real Mass (kg)": c.get("real_mass_kg"),
+				"Material Cost": c.get("material_cost"),
+				"Labour Cost": c.get("labour_cost"),
+				"Cost Before Markup": c.get("total_cost_before_markup"),
+				"Cost After Markup": c.get("total_cost_after_markup"),
+			})
+	return rows
