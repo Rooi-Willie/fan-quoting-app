@@ -27,6 +27,14 @@ st.title("Home")
 st.write(f"Welcome to the {APP_TITLE}, {st.session_state.get('username', 'User')}!")
 st.divider()
 
+# Check if we should auto-redirect to Create New Quote (after reset)
+if st.session_state.get("return_to_create_quote", False):
+    # Clear the flag
+    st.session_state.return_to_create_quote = False
+    # Show brief message and redirect
+    st.success("Quote form has been reset.")
+    st.switch_page("pages/2_Create_New_Quote.py")
+
 st.subheader("What would you like to do?")
 
 cols = st.columns(3)
@@ -38,6 +46,7 @@ with cols[1]:
     if st.button("📄 View Existing Quotes", use_container_width=True):
         # st.switch_page("pages/3_View_Existing_Quotes.py") # Uncomment when ready
         st.info("View Existing Quotes feature is under development.")
+        st.switch_page("pages/3_View_Existing_Quotes.py")
         logger.debug("View Existing Quotes button clicked.")
 
 # Add more options as needed in other columns or rows
