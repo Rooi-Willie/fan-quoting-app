@@ -113,30 +113,29 @@ def render_main_content():
             discount_multiplier = 1.0 - (supplier_discount / 100.0)
             price_after_discount = float(motor_base_price) * discount_multiplier
             
-            # Custom CSS to reduce font size for better fit with 5 columns
-            st.markdown("""
-            <style>
-            [data-testid="stMetricValue"] {
-                font-size: 1.2rem !important;
-            }
-            </style>
-            """, unsafe_allow_html=True)
-            
-            price_cols = st.columns(5)
-            with price_cols[0]:
+            # Split into two rows for better readability
+            # Row 1: Base price, discount, and discounted price
+            price_row1 = st.columns(3)
+            with price_row1[0]:
                 st.metric("Base Price", f"{currency} {float(motor_base_price):,.2f}")
-            with price_cols[1]:
+            with price_row1[1]:
                 discount_notes = discount_data.get('notes', 'Supplier discount')
                 st.metric("Supplier Discount", f"{supplier_discount:.1f}%", 
                          help=discount_notes)
-            with price_cols[2]:
+            with price_row1[2]:
                 st.metric("After Discount", f"{currency} {price_after_discount:,.2f}",
                          delta=f"-{supplier_discount:.1f}%")
-            with price_cols[3]:
+            
+            # Row 2: Markup and final price
+            price_row2 = st.columns(3)
+            with price_row2[0]:
                 markup_percentage = (float(current_motor_markup) - 1.0) * 100
                 st.metric("Motor Markup", f"{markup_percentage:.1f}%")
-            with price_cols[4]:
+            with price_row2[1]:
                 st.metric("Final Price", f"{currency} {float(motor_final_price):,.2f}")
+            with price_row2[2]:
+                # Empty column for visual balance
+                st.empty()
         else:
             # Original display without discount
             price_cols = st.columns(3)
