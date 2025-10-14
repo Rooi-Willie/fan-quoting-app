@@ -268,7 +268,14 @@ def _handle_component_selection():
     if "quote_data" not in st.session_state:
         return
     
-    selected_names = st.session_state.widget_fc_multiselect_components
+    # Get the current widget key suffix to read the correct widget state
+    widget_reset_counter = st.session_state.get("widget_reset_counter", 0)
+    widget_key = f"widget_fc_multiselect_components_{widget_reset_counter}"
+    
+    if widget_key not in st.session_state:
+        return
+    
+    selected_names = st.session_state[widget_key]
     qd = st.session_state.quote_data
     
     # Get current fan configuration to fetch available components with IDs
@@ -331,7 +338,24 @@ def _handle_fan_id_change():
         st.session_state.quote_data = _new_v3_quote_data()
         qd = st.session_state.quote_data
 
-    selected_fan_uid = st.session_state.get("widget_fc_fan_id")
+    # Get the current widget key suffix to read the correct widget state
+    widget_reset_counter = st.session_state.get("widget_reset_counter", 0)
+    widget_key = f"widget_fc_fan_id_{widget_reset_counter}"
+    
+    if widget_key not in st.session_state:
+        return
+    
+    selected_fan_uid = st.session_state[widget_key]
+    
+    # Check if fan config is actually changing (not just re-rendering)
+    current_fan_uid = None
+    fan_node = qd.get("specification", {}).get("fan", {})
+    fan_config_obj = fan_node.get("fan_configuration", {})
+    if isinstance(fan_config_obj, dict):
+        current_fan_uid = fan_config_obj.get("uid")
+    
+    fan_is_changing = (current_fan_uid != selected_fan_uid)
+    
     all_configs = get_all_fan_configs()
     if not all_configs:
         st.session_state.current_fan_config = None
@@ -360,6 +384,71 @@ def _handle_fan_id_change():
     fan_node.update({
         "fan_configuration": selected_config,
     })
+    
+    # CRITICAL: If fan config is actually changing, clear all dependent data
+    if fan_is_changing:
+        # Increment widget reset counter to force UI widgets to recreate
+        # This ensures markup and component selection widgets show the new defaults
+        st.session_state.widget_reset_counter = widget_reset_counter + 1
+        
+        # Clear calculations (component and motor)
+        calc_section = qd.setdefault("calculations", {})
+        calc_section["components"] = {}
+        calc_section["component_totals"] = {
+            "total_length_mm": 0.0,
+            "total_mass_kg": 0.0,
+            "total_labour_cost": 0.0,
+            "total_material_cost": 0.0,
+            "subtotal_cost": 0.0,
+            "final_price": 0.0,
+        }
+        calc_section["motor"] = {
+            "base_price": 0.0,
+            "final_price": 0.0,
+        }
+        calc_section["totals"] = {
+            "components": 0.0,
+            "motor": 0.0,
+            "buyouts": 0.0,
+            "grand_total": 0.0,
+        }
+        calc_section.pop("server_summary", None)
+        calc_section.pop("derived_totals", None)
+        
+        # Clear component overrides (thickness, waste %)
+        pricing_section = qd.setdefault("pricing", {})
+        pricing_section["overrides"] = {}
+        
+        # Reset markups to default values
+        component_markup, motor_markup = _fetch_default_markups()
+        pricing_section["component_markup"] = component_markup
+        pricing_section["motor_markup"] = motor_markup
+        
+        # Reset motor supplier discount
+        pricing_section["motor_supplier_discount"] = {
+            "supplier_name": None,
+            "discount_percentage": 0.0,
+            "is_override": False,
+            "applied_discount": 0.0,
+            "notes": ""
+        }
+        
+        # Clear motor selection
+        spec.setdefault("motor", {}).update({
+            "mount_type": None,
+            "motor_details": {},
+        })
+        
+        # Clear buy-out items
+        spec["buyouts"] = []
+        
+        # Clear component selection in specification
+        spec["components"] = []
+        
+        # Clear any cached API responses
+        st.session_state.pop("server_summary", None)
+        st.session_state.pop("last_summary_payload_hash", None)
+        st.session_state.pop("last_confirmed_motor_supplier", None)
     
     # No longer populate context.fan_configuration as it's moved to specification.fan.fan_configuration
     
@@ -486,6 +575,13 @@ def render_sidebar_widgets():
 	if "current_fan_config" not in st.session_state:
 		st.session_state.current_fan_config = None
 	
+	# Initialize widget reset counter for forcing widget recreation
+	if "widget_reset_counter" not in st.session_state:
+		st.session_state.widget_reset_counter = 0
+	
+	# Create dynamic key suffix to force widget reset when needed
+	widget_key_suffix = f"_{st.session_state.widget_reset_counter}"
+	
 	spec = qd.setdefault("specification", {})
 	fan_node = spec.setdefault("fan", {})
 	pricing = qd.setdefault("pricing", {})
@@ -510,7 +606,7 @@ def render_sidebar_widgets():
 			"Fan Configuration",
 			options=fan_uid_options,
 			index=fan_uid_idx,
-			key="widget_fc_fan_id",
+			key=f"widget_fc_fan_id{widget_key_suffix}",
 			on_change=_handle_fan_id_change,
 		)
 		
@@ -532,9 +628,9 @@ def render_sidebar_widgets():
 			"Blade Sets",
 			options=blade_qty_select_options,
 			index=blade_qty_idx,
-			key="widget_fc_blade_sets",
+			key=f"widget_fc_blade_sets{widget_key_suffix}",
 			on_change=update_quote_data_nested,
-			args=(["specification", "fan", "blade_sets"], "widget_fc_blade_sets"),
+			args=(["specification", "fan", "blade_sets"], f"widget_fc_blade_sets{widget_key_suffix}"),
 			disabled=blade_qty_disabled,
 			help="Options populated after selecting a Fan ID."
 		)
@@ -589,9 +685,9 @@ def render_sidebar_widgets():
 			value=markup_value,
 			step=0.01,
 			format="%.2f",
-			key="widget_markup_override",
+			key=f"widget_markup_override{widget_key_suffix}",
 			on_change=update_quote_data_with_recalc,
-			args=(["pricing", "component_markup"], "widget_markup_override"),
+			args=(["pricing", "component_markup"], f"widget_markup_override{widget_key_suffix}"),
 			help="Markup multiplier for component pricing (default loaded from database).",
 			disabled=is_disabled,
 		)
@@ -600,7 +696,7 @@ def render_sidebar_widgets():
 			"Select Fan Components",
 			options=component_options,
 			default=valid_selection,
-			key="widget_fc_multiselect_components",
+			key=f"widget_fc_multiselect_components{widget_key_suffix}",
 		on_change=_handle_component_selection,
 		help=(
 			"Select a Fan ID to populate this list. "

@@ -40,6 +40,10 @@ def render_main_content():
     pricing_section = qd.setdefault("pricing", {})
     calc_section = qd.setdefault("calculations", {})
     
+    # Get dynamic widget key suffix for widget reset support
+    widget_reset_counter = st.session_state.get("widget_reset_counter", 0)
+    widget_key_suffix = f"_{widget_reset_counter}"
+    
     # Motor specification in v3
     motor_spec = spec_section.setdefault("motor", {})
     # Motor pricing moved to calculations section
@@ -307,7 +311,7 @@ def render_main_content():
                 value=initial_markup_val,
                 step=0.01,
                 format="%.2f",
-                key="widget_motor_markup_override",
+                key=f"widget_motor_markup_override{widget_key_suffix}",
                 help=f"Markup multiplier for motor pricing (default: {default_motor_markup:.2f} from database).",
             )
         with motor_markup_col2:

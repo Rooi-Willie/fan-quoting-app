@@ -52,13 +52,21 @@ if st.sidebar.button("🔄 Start New Quote / Reset Form", use_container_width=Tr
     # Reset specific quote data, keep login info
     logged_in_status = st.session_state.get("logged_in", False)
     username = st.session_state.get("username", "")
+    
+    # Increment widget reset counter to force all widgets to recreate with new keys
+    # This is more reliable than st.rerun() for resetting widget states
+    current_counter = st.session_state.get("widget_reset_counter", 0)
+    
     st.session_state.clear() # Clears everything
     st.session_state.logged_in = logged_in_status # Restore login
     st.session_state.username = username
-    # Set flag to return to Create New Quote page after reset
-    st.session_state.return_to_create_quote = True
-    # Navigate to Home page to force complete widget reset
-    st.switch_page("pages/1_Home.py")
+    st.session_state.widget_reset_counter = current_counter + 1  # Increment to force widget reset
+    
+    # Create fresh quote data
+    st.session_state.quote_data = _new_v3_quote_data(username)
+    
+    # Rerun to apply changes immediately
+    st.rerun()
 
 # This section now renders the same sidebar content regardless of the active tab.
 render_sidebar_widgets()  # Always render shared sidebar widgets
