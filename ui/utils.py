@@ -403,8 +403,8 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 		# Populate context data for v3 schema
 		populate_context_rates_and_settings(qd)
 		
-		# Trigger rerun so UI reflects new totals
-		st.rerun()
+		# Note: No st.rerun() needed here as this function is often called from callbacks
+		# Streamlit automatically reruns after callbacks complete
 	except requests.RequestException:
 		pass
 
