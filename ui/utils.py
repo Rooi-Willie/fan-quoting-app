@@ -8,14 +8,57 @@ import requests
 import streamlit as st
 import logging
 
-# Configure basic logging (optional, but good for quick setup)
+# Configure basic logging (optional, but good for setup)
 logging.basicConfig(level=logging.DEBUG,format='%(asctime)s - %(levelname)s - %(filename)s - %(message)s')
 
 # Create a logger object
 logger = logging.getLogger(__name__)
 
-# Shared API base URL
-API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
+# Shared API base URL and API Key
+API_BASE_URL = st.secrets.get("API_BASE_URL", os.getenv("API_BASE_URL", "http://api:8000"))
+API_KEY = st.secrets.get("API_KEY", os.getenv("API_KEY", ""))
+
+
+def get_api_headers():
+    """Get headers for API requests including authentication"""
+    headers = {
+        "Content-Type": "application/json"
+    }
+    
+    if API_KEY:
+        headers["X-API-Key"] = API_KEY
+    
+    return headers
+
+
+def api_get(endpoint: str, **kwargs):
+    """Make GET request to API with authentication"""
+    url = f"{API_BASE_URL}{endpoint}"
+    headers = get_api_headers()
+    
+    try:
+        response = requests.get(url, headers=headers, **kwargs)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        logger.error(f"API GET request failed: {e}")
+        st.error(f"Failed to connect to API: {e}")
+        return None
+
+
+def api_post(endpoint: str, data: dict, **kwargs):
+    """Make POST request to API with authentication"""
+    url = f"{API_BASE_URL}{endpoint}"
+    headers = get_api_headers()
+    
+    try:
+        response = requests.post(url, json=data, headers=headers, **kwargs)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        logger.error(f"API POST request failed: {e}")
+        st.error(f"Failed to connect to API: {e}")
+        return None
 
 
 def _recompute_derived_totals_from_server(qd: dict) -> dict:

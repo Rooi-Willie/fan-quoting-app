@@ -1,15 +1,21 @@
 # Docker
 .dockerignore
-docker-compose.yml # Sometimes people commit this, sometimes not. If it contains secrets, no.
-                   # If it's just for local dev setup, it can be versioned.
-                   # For now, let's version it but keep secrets out.
 
 # VS Code
 .vscode/
 
 # Other
-*.sqlite3 # If you use sqlite for quick local testing
+*.sqlite3
 *.db
+
+# Streamlit secrets (SECURITY - DO NOT COMMIT!)
+ui/.streamlit/secrets.toml
+.streamlit/secrets.toml
+
+# Deployment secrets (SECURITY - DO NOT COMMIT!)
+deploy/config.yaml
+deploy/cloud_sql_proxy.exe
+deploy/cloud_sql_proxy
 
 # ========= DEFAULT GITIGNORE FOR PYTHON PROJECTS =========
 # Byte-compiled / optimized / DLL files

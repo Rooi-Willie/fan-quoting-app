@@ -1,8 +1,48 @@
-# this is needed for local development with docker
+# Streamlit Configuration
+# This file configures the Streamlit app behavior for both local and production
+
 [server]
-# if you don't want to start the default browser:
+# Don't open browser automatically
 headless = true
-# you will need this for local development:
+
+# Auto-reload on file changes (local development)
 runOnSave = true
-# you will need this if running docker on windows host:
+
+# File watcher for Docker on Windows
 fileWatcherType = "poll"
+
+# Security
+enableXsrfProtection = true
+enableCORS = false
+
+# Port
+port = 8501
+
+[browser]
+# Disable usage statistics
+gatherUsageStats = false
+
+# Server address for local dev
+serverAddress = "localhost"
+
+[theme]
+# Custom theme colors (optional - adjust to your brand)
+primaryColor = "#1f77b4"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f0f2f6"
+textColor = "#262730"
+font = "sans serif"
+
+[client]
+# Don't show detailed errors to users (security)
+showErrorDetails = false
+
+# Toolbar mode
+toolbarMode = "minimal"
+
+[runner]
+# Faster magic commands
+magicEnabled = true
+
+# Warning for large data
+fastReruns = true
