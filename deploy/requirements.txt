@@ -24,7 +24,6 @@ requests>=2.31.0
 
 # Security
 cryptography>=41.0.0
-secrets-manager>=1.0.0
 
 # Testing
 pytest>=7.4.0
