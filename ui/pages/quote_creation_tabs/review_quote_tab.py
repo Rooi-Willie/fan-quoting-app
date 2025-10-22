@@ -3,19 +3,9 @@ import pandas as pd
 import os
 import requests
 from config import CURRENCY_SYMBOL
-from utils import ensure_server_summary_up_to_date, build_summary_dataframe, get_ordered_component_names, build_ordered_component_rows
+from utils import ensure_server_summary_up_to_date, build_summary_dataframe, get_ordered_component_names, build_ordered_component_rows, get_api_headers
 from common import _new_quote_data
 from export_utils import generate_docx, generate_filename
-
-# API_BASE_URL should be configured, e.g., via environment variable
-# Fallback is provided for local development.
-import streamlit as st
-import os
-import requests
-import pandas as pd
-from typing import Dict, List
-from common import update_quote_data_top_level_key
-from utils import get_api_headers
 
 # API_BASE_URL should be configured, e.g., via environment variable
 
