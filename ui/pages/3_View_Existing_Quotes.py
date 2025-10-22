@@ -5,6 +5,7 @@ import requests
 from config import APP_TITLE
 import datetime
 from common import _new_quote_data
+from utils import get_api_headers
 
 # API_BASE_URL should be configured, e.g., via environment variable
 # Fallback is provided for local development.
@@ -51,7 +52,7 @@ def load_quotes():
             params["client_name"] = client_filter
         
         # Call API
-        response = requests.get(f"{API_BASE_URL}/saved-quotes/", params=params)
+        response = requests.get(f"{API_BASE_URL}/saved-quotes/", params=params, headers=get_api_headers())
         response.raise_for_status()
         quotes = response.json()
         
@@ -178,7 +179,7 @@ else:
                 
                 # Load quote data into session
                 try:
-                    response = requests.get(f"{API_BASE_URL}/saved-quotes/{quote_id}")
+                    response = requests.get(f"{API_BASE_URL}/saved-quotes/{quote_id}", headers=get_api_headers())
                     response.raise_for_status()
                     quote = response.json()
                     
@@ -202,7 +203,7 @@ else:
                 # Create new revision
                 try:
                     # Using user_id 1 for development
-                    response = requests.post(f"{API_BASE_URL}/saved-quotes/{quote_id}/revise", json={"user_id": 1})
+                    response = requests.post(f"{API_BASE_URL}/saved-quotes/{quote_id}/revise", json={"user_id": 1}, headers=get_api_headers())
                     response.raise_for_status()
                     
                     # Refresh quotes list

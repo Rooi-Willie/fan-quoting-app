@@ -6,6 +6,7 @@ import os
 from config import APP_TITLE
 from common import _new_quote_data
 from export_utils import generate_docx, generate_filename
+from utils import get_api_headers
 
 # API_BASE_URL should be configured, e.g., via environment variable
 # Fallback is provided for local development.
@@ -32,7 +33,7 @@ quote_id = st.session_state.viewing_quote_id
 # Function to load quote details
 def load_quote_details(quote_id):
     try:
-        response = requests.get(f"{API_BASE_URL}/saved-quotes/{quote_id}")
+        response = requests.get(f"{API_BASE_URL}/saved-quotes/{quote_id}", headers=get_api_headers())
         response.raise_for_status()
         return response.json()
     except Exception as e:
@@ -429,7 +430,7 @@ st.divider()
 st.markdown("### 📋 Revision History")
 
 try:
-    response = requests.get(f"{API_BASE_URL}/saved-quotes/{quote['quote_ref']}/revisions")
+    response = requests.get(f"{API_BASE_URL}/saved-quotes/{quote['quote_ref']}/revisions", headers=get_api_headers())
     if response.status_code == 200:
         revisions = response.json()
         
@@ -530,7 +531,8 @@ with action_cols[2]:
         try:
             response = requests.patch(
                 f"{API_BASE_URL}/saved-quotes/{quote_id}/status", 
-                json={"status": new_status}
+                json={"status": new_status},
+                headers=get_api_headers()
             )
             response.raise_for_status()
             st.success(f"Status updated to {new_status.capitalize()}")
@@ -544,7 +546,8 @@ with action_cols[3]:
         try:
             response = requests.post(
                 f"{API_BASE_URL}/saved-quotes/{quote_id}/revise", 
-                json={"user_id": 1}
+                json={"user_id": 1},
+                headers=get_api_headers()
             )
             response.raise_for_status()
             new_revision = response.json()

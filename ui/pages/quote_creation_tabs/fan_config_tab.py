@@ -4,7 +4,7 @@ import pandas as pd  # Keep for potential future use
 from typing import Optional, List, Dict
 import requests
 from config import COMPONENT_ORDER, COMPONENT_IMAGES, ROW_DEFINITIONS, IMAGE_FOLDER_PATH, CURRENCY_SYMBOL
-from utils import ensure_server_summary_up_to_date, build_summary_dataframe, get_ordered_component_names, build_ordered_component_rows
+from utils import ensure_server_summary_up_to_date, build_summary_dataframe, get_ordered_component_names, build_ordered_component_rows, get_api_headers
 from common import recompute_all_components
 from common import (
     get_available_components,
@@ -46,7 +46,7 @@ def get_component_details(request_payload_tuple: tuple) -> Optional[Dict]:
     request_payload = dict(request_payload_tuple)
 
     try:
-        response = requests.post(f"{API_BASE_URL}/quotes/components/calculate-details", json=request_payload)
+        response = requests.post(f"{API_BASE_URL}/quotes/components/calculate-details", json=request_payload, headers=get_api_headers())
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:

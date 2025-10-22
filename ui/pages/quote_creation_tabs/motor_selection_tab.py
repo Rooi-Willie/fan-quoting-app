@@ -3,6 +3,7 @@ import os
 import requests
 import pandas as pd
 from typing import Optional, List, Dict
+from utils import get_api_headers
 
 # API_BASE_URL should be configured, e.g., via environment variable
 # Fallback is provided for local development.
@@ -22,7 +23,7 @@ def get_available_motors(available_kw: List[int], poles: Optional[int] = None) -
         params = {'available_kw': available_kw}
         if poles is not None:
             params['poles'] = poles
-        response = requests.get(f"{API_BASE_URL}/motors/", params=params)
+        response = requests.get(f"{API_BASE_URL}/motors/", params=params, headers=get_api_headers())
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
@@ -227,7 +228,7 @@ def render_main_content():
         def fetch_supplier_discount(supplier: str) -> float:
             """Fetch motor supplier discount from API."""
             try:
-                response = requests.get(f"{API_BASE_URL}/motors/supplier-discount/{supplier}")
+                response = requests.get(f"{API_BASE_URL}/motors/supplier-discount/{supplier}", headers=get_api_headers())
                 if response.status_code == 200:
                     data = response.json()
                     if data:

@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import os
 from dotenv import load_dotenv
+from utils import get_api_headers
 
 load_dotenv()
 
@@ -12,7 +13,7 @@ st.title("Fan Quoting App UI")
 st.write(f"Attempting to connect to API at: {API_BASE_URL}")
 
 try:
-    response = requests.get(f"{API_BASE_URL}/")
+    response = requests.get(f"{API_BASE_URL}/", headers=get_api_headers())
     response.raise_for_status() # Raise an exception for HTTP errors
     st.json(response.json())
 except requests.exceptions.RequestException as e:

@@ -282,7 +282,7 @@ def fetch_rates_and_settings() -> dict:
 	- All consolidated settings for calculations
 	"""
 	try:
-		response = requests.get(f"{API_BASE_URL}/settings/rates-and-settings")
+		response = requests.get(f"{API_BASE_URL}/settings/rates-and-settings", headers=get_api_headers())
 		response.raise_for_status()
 		return response.json()
 	except requests.RequestException:
@@ -309,7 +309,7 @@ def fetch_components_map(fan_config_id: int) -> Dict[str, int]:
 	if not fan_config_id:
 		return {}
 	try:
-		resp = requests.get(f"{API_BASE_URL}/fans/{fan_config_id}/components")
+		resp = requests.get(f"{API_BASE_URL}/fans/{fan_config_id}/components", headers=get_api_headers())
 		resp.raise_for_status()
 		comps = resp.json() or []
 		return {c.get('name'): c.get('id') for c in comps}
@@ -414,7 +414,7 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 	logger.debug("[DEBUG] Making API call with payload:", payload)
 	try:
 		# Use v3 endpoint (correct path with quotes prefix)
-		resp = requests.post(f"{API_BASE_URL}/quotes/components/v3-summary", json=payload)
+		resp = requests.post(f"{API_BASE_URL}/quotes/components/v3-summary", json=payload, headers=get_api_headers())
 		resp.raise_for_status()
 		api_response = resp.json() or {}
 		

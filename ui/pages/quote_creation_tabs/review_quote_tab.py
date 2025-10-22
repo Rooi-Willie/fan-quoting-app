@@ -9,6 +9,16 @@ from export_utils import generate_docx, generate_filename
 
 # API_BASE_URL should be configured, e.g., via environment variable
 # Fallback is provided for local development.
+import streamlit as st
+import os
+import requests
+import pandas as pd
+from typing import Dict, List
+from common import update_quote_data_top_level_key
+from utils import get_api_headers
+
+# API_BASE_URL should be configured, e.g., via environment variable
+
 API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
 
 def render_main_content():
@@ -301,7 +311,7 @@ def save_quote():
         }
         
         # Call v3 API endpoint
-        response = requests.post(f"{API_BASE_URL}/saved-quotes/v3", json=payload)
+        response = requests.post(f"{API_BASE_URL}/saved-quotes/v3", json=payload, headers=get_api_headers())
         response.raise_for_status()
         
         # Store the quote ID in session state for reference
