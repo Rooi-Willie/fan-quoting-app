@@ -15,8 +15,19 @@ logging.basicConfig(level=logging.DEBUG,format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Shared API base URL and API Key
-API_BASE_URL = st.secrets.get("API_BASE_URL", os.getenv("API_BASE_URL", "http://api:8000"))
-API_KEY = st.secrets.get("API_KEY", os.getenv("API_KEY", ""))
+try:
+    API_BASE_URL = st.secrets["API_BASE_URL"] if "API_BASE_URL" in st.secrets else os.getenv("API_BASE_URL", "http://api:8000")
+except (KeyError, AttributeError):
+    API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
+
+try:
+    API_KEY = st.secrets["API_KEY"] if "API_KEY" in st.secrets else os.getenv("API_KEY", "")
+except (KeyError, AttributeError):
+    API_KEY = os.getenv("API_KEY", "")
+
+# Log what was loaded (for debugging)
+logger.info(f"API_BASE_URL: {API_BASE_URL}")
+logger.info(f"API_KEY loaded: {API_KEY}, {bool(API_KEY)} (length: {len(API_KEY)})")
 
 
 def get_api_headers():
@@ -410,11 +421,11 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 		# Extract calculations section from API response
 		calculations_from_api = api_response.get("calculations", {})
 		
-		# Store the API response for backward compatibility  
+		# Store the API response in session state
 		st.session_state.server_summary = api_response
 		st.session_state.last_summary_payload_hash = payload_hash
 		
-		# Persist into nested quote_data.calculations (v3 schema)
+		# Persist into nested quote_data.calculations
 		_calc = qd.setdefault("calculations", {})
 		
 		# Update calculations section with API response data
@@ -435,7 +446,7 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 			if "motor" in calculations_from_api:
 				_calc["motor"] = calculations_from_api["motor"]
 		
-		# Keep legacy server_summary for backward compatibility
+		# Keep server_summary for reference
 		_calc["server_summary"] = api_response
 		_calc["derived_totals"] = _recompute_derived_totals_from_server(qd)
 		_calc["rates_and_settings_used"] = _build_rates_snapshot(payload)
@@ -443,14 +454,13 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 		# Update quote totals to ensure synchronization
 		update_quote_totals(qd)
 		
-		# Populate context data for v3 schema
+		# Populate context data
 		populate_context_rates_and_settings(qd)
 		
 		# Note: No st.rerun() needed here as this function is often called from callbacks
 		# Streamlit automatically reruns after callbacks complete
 	except requests.RequestException:
 		pass
-
 
 def build_summary_dataframe(rows: List[Dict], currency_symbol: str) -> Styler:
 	"""Return a styled DataFrame with a TOTAL row and nice formatting."""

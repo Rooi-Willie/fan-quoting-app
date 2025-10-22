@@ -4,41 +4,11 @@ import pandas as pd
 import requests
 from config import APP_TITLE
 import datetime
-from common import _new_v3_quote_data
+from common import _new_quote_data
 
 # API_BASE_URL should be configured, e.g., via environment variable
 # Fallback is provided for local development.
 API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
-
-# Function to handle v2/v3 quote data compatibility
-def ensure_v3_compatibility(quote_data):
-    """Convert v2 quote data to v3 structure for display, or return v3 as-is."""
-    if not isinstance(quote_data, dict):
-        return _new_v3_quote_data()
-    
-    # Check if it's already v3
-    if quote_data.get("meta", {}).get("version") == 3:
-        return quote_data
-    
-    # If it's v2 or unversioned, create v3 structure with available data
-    # This is a simplified conversion for display purposes only
-    v3_data = _new_v3_quote_data()
-    
-    # Map v2 fields to v3 structure
-    if "fan" in quote_data:
-        v3_data["specification"]["fan"] = quote_data["fan"]
-    if "motor" in quote_data and "selection" in quote_data["motor"]:
-        v3_data["specification"]["motor"] = quote_data["motor"]["selection"]
-        if "final_price" in quote_data["motor"]:
-            v3_data["calculations"]["motor"]["final_price"] = quote_data["motor"]["final_price"]
-    if "components" in quote_data and "selected" in quote_data["components"]:
-        v3_data["specification"]["components"] = quote_data["components"]["selected"]
-    if "buy_out_items" in quote_data:
-        v3_data["specification"]["buyouts"] = quote_data["buy_out_items"]
-    if "calculation" in quote_data:
-        v3_data["calculations"] = quote_data["calculation"]
-    
-    return v3_data
 
 # Page configuration
 st.set_page_config(page_title=f"View Quotes - {APP_TITLE}", layout="wide")
@@ -212,9 +182,9 @@ else:
                     response.raise_for_status()
                     quote = response.json()
                     
-                    # Set quote data in session state (migrate if needed)
+                    # Set quote data in session state
                     qd_loaded = quote.get("quote_data") or {}
-                    st.session_state.quote_data = ensure_v3_compatibility(qd_loaded)
+                    st.session_state.quote_data = qd_loaded
                     
                     # Redirect to quote creation page
                     st.switch_page("pages/2_Create_New_Quote.py")

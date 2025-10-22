@@ -1,18 +1,18 @@
 import streamlit as st
 from config import CURRENCY_SYMBOL
-from common import _new_v3_quote_data, NEW_SCHEMA_VERSION
+from common import _new_quote_data, NEW_SCHEMA_VERSION
 
 def render_main_content():
     st.header("4. Buy-out Items / Additional Costs")
 
-    # Ensure quote_data present in v3 format
+    # Ensure quote_data present
     if "quote_data" not in st.session_state or not isinstance(st.session_state.quote_data, dict):
-        st.session_state.quote_data = _new_v3_quote_data()
+        st.session_state.quote_data = _new_quote_data()
     
     qd = st.session_state.quote_data
     spec_section = qd.setdefault("specification", {})
     
-    # Buy-out items in specification section for v3 schema (moved from pricing)
+    # Buy-out items in specification section
     buy_list = spec_section.setdefault("buyouts", [])
 
     st.subheader("Add New Buy-out Item")

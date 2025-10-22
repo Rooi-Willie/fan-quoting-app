@@ -293,7 +293,7 @@ def render_main_content():
         st.divider()
         # ========== END MOTOR SUPPLIER DISCOUNT WIDGET ==========
 
-        # Get default motor markup from quote_data (already loaded from database in _new_v3_quote_data)
+        # Get default motor markup from quote_data (already loaded from database on initialization)
         default_motor_markup = pricing_section.get("motor_markup", 1.2)  # Fallback to 1.2 if missing
 
         motor_markup_col1, motor_markup_col2 = st.columns([2, 1])

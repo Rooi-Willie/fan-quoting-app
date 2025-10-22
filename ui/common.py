@@ -16,7 +16,7 @@ from typing import Optional, List, Dict
 import requests
 import streamlit as st
 
-from utils import ensure_server_summary_up_to_date
+from utils import ensure_server_summary_up_to_date, get_api_headers
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
 
@@ -34,7 +34,7 @@ def _fetch_default_markups() -> tuple[float, float]:
     motor_default = 1.2      # Fallback value
     
     try:
-        resp = requests.get(f"{API_BASE_URL}/settings/global")
+        resp = requests.get(f"{API_BASE_URL}/settings/global", headers=get_api_headers())
         if resp.ok:
             settings = resp.json()
             # Get component markup from 'default_markup' key
@@ -62,7 +62,7 @@ def _fetch_rates_and_settings() -> dict:
         dict: A dictionary containing all rates and settings, or empty dict if API fails.
     """
     try:
-        resp = requests.get(f"{API_BASE_URL}/settings/rates-and-settings")
+        resp = requests.get(f"{API_BASE_URL}/settings/rates-and-settings", headers=get_api_headers())
         if resp.ok:
             return resp.json()
     except requests.exceptions.RequestException:
@@ -105,11 +105,10 @@ def initialize_session_state_from_quote_data(qd: dict) -> None:
     # Note: We don't set widget values here as that causes conflicts
     # Widgets will read their values from quote_data in render functions
 
-def _new_v3_quote_data(username: str | None = None) -> Dict:
-    """Create a fresh v3 quote_data structure (Business Context schema).
+def _new_quote_data(username: str | None = None) -> Dict:
+    """Create a fresh quote_data structure.
 
-    This replaces the v2 nested structure with a clean, organized v3 schema.
-    No migration logic needed - new quotes start fresh with this structure.
+    Creates a new quote with organized sections for specifications, pricing, and calculations.
     Fetches default markup values from the global settings API.
     """
     import datetime as _dt
@@ -242,7 +241,7 @@ def update_quote_data_with_recalc(path: List[str], widget_sstate_key: str):
 @st.cache_data
 def get_all_fan_configs() -> Optional[List[Dict]]:
     try:
-        resp = requests.get(f"{API_BASE_URL}/fans/")
+        resp = requests.get(f"{API_BASE_URL}/fans/", headers=get_api_headers())
         resp.raise_for_status()
         return resp.json()
     except requests.exceptions.RequestException as e:
@@ -255,7 +254,7 @@ def get_available_components(fan_config_id: int) -> Optional[List[Dict]]:
     if not fan_config_id:
         return []
     try:
-        resp = requests.get(f"{API_BASE_URL}/fans/{fan_config_id}/components")
+        resp = requests.get(f"{API_BASE_URL}/fans/{fan_config_id}/components", headers=get_api_headers())
         resp.raise_for_status()
         return resp.json()
     except requests.exceptions.RequestException as e:
@@ -327,15 +326,15 @@ def _handle_component_selection():
 
 
 def _handle_fan_id_change():
-    """Handle fan UID selection change updating v3 schema."""
-    # Ensure quote_data exists in v3 format
+    """Handle fan UID selection change updating schema."""
+    # Ensure quote_data exists
     if "quote_data" not in st.session_state or not isinstance(st.session_state.quote_data, dict):
-        st.session_state.quote_data = _new_v3_quote_data()
+        st.session_state.quote_data = _new_quote_data()
     
     qd = st.session_state.quote_data
     if qd.get("meta", {}).get("version") != NEW_SCHEMA_VERSION:
-        # If not v3, start fresh
-        st.session_state.quote_data = _new_v3_quote_data()
+        # If not current schema version, start fresh
+        st.session_state.quote_data = _new_quote_data()
         qd = st.session_state.quote_data
 
     # Get the current widget key suffix to read the correct widget state
@@ -452,7 +451,7 @@ def _handle_fan_id_change():
     
     # No longer populate context.fan_configuration as it's moved to specification.fan.fan_configuration
     
-    # Ensure pricing section exists with defaults (should already be set from _new_v3_quote_data)
+    # Ensure pricing section exists with defaults (should already be set from initialization)
     pricing = qd.setdefault("pricing", {})
     if "component_markup" not in pricing or pricing["component_markup"] is None:
         # Fetch defaults if somehow missing (fallback safety)
@@ -561,15 +560,15 @@ def recompute_all_components(request_func) -> None:
 
 
 def render_sidebar_widgets():
-	"""Render the sidebar using the v3 schema."""
-	# Ensure quote_data exists in v3 format
+	"""Render the sidebar widgets."""
+	# Ensure quote_data exists
 	if "quote_data" not in st.session_state or not isinstance(st.session_state.quote_data, dict):
-		st.session_state.quote_data = _new_v3_quote_data()
+		st.session_state.quote_data = _new_quote_data()
 	
 	qd = st.session_state.quote_data
 	if qd.get("meta", {}).get("version") != NEW_SCHEMA_VERSION:
-		# If not v3, start fresh
-		st.session_state.quote_data = _new_v3_quote_data()
+		# If not current schema version, start fresh
+		st.session_state.quote_data = _new_quote_data()
 		qd = st.session_state.quote_data
 	
 	if "current_fan_config" not in st.session_state:

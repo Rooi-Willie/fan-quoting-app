@@ -4,7 +4,7 @@ import os
 import requests
 from config import CURRENCY_SYMBOL
 from utils import ensure_server_summary_up_to_date, build_summary_dataframe, get_ordered_component_names, build_ordered_component_rows
-from common import _new_v3_quote_data
+from common import _new_quote_data
 from export_utils import generate_docx, generate_filename
 
 # API_BASE_URL should be configured, e.g., via environment variable
@@ -14,13 +14,13 @@ API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
 def render_main_content():
     st.header("5. Review & Finalize Quote")
 
-    # Ensure v3 schema
+    # Ensure quote_data exists
     if "quote_data" not in st.session_state or not isinstance(st.session_state.quote_data, dict):
-        st.session_state.quote_data = _new_v3_quote_data()
+        st.session_state.quote_data = _new_quote_data()
     
     qd = st.session_state.quote_data
     
-    # Extract v3 sections
+    # Extract sections
     quote_section = qd.get("quote", {})
     spec_section = qd.get("specification", {})
     pricing_section = qd.get("pricing", {})

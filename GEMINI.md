@@ -6,13 +6,11 @@ The primary goal of this project is to create a modern web application that repl
 
 A critical requirement is the support for **live, intermediate calculations**. As a user selects components or modifies parameters in the UI, the API must calculate and return a detailed cost and mass breakdown for that specific component in real-time, not just a final total at the end.
 
-### Current Status (v3 Schema Implementation)
+### Current Status
 
-The application has been updated to use a modern **v3 quote data schema** with full backward compatibility:
+The application uses a modern **quote data schema** with structured sections:
 
-- **v3 Schema**: New quotes use structured sections (`meta`, `quote`, `specification`, `pricing`, `calculations`, `context`)
-- **Backward Compatibility**: Legacy v2 quotes continue to work through compatibility layer
-- **Migration Support**: Automatic detection and conversion for mixed-version environments
+- **Quote Schema**: Quotes use structured sections (`meta`, `quote`, `specification`, `pricing`, `calculations`, `context`)
 - **Documentation**: Complete schema specification in `../Documentation/quote_data_schema_v3.md`
 
 ## 2. System Architecture

@@ -6,113 +6,38 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from . import models, schemas
 from fastapi import HTTPException
-from .validation import validate_quote_data, validate_v3_quote_data
+from .validation import validate_quote_data
 
 
-# ===================== NESTED QUOTEDATA SUMMARY EXTRACTION ====================
+# ===================== QUOTEDATA SUMMARY EXTRACTION ====================
 def _extract_summary_from_quote_data(qd: Dict[str, Any]) -> Dict[str, Any]:
-    """Derive summary columns and ensure calculation.derived_totals (nested-only).
-
-    Assumes UI has already migrated/pruned legacy keys. No legacy fallbacks remain.
-    Mutates qd in-place to refresh derived_totals.
-    """
+    """Extract summary fields from quote_data structure for database storage."""
     if not isinstance(qd, dict):
         return {"fan_uid": None, "fan_size_mm": None, "blade_sets": None, "component_list": [],
                 "component_markup": None, "motor_markup": None, "total_price": None, "motor_supplier": None, "motor_rated_output": None}
 
-    fan = qd.get("fan", {}) or {}
-    comps = qd.get("components", {}) or {}
-    calc = qd.get("calculation", {}) or {}
-    motor = qd.get("motor", {}) or {}
-    buyouts = qd.get("buy_out_items", []) or []
-
-    fan_uid = fan.get("uid")
-    blade_sets = fan.get("blade_sets")
-    component_list = comps.get("selected", []) or []
-    markup = calc.get("markup_override")
-
-    motor_selection = motor.get("selection") or {}
-    motor_supplier = motor_selection.get("supplier_name") if isinstance(motor_selection, dict) else None
-    motor_rated_output = None
-    if isinstance(motor_selection, dict) and motor_selection.get("rated_output") is not None:
-        motor_rated_output = str(motor_selection.get("rated_output"))
-
-    server_summary = calc.get("server_summary") or {}
-    components_final_price = None
-    if isinstance(server_summary, dict):
-        components_final_price = server_summary.get("final_price") or server_summary.get("total_cost_after_markup")
-
-    motor_final_price = motor.get("final_price")
-
-    buyout_total = 0.0
-    if isinstance(buyouts, list):
-        for item in buyouts:
-            if not isinstance(item, dict):
-                continue
-            subtotal = item.get("subtotal")
-            if subtotal is None:
-                unit_cost = item.get("unit_cost") or 0
-                qty = item.get("qty") or 0
-                subtotal = float(unit_cost) * float(qty)
-            buyout_total += float(subtotal or 0)
-
-    total_price = 0.0
-    if components_final_price:
-        total_price += float(components_final_price)
-    if motor_final_price:
-        total_price += float(motor_final_price)
-    total_price += buyout_total
-
-    derived = {
-        "components_final_price": float(components_final_price or 0),
-        "motor_final_price": float(motor_final_price or 0),
-        "buyout_total": float(buyout_total),
-        "grand_total": float(total_price),
-    }
-    calc.setdefault("derived_totals", {})
-    calc["derived_totals"].update(derived)
-    qd["calculation"] = calc
-
-    return {
-        "fan_uid": fan_uid,
-        "fan_size_mm": fan.get("config_size_mm"),
-        "blade_sets": blade_sets,
-        "component_list": component_list,
-        "component_markup": markup,
-        "motor_markup": None,  # v2 doesn't have separate motor markup
-        "motor_supplier": motor_supplier,
-        "motor_rated_output": motor_rated_output,
-        "total_price": float(total_price),
-    }
-
-def _extract_summary_from_v3_quote_data(qd: Dict[str, Any]) -> Dict[str, Any]:
-    """Extract summary fields from v3 quote_data structure for database storage."""
-    if not isinstance(qd, dict):
-        return {"fan_uid": None, "fan_size_mm": None, "blade_sets": None, "component_list": [],
-                "component_markup": None, "motor_markup": None, "total_price": None, "motor_supplier": None, "motor_rated_output": None}
-
-    # Extract from v3 structure
+    # Extract from structure
     meta = qd.get("meta", {}) or {}
     quote = qd.get("quote", {}) or {}
     spec = qd.get("specification", {}) or {}
     pricing = qd.get("pricing", {}) or {}
     calculations = qd.get("calculations", {}) or {}
 
-    # Fan info from specification (new v3 structure)
+    # Fan info from specification
     fan_section = spec.get("fan", {}) or {}
     fan_config = fan_section.get("fan_configuration", {}) or {}
     fan_uid = fan_config.get("uid")
     fan_size_mm = fan_config.get("fan_size_mm")
     blade_sets = fan_section.get("blade_sets")
 
-    # Components list - updated to use 'name' field in component objects
+    # Components list - extract name field from component objects
     component_list = [comp.get("name") for comp in spec.get("components", []) if comp.get("name")]
 
     # Pricing info - extract both component and motor markup
     component_markup = pricing.get("component_markup")
     motor_markup = pricing.get("motor_markup")
     
-    # Motor info from specification (new v3 structure)
+    # Motor info from specification
     motor_section = spec.get("motor", {}) or {}
     motor_details = motor_section.get("motor_details", {}) or {}
     motor_supplier = motor_details.get("supplier_name")
@@ -418,17 +343,17 @@ def create_quote(db: Session, quote: schemas.QuoteCreate):
     return db_quote
 
 def create_v3_quote(db: Session, quote: schemas.QuoteCreate):
-    """Create quote using v3 schema structure."""
-    # Process quote_data for v3 structure
+    """Create quote using current schema structure."""
+    # Process quote_data
     quote_data = quote.quote_data if isinstance(quote.quote_data, dict) else {}
     
-    # Stage 5: validation using v3 validator
-    _validation_issues = validate_v3_quote_data(quote_data)
+    # Validate quote data
+    _validation_issues = validate_quote_data(quote_data)
     if _validation_issues:
         raise HTTPException(status_code=422, detail={"errors": _validation_issues})
     
-    # Extract summary fields using v3 structure
-    summary_fields = _extract_summary_from_v3_quote_data(quote_data)
+    # Extract summary fields
+    summary_fields = _extract_summary_from_quote_data(quote_data)
 
     db_quote = models.Quote(
         **quote.dict(exclude={"quote_data"}),

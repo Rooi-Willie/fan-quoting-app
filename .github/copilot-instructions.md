@@ -15,14 +15,12 @@ Full-stack application for creating and managing quotes for auxiliary axial fans
 4. **Docker**: Each component runs in a containerized environment (see `docker-compose.yml`)
 
 ### Critical Data Model Concepts
-- **Quote Data Schema v3**: Modern structured JSON with logical sections (`quote_data` column)
+- **Quote Data Schema**: Modern structured JSON with logical sections (`quote_data` column)
   - Organized sections: `meta`, `quote`, `specification`, `pricing`, `calculations`, `context`
   - Clear separation between technical specs, pricing data, and computed results
   - Full schema defined in `Documentation/quote_data_schema_v3.md`
-- **Backward Compatibility**: Legacy v2 quotes supported via compatibility layer
 - **Fan configurations**: Define available components and technical specifications
 - **Components**: Each has calculation parameters and formula types
-- **Schema Migration**: Automatic v2/v3 detection with compatibility functions
 
 ### Calculation Engine
 - Core logic in `api/app/logic/calculation_engine.py`
@@ -62,24 +60,22 @@ docker-compose logs -f ui   # UI logs
 - Handle edge cases with clear exception handling
 
 ## Common Gotchas
-1. **Quote Data Schema**: Must use v3 structure with logical sections (`specification`, `pricing`, `calculations`)
-2. **Version Compatibility**: Check schema version for proper data access paths
-3. **Component Calculations**: Each requires specific parameters based on formula type
-4. **Session State**: Streamlit requires careful management across tabs/pages
-5. **Docker Network**: API, UI, and DB containers communicate via internal network
-6. **Environment**: `.env` file required at project root with database credentials
-7. **Schema Functions**: Use `_new_v3_quote_data()` for new quotes, compatibility functions for mixed versions
+1. **Quote Data Schema**: Must use structured sections (`specification`, `pricing`, `calculations`)
+2. **Component Calculations**: Each requires specific parameters based on formula type
+3. **Session State**: Streamlit requires careful management across tabs/pages
+4. **Docker Network**: API, UI, and DB containers communicate via internal network
+5. **Environment**: `.env` file required at project root with database credentials
+6. **Schema Functions**: Use `_new_quote_data()` for new quotes
 
 ## Real-World Examples
 - Fan component calculation: `api/app/logic/calculation_engine.py` has specialized classes for each formula type
 - Quote creation workflow: `ui/pages/2_Create_New_Quote.py` orchestrates multi-tab UI flow
-- Schema compatibility: `ui/pages/common.py` contains `_new_v3_quote_data()` and compatibility functions for mixed versions
+- Schema structure: `ui/pages/common.py` contains `_new_quote_data()` function
 
 ### UI State Management (Streamlit)
 - **Primary Mechanism**: The app uses `st.session_state` extensively to maintain state across user interactions and page reruns.
 - **Central State Object**: `st.session_state.quote_data` holds the entire quote document being created or edited. It's the single source of truth for the UI.
-- **Initialization**: On the `2_Create_New_Quote.py` page, `st.session_state.quote_data` is initialized with a clean v3 schema structure using `_new_v3_quote_data()` from `ui/pages/common.py`.
+- **Initialization**: On the `2_Create_New_Quote.py` page, `st.session_state.quote_data` is initialized with a clean schema structure using `_new_quote_data()` from `ui/pages/common.py`.
 - **Authentication**: `st.session_state.logged_in` and `st.session_state.username` track user login status. Pages are protected by checking `st.session_state.logged_in`.
-- **Data Binding**: UI widgets in the quote creation tabs bind to v3 schema paths within `st.session_state.quote_data`. For example, project info uses `st.session_state.quote_data['quote']['client_name']`.
+- **Data Binding**: UI widgets in the quote creation tabs bind to schema paths within `st.session_state.quote_data`. For example, project info uses `st.session_state.quote_data['quote']['client_name']`.
 - **State Reset**: The "Start New Quote" button uses `st.session_state.clear()` and then immediately restores auth state, providing a controlled reset of the form.
-- **Schema Compatibility**: The `ensure_v3_compatibility()` function converts legacy v2 quotes to v3 structure for display and editing.

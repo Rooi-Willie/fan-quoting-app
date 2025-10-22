@@ -4,7 +4,7 @@ import datetime
 import json
 import os
 from config import APP_TITLE
-from common import _new_v3_quote_data
+from common import _new_quote_data
 from export_utils import generate_docx, generate_filename
 
 # API_BASE_URL should be configured, e.g., via environment variable
@@ -28,15 +28,6 @@ if "viewing_quote_id" not in st.session_state:
     st.stop()
 
 quote_id = st.session_state.viewing_quote_id
-
-# Function to ensure v3 compatibility (v3 only)
-def ensure_v3_compatibility(quote_data):
-    """Return v3 quote data as-is, or return empty v3 structure if invalid."""
-    if not isinstance(quote_data, dict):
-        return _new_v3_quote_data()
-    
-    # Assume all data is v3 format
-    return quote_data
 
 # Function to load quote details
 def load_quote_details(quote_id):
@@ -130,10 +121,10 @@ with project_cols[3]:
 
 st.divider()
 
-# Quote details from the saved JSON (v3 only)
-quote_data = ensure_v3_compatibility(quote.get("quote_data") or {})
+# Quote details from the saved JSON
+quote_data = quote.get("quote_data") or {}
 
-# Extract v3 schema data paths
+# Extract schema data paths
 fan_node = quote_data.get("specification", {}).get("fan", {})
 calc_node = quote_data.get("calculations", {})
 components_node = quote_data.get("specification", {}).get("components", [])
