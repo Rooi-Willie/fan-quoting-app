@@ -106,16 +106,24 @@ database:
 ### Step 2: Prepare Repository
 
 ```bash
-# Ensure you're on the main branch
+# 1. Ensure your feature branch is clean and committed
+git status  # Should show "nothing to commit, working tree clean"
+
+# 2. Switch to main branch and update it
 git checkout main
 git pull origin main
 
-# Merge your feature branch
+# 3. Merge your feature branch into main
 git merge feature/sidebar-relocation-quote-data-new-schema
 
-# Verify all files are committed
+# 4. Verify the merge was successful
 git status
+
+# 5. Push the merged main branch to remote
+git push origin main
 ```
+
+**Important:** If you encounter merge conflicts, resolve them before proceeding with deployment.
 
 ### Step 3: Verify File Structure
 
