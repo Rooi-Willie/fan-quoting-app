@@ -1,14 +1,14 @@
-# Streamlit Configuration - DEVELOPMENT
-# This file is for local development with full debugging and developer tools
+# Streamlit Configuration - PRODUCTION
+# This file is for production deployment with security and minimal UI
 
 [server]
 # Don't open browser automatically
 headless = true
 
-# Auto-reload on file changes (local development)
-runOnSave = true
+# Disable auto-reload in production
+runOnSave = false
 
-# File watcher for Docker on Windows
+# File watcher (poll works well in containerized environments)
 fileWatcherType = "poll"
 
 # Security
@@ -22,9 +22,6 @@ port = 8501
 # Disable usage statistics
 gatherUsageStats = false
 
-# Server address for local dev
-serverAddress = "localhost"
-
 [theme]
 # Custom theme colors (optional - adjust to your brand)
 primaryColor = "#1f77b4"
@@ -34,11 +31,11 @@ textColor = "#262730"
 font = "sans serif"
 
 [client]
-# DEVELOPMENT: Show detailed errors for debugging
-showErrorDetails = true
+# PRODUCTION: Hide detailed errors from users (security)
+showErrorDetails = false
 
-# DEVELOPMENT: Full developer toolbar with all controls
-toolbarMode = "developer"
+# PRODUCTION: Minimal toolbar for clean user experience
+toolbarMode = "minimal"
 
 [runner]
 # Faster magic commands
