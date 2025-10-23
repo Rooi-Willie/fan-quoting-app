@@ -71,7 +71,7 @@ pip install -r requirements.txt
 ```
 User Browser
     ↓
-Cloudflare DNS (quoting.airblowfans.co.za)
+Cloudflare DNS (quoting.airblowfans.org)
     ↓
 Streamlit Cloud (UI)
     ↓ (API Key Authentication)
@@ -268,7 +268,7 @@ python deploy/4_deploy_ui.py
    - Allowed domain: `airblowfans.co.za`
 
 5. **Custom Domain (Optional):**
-   - Streamlit: Add domain `quoting.airblowfans.co.za`
+   - Streamlit: Add domain `quoting.airblowfans.org`
    - Copy CNAME target
    - Cloudflare: Add CNAME record
      - Name: `quoting`

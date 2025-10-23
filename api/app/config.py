@@ -72,6 +72,7 @@ class Settings:
         if self.environment == "production":
             return [
                 "https://*.streamlit.app",
+                "https://*.airblowfans.org",
                 "https://*.airblowfans.co.za",
             ]
         else:

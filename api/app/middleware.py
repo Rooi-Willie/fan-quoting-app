@@ -19,9 +19,10 @@ def add_security_middleware(app: FastAPI):
     
     # CORS Configuration
     if environment == "production":
-        # Production: Only allow Streamlit Cloud
+        # Production: Only allow Streamlit Cloud and custom domains
         allowed_origins = [
             "https://*.streamlit.app",
+            "https://*.airblowfans.org",
             "https://*.airblowfans.co.za",
         ]
     else:
