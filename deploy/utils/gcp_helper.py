@@ -69,7 +69,7 @@ class GCPHelper:
             f"gcloud sql instances list --filter='name:{instance_name}' --format='value(name)'",
             check=False
         )
-        return bool(result)
+        return bool(result and result.strip())
     
     def database_exists(self, instance_name, database_name):
         """Check if database exists"""
@@ -77,7 +77,7 @@ class GCPHelper:
             f"gcloud sql databases list --instance={instance_name} --filter='name:{database_name}' --format='value(name)'",
             check=False
         )
-        return bool(result)
+        return bool(result and result.strip())
     
     def create_database(self, instance_name, database_name):
         """Create a database"""
@@ -95,7 +95,7 @@ class GCPHelper:
             f"gcloud sql users list --instance={instance_name} --filter='name:{username}' --format='value(name)'",
             check=False
         )
-        return bool(result)
+        return bool(result and result.strip())
     
     def update_user_password(self, instance_name, username, password):
         """Update user password"""
@@ -111,7 +111,7 @@ class GCPHelper:
             check=False
         )
         
-        if exists:
+        if exists and exists.strip():
             self.logger.warning(f"Secret {secret_name} already exists, updating...")
             # Add new version
             process = subprocess.Popen(
@@ -169,7 +169,7 @@ class GCPHelper:
             f"gcloud run services list --filter='metadata.name:{service_name}' --format='value(metadata.name)'",
             check=False
         )
-        return bool(result)
+        return bool(result and result.strip())
     
     def delete_service(self, service_name):
         """Delete Cloud Run service"""
