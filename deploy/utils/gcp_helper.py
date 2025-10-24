@@ -21,13 +21,23 @@ class GCPHelper:
         self.logger.debug(f"Running: {command}")
         
         try:
-            result = subprocess.run(
-                command,
-                shell=True,
-                check=check,
-                capture_output=capture_output,
-                text=True
-            )
+            # Use cmd.exe on Windows for better quote handling
+            import platform
+            if platform.system() == "Windows":
+                result = subprocess.run(
+                    ["cmd", "/c", command],
+                    check=check,
+                    capture_output=capture_output,
+                    text=True
+                )
+            else:
+                result = subprocess.run(
+                    command,
+                    shell=True,
+                    check=check,
+                    capture_output=capture_output,
+                    text=True
+                )
             return result.stdout.strip() if capture_output else None
         except subprocess.CalledProcessError as e:
             if check:
@@ -66,18 +76,28 @@ class GCPHelper:
     def instance_exists(self, instance_name):
         """Check if Cloud SQL instance exists"""
         result = self.run_command(
-            f"gcloud sql instances list --filter='name:{instance_name}' --format='value(name)'",
+            f"gcloud sql instances list --project={self.project_id} --format=value(name)",
             check=False
         )
-        return bool(result and result.strip())
+        self.logger.debug(f"Instance check result: '{result}' (type: {type(result)})")
+        if result:
+            instances = [name.strip() for name in result.split('\n') if name.strip()]
+            exists = instance_name in instances
+        else:
+            exists = False
+        self.logger.debug(f"Instance exists: {exists}")
+        return exists
     
     def database_exists(self, instance_name, database_name):
         """Check if database exists"""
         result = self.run_command(
-            f"gcloud sql databases list --instance={instance_name} --filter='name:{database_name}' --format='value(name)'",
+            f"gcloud sql databases list --instance={instance_name} --format=value(name)",
             check=False
         )
-        return bool(result and result.strip())
+        if result:
+            databases = [name.strip() for name in result.split('\n') if name.strip()]
+            return database_name in databases
+        return False
     
     def create_database(self, instance_name, database_name):
         """Create a database"""
@@ -92,10 +112,13 @@ class GCPHelper:
     def user_exists(self, instance_name, username):
         """Check if user exists"""
         result = self.run_command(
-            f"gcloud sql users list --instance={instance_name} --filter='name:{username}' --format='value(name)'",
+            f"gcloud sql users list --instance={instance_name} --format=value(name)",
             check=False
         )
-        return bool(result and result.strip())
+        if result:
+            users = [name.strip() for name in result.split('\n') if name.strip()]
+            return username in users
+        return False
     
     def update_user_password(self, instance_name, username, password):
         """Update user password"""
@@ -166,10 +189,13 @@ class GCPHelper:
     def service_exists(self, service_name):
         """Check if Cloud Run service exists"""
         result = self.run_command(
-            f"gcloud run services list --filter='metadata.name:{service_name}' --format='value(metadata.name)'",
+            f"gcloud run services list --region={self.region} --format=value(metadata.name)",
             check=False
         )
-        return bool(result and result.strip())
+        if result:
+            services = [name.strip() for name in result.split('\n') if name.strip()]
+            return service_name in services
+        return False
     
     def delete_service(self, service_name):
         """Delete Cloud Run service"""
