@@ -116,7 +116,7 @@ def main():
     if project_id not in existing_projects:
         logger.info(f"Creating new project: {project_id}")
         try:
-            gcp.run_command(f'gcloud projects create {project_id} --name="Airblowfans Quoting Application"')
+            gcp.run_command(f'gcloud projects create {project_id} --name="ABF Fan Quoting App"')
             logger.success("Project created")
         except Exception as e:
             logger.exit_with_error(f"Failed to create project: {e}")
