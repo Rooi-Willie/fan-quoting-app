@@ -131,12 +131,8 @@ class GCPHelper:
     
     def grant_secret_access(self, secret_name, service_account):
         """Grant service account access to secret"""
-        self.run_command(
-            f"""gcloud secrets add-iam-policy-binding {secret_name} \
-                --member='serviceAccount:{service_account}' \
-                --role='roles/secretmanager.secretAccessor' \
-                --quiet"""
-        )
+        cmd = f"gcloud secrets add-iam-policy-binding {secret_name} --member=serviceAccount:{service_account} --role=roles/secretmanager.secretAccessor --quiet"
+        self.run_command(cmd)
     
     def deploy_cloud_run(self, service_name, config, env_vars, secrets):
         """Deploy a Cloud Run service"""
