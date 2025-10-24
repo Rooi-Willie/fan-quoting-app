@@ -57,7 +57,8 @@ class GCPHelper:
             --backup-start-time={config['backup']['start_time']} \
             --maintenance-window-day={config['maintenance']['day']} \
             --maintenance-window-hour={config['maintenance']['hour']} \
-            --no-assign-ip \
+            --assign-ip \
+            --authorized-networks=0.0.0.0/0 \
             --quiet"""
         
         self.run_command(cmd)
