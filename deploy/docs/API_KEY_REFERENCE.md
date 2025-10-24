@@ -216,7 +216,7 @@ python deploy/3_deploy_api.py
 - DB_USER=app_user
 - DB_PASSWORD → references Secret Manager
 - API_KEY → references Secret Manager
-- CLOUD_SQL_CONNECTION_NAME=airblowfans-quoting:us-central1:fan-quoting-db
+- CLOUD_SQL_CONNECTION_NAME=abf-fan-quoting-app:us-central1:fan-quoting-db
 
 # Deploys and returns:
 API URL: https://fan-quoting-api-xyz123-uc.a.run.app

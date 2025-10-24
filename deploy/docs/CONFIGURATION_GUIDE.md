@@ -234,7 +234,7 @@ Cloud Run environment variables are set:
 DB_USER=app_user
 DB_NAME=fan_quoting
 DB_HOST=  # Not used (Cloud SQL uses Unix socket)
-CLOUD_SQL_CONNECTION_NAME=airblowfans-quoting:us-central1:fan-quoting-db
+CLOUD_SQL_CONNECTION_NAME=abf-fan-quoting-app:us-central1:fan-quoting-db
 
 # This references the secret:
 DB_PASSWORD → points to → Secret Manager: DB_PASSWORD

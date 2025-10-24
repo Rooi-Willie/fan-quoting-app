@@ -168,7 +168,7 @@ python deploy/1_setup_gcp.py
 
 **What this does:**
 1. Login to Google Cloud
-2. Create project: `airblowfans-quoting`
+2. Create project: `abf-fan-quoting-app`
 3. Enable required APIs (Cloud Run, Cloud SQL, etc.)
 4. Generate API key
 5. Create service account
@@ -434,7 +434,7 @@ gcloud builds list --limit=5
 gcloud builds log BUILD_ID
 
 # Check service account permissions
-gcloud projects get-iam-policy airblowfans-quoting
+gcloud projects get-iam-policy abf-fan-quoting-app
 ```
 
 ### Common Error Messages

@@ -61,7 +61,7 @@ python deploy/1_setup_gcp.py
 
 **Output:**
 ```
-✓ Project created: airblowfans-quoting
+✓ Project created: abf-fan-quoting-app
 ✓ APIs enabled
 ✓ API key generated
 ```
