@@ -188,15 +188,19 @@ class DatabaseHelper:
         
         try:
             # Read the header to get column names from CSV
-            with open(csv_file, 'r', encoding='utf-8') as f:
+            with open(csv_file, 'r', encoding='utf-8-sig') as f:  # utf-8-sig strips BOM
                 header_line = f.readline().strip()
                 columns = header_line.split(',')
             
             # Create column list for COPY command
             column_list = ', '.join(columns)
             
+            # Debug logging
+            self.logger.debug(f"  CSV columns: {columns}")
+            self.logger.debug(f"  COPY command: COPY {table_name} ({column_list}) FROM STDIN...")
+            
             # Reopen file and skip header, then copy data
-            with open(csv_file, 'r', encoding='utf-8') as f:
+            with open(csv_file, 'r', encoding='utf-8-sig') as f:  # utf-8-sig strips BOM
                 next(f)  # Skip header row
                 
                 # Use COPY FROM STDIN with specific columns
