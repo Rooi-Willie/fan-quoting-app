@@ -249,19 +249,30 @@ class GCPHelper:
     
     def upload_to_bucket(self, local_path, bucket_name, remote_path):
         """Upload file to Cloud Storage"""
-        # Use subprocess with list args to avoid quote/space issues
+        # Use cmd.exe with list args to avoid quote/space issues on Windows
         import subprocess
+        import platform
+        
         local_path_str = str(local_path)
         gs_path = f"gs://{bucket_name}/{remote_path}"
         
         self.logger.debug(f"Running: gsutil cp {local_path_str} {gs_path}")
         try:
-            result = subprocess.run(
-                ["gsutil", "cp", local_path_str, gs_path],
-                check=True,
-                capture_output=True,
-                text=True
-            )
+            if platform.system() == "Windows":
+                # On Windows, use cmd.exe to run gsutil with proper args
+                result = subprocess.run(
+                    ["cmd", "/c", "gsutil", "cp", local_path_str, gs_path],
+                    check=True,
+                    capture_output=True,
+                    text=True
+                )
+            else:
+                result = subprocess.run(
+                    ["gsutil", "cp", local_path_str, gs_path],
+                    check=True,
+                    capture_output=True,
+                    text=True
+                )
         except subprocess.CalledProcessError as e:
             self.logger.error(f"Upload failed: {e.stderr}")
             raise
