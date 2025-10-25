@@ -130,7 +130,7 @@ class GCPHelper:
         """Create a secret in Secret Manager"""
         # Check if secret exists
         exists = self.run_command(
-            f"gcloud secrets list --filter='name:{secret_name}' --format='value(name)'",
+            f"gcloud secrets list --filter=name:{secret_name} --format=value(name)",
             check=False
         )
         
@@ -183,7 +183,7 @@ class GCPHelper:
     def get_service_url(self, service_name):
         """Get Cloud Run service URL"""
         return self.run_command(
-            f"gcloud run services describe {service_name} --region={self.region} --format='value(status.url)'"
+            f"gcloud run services describe {service_name} --region={self.region} --format=value(status.url)"
         )
     
     def service_exists(self, service_name):
@@ -212,7 +212,7 @@ class GCPHelper:
     def get_instance_status(self, instance_name):
         """Get Cloud SQL instance status"""
         return self.run_command(
-            f"gcloud sql instances describe {instance_name} --format='value(state)'",
+            f"gcloud sql instances describe {instance_name} --format=value(state)",
             check=False
         )
     
