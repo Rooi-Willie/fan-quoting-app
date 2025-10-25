@@ -73,16 +73,30 @@ class DatabaseHelper:
                     statements = [s.strip() for s in sql_content.split(';') if s.strip()]
                     
                     for statement in statements:
-                        cursor.execute(statement)
+                        try:
+                            cursor.execute(statement)
+                            # Commit after each statement to avoid transaction rollback issues
+                            self.conn.commit()
+                        except Exception as stmt_error:
+                            # Rollback the failed transaction
+                            self.conn.rollback()
+                            
+                            # Ignore "already exists" errors to make script idempotent
+                            error_msg = str(stmt_error).lower()
+                            if 'already exists' in error_msg or 'duplicate' in error_msg:
+                                self.logger.debug(f"  Skipping: {stmt_error}")
+                            else:
+                                # Re-raise other errors
+                                raise
                 
                 self.logger.success(f"✓ {sql_file.name}")
             
             except Exception as e:
                 self.logger.error(f"Failed to execute {sql_file.name}: {e}")
+                self.conn.rollback()
                 cursor.close()
                 return False
         
-        self.conn.commit()
         cursor.close()
         self.logger.success("All SQL scripts executed successfully")
         return True
@@ -173,13 +187,21 @@ class DatabaseHelper:
         self.logger.info(f"Loading {table_name}...")
         
         try:
+            # Read the header to get column names from CSV
             with open(csv_file, 'r', encoding='utf-8') as f:
-                # Skip header row
-                next(f)
+                header_line = f.readline().strip()
+                columns = header_line.split(',')
+            
+            # Create column list for COPY command
+            column_list = ', '.join(columns)
+            
+            # Reopen file and skip header, then copy data
+            with open(csv_file, 'r', encoding='utf-8') as f:
+                next(f)  # Skip header row
                 
-                # Use COPY FROM STDIN which works without superuser privileges
+                # Use COPY FROM STDIN with specific columns
                 cursor.copy_expert(
-                    f"COPY {table_name} FROM STDIN WITH (FORMAT CSV, NULL '')",
+                    f"COPY {table_name} ({column_list}) FROM STDIN WITH (FORMAT CSV, NULL '')",
                     f
                 )
             
