@@ -96,6 +96,20 @@ def main():
     os.chdir(api_dir)
     
     try:
+        # Check if service already exists
+        logger.info("Checking for existing deployment...")
+        existing_services = gcp.run_command(
+            f"gcloud run services list --region {region} --format=value(name)",
+            capture_output=True
+        )
+        
+        service_exists = service_name in existing_services.split('\n') if existing_services else False
+        
+        if service_exists:
+            logger.info(f"Service '{service_name}' already exists - will update")
+        else:
+            logger.info(f"Service '{service_name}' not found - will create new deployment")
+        
         # Step 1: Build and deploy
         logger.step(1, 5, "Building and deploying to Cloud Run")
         logger.info("This may take 5-10 minutes on first deployment...")
@@ -111,16 +125,23 @@ def main():
             "ENVIRONMENT": api_config['environment']
         }
         
-        secrets = {
-            "DB_PASSWORD": "db-password",
-            "API_KEY": "api-key"
-        }
+        # For --set-secrets, format is: ENV_VAR=SECRET_NAME:VERSION
+        # where SECRET_NAME can only contain alphanumeric, hyphens, underscores
+        # The VERSION should be 'latest' or a number
+        secrets = [
+            f"DB_PASSWORD=db-password:latest",
+            f"API_KEY=api-key:latest"
+        ]
         
         # Deploy using gcloud
         logger.info("Starting deployment...")
         
         env_str = ",".join([f"{k}={v}" for k, v in env_vars.items()])
-        secrets_str = ",".join([f"{k}={v}:latest" for k, v in secrets.items()])
+        
+        # Use separate --set-secrets flags for each secret
+        # Format: ENV_VAR=SECRET_NAME:VERSION
+        secrets_cmd = "--set-secrets DB_PASSWORD=db-password:1 --set-secrets API_KEY=api-key:1"
+
         
         deploy_cmd = f"""gcloud run deploy {service_name} \
             --source . \
@@ -134,7 +155,7 @@ def main():
             --port {api_config['port']} \
             --timeout {api_config['timeout']} \
             --set-env-vars "{env_str}" \
-            --set-secrets "{secrets_str}" \
+            {secrets_cmd} \
             --add-cloudsql-instances {cloud_sql_connection} \
             --quiet"""
         
