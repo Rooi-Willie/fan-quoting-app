@@ -249,7 +249,22 @@ class GCPHelper:
     
     def upload_to_bucket(self, local_path, bucket_name, remote_path):
         """Upload file to Cloud Storage"""
-        self.run_command(f"gsutil cp {local_path} gs://{bucket_name}/{remote_path}")
+        # Use subprocess with list args to avoid quote/space issues
+        import subprocess
+        local_path_str = str(local_path)
+        gs_path = f"gs://{bucket_name}/{remote_path}"
+        
+        self.logger.debug(f"Running: gsutil cp {local_path_str} {gs_path}")
+        try:
+            result = subprocess.run(
+                ["gsutil", "cp", local_path_str, gs_path],
+                check=True,
+                capture_output=True,
+                text=True
+            )
+        except subprocess.CalledProcessError as e:
+            self.logger.error(f"Upload failed: {e.stderr}")
+            raise
     
     def wait_for_operation(self, operation_type, timeout=300):
         """Wait for an operation to complete"""

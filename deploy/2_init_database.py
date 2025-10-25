@@ -30,7 +30,9 @@ def upload_csv_files(config, gcp):
     logger.info("Uploading CSV files to Cloud Storage...")
     
     bucket_name = config['data_storage']['bucket_name']
-    csv_source = Path(config['data_storage']['csv_source_path'])
+    # Make path relative to project root (parent of deploy folder)
+    project_root = Path(__file__).parent.parent
+    csv_source = project_root / config['data_storage']['csv_source_path']
     
     # Create bucket
     gcp.create_storage_bucket(bucket_name)
@@ -66,7 +68,7 @@ def start_cloud_sql_proxy(project_id, region, instance_name):
         logger.info("Downloading Cloud SQL Proxy...")
         try:
             subprocess.run(
-                f'powershell -Command "Invoke-WebRequest -Uri https://dl.google.com/cloudsql/cloud_sql_proxy_x64.exe -OutFile {proxy_path}"',
+                f'powershell -Command "Invoke-WebRequest -Uri https://dl.google.com/cloudsql/cloud_sql_proxy_x64.exe -OutFile \\"{proxy_path}\\""',
                 shell=True,
                 check=True
             )
