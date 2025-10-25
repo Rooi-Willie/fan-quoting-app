@@ -79,18 +79,27 @@ def start_cloud_sql_proxy(project_id, region, instance_name):
     # Start proxy
     connection_name = f"{project_id}:{region}:{instance_name}"
     logger.info("Starting Cloud SQL Proxy...")
+    logger.debug(f"Connection name: {connection_name}")
     
     try:
+        # Start proxy with explicit port binding (using legacy v1 syntax)
+        # The proxy will listen on localhost:5432
         process = subprocess.Popen(
-            [str(proxy_path), connection_name],
+            [str(proxy_path), "-instances", f"{connection_name}=tcp:5432"],
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            stderr=subprocess.PIPE,
+            text=True
         )
         
-        # Wait for proxy to start
-        time.sleep(5)
+        # Wait for proxy to start and check for errors
+        logger.info("Waiting for proxy to establish connection...")
+        time.sleep(10)
         
         if process.poll() is not None:
+            # Proxy exited, get error output
+            stdout, stderr = process.communicate()
+            logger.error(f"Proxy stdout: {stdout}")
+            logger.error(f"Proxy stderr: {stderr}")
             logger.exit_with_error("Cloud SQL Proxy failed to start")
         
         logger.success(f"Cloud SQL Proxy running (PID: {process.pid})")
@@ -216,18 +225,19 @@ def main():
         if not db_helper.connect():
             logger.exit_with_error("Failed to connect to database")
         
-        # Run init scripts
-        scripts_dir = "fan-quoting-app/database/init-scripts"
+        # Run init scripts - use absolute path
+        project_root = Path(__file__).parent.parent
+        scripts_dir = project_root / "database" / "init-scripts"
         logger.info("Running SQL initialization scripts...")
-        if not db_helper.run_sql_scripts(scripts_dir):
+        if not db_helper.run_sql_scripts(str(scripts_dir)):
             logger.exit_with_error("Failed to run SQL scripts")
         
-        # Load CSV data
+        # Load CSV data - use absolute path
         logger.info("Loading CSV data from local files...")
-        csv_dir = config['data_storage']['csv_source_path']
+        csv_dir = project_root / config['data_storage']['csv_source_path']
         tables = config['data_storage']['csv_tables']
         
-        if not db_helper.load_csv_data(csv_dir, tables):
+        if not db_helper.load_csv_data(str(csv_dir), tables):
             logger.exit_with_error("Failed to load CSV data")
         
         # Verify
