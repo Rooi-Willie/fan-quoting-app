@@ -46,15 +46,37 @@ def upload_csv_files(config, gcp):
     
     logger.info(f"Found {len(csv_files)} CSV files")
     
-    for csv_file in csv_files:
-        logger.debug(f"Uploading {csv_file.name}...")
-        gcp.upload_to_bucket(
-            str(csv_file),
-            bucket_name,
-            f"csv_data/{csv_file.name}"
-        )
+    # Check if files already exist in bucket and skip if unchanged
+    uploaded_count = 0
+    skipped_count = 0
     
-    logger.success(f"Uploaded {len(csv_files)} files to gs://{bucket_name}/csv_data/")
+    for csv_file in csv_files:
+        remote_path = f"csv_data/{csv_file.name}"
+        
+        # Check if file exists in bucket (simple check - could add MD5 comparison for accuracy)
+        check_result = gcp.run_command(
+            f"gsutil ls gs://{bucket_name}/{remote_path}",
+            check=False
+        )
+        
+        if check_result and check_result.strip():
+            logger.debug(f"Skipping {csv_file.name} (already exists)")
+            skipped_count += 1
+        else:
+            logger.debug(f"Uploading {csv_file.name}...")
+            gcp.upload_to_bucket(
+                str(csv_file),
+                bucket_name,
+                remote_path
+            )
+            uploaded_count += 1
+    
+    if uploaded_count > 0:
+        logger.success(f"Uploaded {uploaded_count} file(s) to gs://{bucket_name}/csv_data/")
+    if skipped_count > 0:
+        logger.info(f"Skipped {skipped_count} file(s) (already exist)")
+    
+    return True
     return True
 
 
@@ -225,14 +247,17 @@ def main():
         if not db_helper.connect():
             logger.exit_with_error("Failed to connect to database")
         
-        # Run init scripts - use absolute path
+        # Run init scripts - use absolute path, but skip 02-load-data.sql
         project_root = Path(__file__).parent.parent
         scripts_dir = project_root / "database" / "init-scripts"
         logger.info("Running SQL initialization scripts...")
-        if not db_helper.run_sql_scripts(str(scripts_dir)):
+        # Only run schema creation (01-schema.sql), skip 02-load-data.sql
+        # because COPY FROM requires superuser privileges which Cloud SQL doesn't provide
+        if not db_helper.run_sql_scripts(str(scripts_dir), skip_files=['02-load-data.sql']):
             logger.exit_with_error("Failed to run SQL scripts")
         
         # Load CSV data - use absolute path
+        # This uses Python's psycopg2 which doesn't require superuser privileges
         logger.info("Loading CSV data from local files...")
         csv_dir = project_root / config['data_storage']['csv_source_path']
         tables = config['data_storage']['csv_tables']
