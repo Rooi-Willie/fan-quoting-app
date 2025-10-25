@@ -84,8 +84,11 @@ def main():
         logger.warning("Deployment cancelled")
         sys.exit(0)
     
-    # Change to API directory
-    api_dir = Path("fan-quoting-app/api")
+    # Change to API directory (relative to the project root)
+    script_dir = Path(__file__).parent  # deploy/
+    project_root = script_dir.parent    # fan-quoting-app/
+    api_dir = project_root / "api"
+    
     if not api_dir.exists():
         logger.exit_with_error(f"API directory not found: {api_dir}")
     
