@@ -181,10 +181,19 @@ def main():
     gcp.create_secret("db-password", db_password)
     gcp.create_secret("api-key", config['api']['api_key'])
     
-    # Grant access to default service account
-    default_sa = f"{project_id}@appspot.gserviceaccount.com"
-    gcp.grant_secret_access("db-password", default_sa)
-    gcp.grant_secret_access("api-key", default_sa)
+    # Grant access to compute service account (used by Cloud Run)
+    # Get project number for the default compute service account
+    project_number = gcp.run_command(
+        f"gcloud projects describe {project_id} --format=value(projectNumber)",
+        check=False
+    )
+    if project_number:
+        compute_sa = f"{project_number}-compute@developer.gserviceaccount.com"
+        logger.info(f"Granting access to: {compute_sa}")
+        gcp.grant_secret_access("db-password", compute_sa)
+        gcp.grant_secret_access("api-key", compute_sa)
+    else:
+        logger.warning("Could not get project number, skipping service account permissions")
     
     logger.success("Credentials stored securely")
     
