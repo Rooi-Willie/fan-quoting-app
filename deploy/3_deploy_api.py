@@ -22,23 +22,28 @@ def load_config():
         return yaml.safe_load(f)
 
 
-def test_api_endpoint(url):
+def test_api_endpoint(url, api_key):
     """Test deployed API"""
     import requests
     
     logger = Logger()
     logger.info("Testing API endpoints...")
     
+    # Define tests - some require auth, some don't
     tests = [
-        ("/", "Root endpoint"),
-        ("/health", "Health check"),
-        ("/api/test-db", "Database connection")
+        ("/", "Root endpoint", False),
+        ("/health", "Health check", False),
+        ("/api/test-db", "Database connection", True)
     ]
     
     results = []
-    for endpoint, description in tests:
+    for endpoint, description, requires_auth in tests:
         try:
-            response = requests.get(f"{url}{endpoint}", timeout=10)
+            headers = {}
+            if requires_auth:
+                headers["X-API-Key"] = api_key
+            
+            response = requests.get(f"{url}{endpoint}", headers=headers, timeout=10)
             if response.status_code == 200:
                 logger.success(f"✓ {description}")
                 results.append(True)
@@ -180,7 +185,7 @@ def main():
         # Step 3: Test deployment
         logger.step(3, 5, "Testing deployment")
         
-        if test_api_endpoint(api_url):
+        if test_api_endpoint(api_url, api_config['api_key']):
             logger.success("All tests passed!")
         else:
             logger.warning("Some tests failed. Check logs for details.")
