@@ -159,7 +159,7 @@ def main():
             --cpu {api_config['cpu']} \
             --port {api_config['port']} \
             --timeout {api_config['timeout']} \
-            --set-env-vars "{env_str}" \
+            --set-env-vars {env_str} \
             {secrets_cmd} \
             --add-cloudsql-instances {cloud_sql_connection} \
             --quiet"""
