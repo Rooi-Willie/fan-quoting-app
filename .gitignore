@@ -11,6 +11,8 @@
 # Streamlit secrets (SECURITY - DO NOT COMMIT!)
 ui/.streamlit/secrets.toml
 .streamlit/secrets.toml
+fan-quoting-app/ui/.streamlit/secrets.toml
+**/ui/.streamlit/secrets.toml
 
 # Deployment secrets (SECURITY - DO NOT COMMIT!)
 deploy/config.yaml
