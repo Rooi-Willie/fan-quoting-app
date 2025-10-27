@@ -16,6 +16,8 @@ ui/.streamlit/secrets.toml
 deploy/config.yaml
 deploy/cloud_sql_proxy.exe
 deploy/cloud_sql_proxy
+cloud-sql-proxy.exe
+cloud-sql-proxy
 
 # ========= DEFAULT GITIGNORE FOR PYTHON PROJECTS =========
 # Byte-compiled / optimized / DLL files
