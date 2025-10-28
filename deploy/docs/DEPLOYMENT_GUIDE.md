@@ -19,6 +19,9 @@
 9. [Troubleshooting](#troubleshooting)
 10. [Security](#security)
 
+**📚 Additional Guides:**
+- [Database Connection Guide](DATABASE_CONNECTION_GUIDE.md) - Connect to Cloud SQL from local machine
+
 ---
 
 ## Overview
@@ -341,6 +344,14 @@ python deploy/5_monitor.py
 # 3. View database operations
 # 4. Test endpoints
 ```
+
+### Connecting to the Database
+
+For local database access, see the **[Database Connection Guide](DATABASE_CONNECTION_GUIDE.md)**
+
+Two options available:
+- **Quick:** Direct connection using public IP
+- **Recommended:** Cloud SQL Proxy (secure, encrypted)
 
 ### Managing Costs
 
