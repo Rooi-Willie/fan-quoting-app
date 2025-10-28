@@ -415,3 +415,56 @@ def update_quote_status(db: Session, quote_id: int, status: str):
     db.commit()
     db.refresh(db_quote)
     return db_quote
+
+
+# ============================= USER CRUD OPERATIONS =============================
+
+import bcrypt
+
+def hash_password(password: str) -> str:
+    """Hash a password using bcrypt"""
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+
+def create_user(db: Session, user: schemas.UserCreate) -> models.User:
+    """Create a new user with hashed password"""
+    hashed_password = hash_password(user.password)
+    
+    db_user = models.User(
+        username=user.username,
+        email=user.email,
+        password_hash=hashed_password,
+        full_name=user.full_name,
+        phone=user.phone,
+        department=user.department,
+        job_title=user.job_title,
+        role=user.role
+    )
+    
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+
+def get_user_by_username(db: Session, username: str) -> Optional[models.User]:
+    """Get user by username"""
+    return db.query(models.User).filter(models.User.username == username).first()
+
+
+def get_user_by_email(db: Session, email: str) -> Optional[models.User]:
+    """Get user by email"""
+    return db.query(models.User).filter(models.User.email == email).first()
+
+
+def get_user(db: Session, user_id: int) -> Optional[models.User]:
+    """Get user by ID"""
+    return db.query(models.User).filter(models.User.id == user_id).first()
+
+
+def list_users(db: Session, skip: int = 0, limit: int = 100, active_only: bool = True) -> List[models.User]:
+    """List all users with pagination"""
+    query = db.query(models.User)
+    if active_only:
+        query = query.filter(models.User.is_active == True)
+    return query.offset(skip).limit(limit).all()

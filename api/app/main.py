@@ -1,7 +1,7 @@
 # We simplify main.py to be the central point that ties everything together.
 
 from fastapi import FastAPI, Depends
-from .routers import fans, motors, quotes, settings, saved_quotes
+from .routers import fans, motors, quotes, settings, saved_quotes, users
 from .middleware import add_security_middleware
 from .auth import verify_api_key
 from .config import settings as app_settings
@@ -21,6 +21,7 @@ app.include_router(motors.router, dependencies=[Depends(verify_api_key)])
 app.include_router(quotes.router, dependencies=[Depends(verify_api_key)])
 app.include_router(saved_quotes.router, dependencies=[Depends(verify_api_key)])
 app.include_router(settings.router, dependencies=[Depends(verify_api_key)])
+app.include_router(users.router, dependencies=[Depends(verify_api_key)])
 
 @app.get("/", tags=["Root"])
 def read_root():

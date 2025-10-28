@@ -5,3 +5,4 @@ python-dotenv
 docxtpl  # For Word document template processing
 python-docx  # For Word document manipulation
 pytz  # For timezone handling in export utilities
+bcrypt>=4.0.0  # For password hashing

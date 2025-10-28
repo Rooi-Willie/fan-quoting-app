@@ -230,12 +230,20 @@ class User(Base):
     __tablename__ = "users"
     
     id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True)
-    name = Column(String)
+    username = Column(String, unique=True, index=True, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+    full_name = Column(String)
+    phone = Column(String)
+    department = Column(String)
+    job_title = Column(String)
     role = Column(String, default="user")
+    is_active = Column(Boolean, default=True)
     external_id = Column(String)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     last_login = Column(DateTime)
+    created_by = Column(Integer)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 class Quote(Base):
     __tablename__ = "quotes"

@@ -141,12 +141,20 @@ CREATE TABLE global_settings (
 -- ================== QUOTE SAVING TABLES ==================
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
-    name VARCHAR(255),
-    role VARCHAR(50) DEFAULT 'user',
+    password_hash VARCHAR(255) NOT NULL,  -- Store hashed passwords, not plain text
+    full_name VARCHAR(255),
+    phone VARCHAR(20),
+    department VARCHAR(100),
+    job_title VARCHAR(100),
+    role VARCHAR(50) DEFAULT 'user',  -- 'admin', 'engineer', 'sales', 'user', 'guest'
+    is_active BOOLEAN DEFAULT TRUE,
     external_id VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_login TIMESTAMP
+    last_login TIMESTAMP,
+    created_by INTEGER,  -- User ID who created this account
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS quotes (

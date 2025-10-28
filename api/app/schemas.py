@@ -411,3 +411,62 @@ class QuoteDataV3(BaseModel):
     pricing: PricingSectionV3
     calculations: CalculationsSectionV3
     context: ContextSectionV3
+
+
+# ============================= USER SCHEMAS =============================
+
+class UserBase(BaseModel):
+    """Base user schema with common fields"""
+    username: str
+    email: str
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    department: Optional[str] = None
+    job_title: Optional[str] = None
+    role: str = "user"
+
+
+class UserCreate(UserBase):
+    """Schema for creating a new user"""
+    password: str  # Plain text password (will be hashed)
+
+
+class UserUpdate(BaseModel):
+    """Schema for updating user information"""
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    department: Optional[str] = None
+    job_title: Optional[str] = None
+    role: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class User(UserBase):
+    """Complete user schema for API responses"""
+    id: int
+    password_hash: str
+    is_active: bool
+    external_id: Optional[str] = None
+    created_at: datetime
+    last_login: Optional[datetime] = None
+    created_by: Optional[int] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserProfile(BaseModel):
+    """User profile for display (excludes password_hash)"""
+    id: int
+    username: str
+    email: str
+    full_name: Optional[str] = None
+    phone: Optional[str] = None
+    department: Optional[str] = None
+    job_title: Optional[str] = None
+    role: str
+    is_active: bool
+    last_login: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
