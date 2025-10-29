@@ -226,9 +226,12 @@ def prepare_quote_context(quote_data: Dict[str, Any]) -> Dict[str, Any]:
     project_name = quote_section.get("project", "")
     quote_heading = f"{client_name} - {project_name}" if client_name and project_name else (client_name or project_name or "Quote")
     
-    # Get user information
-    created_by = meta_section.get("created_by", "User")
-    user_email = f"{created_by}@airblowfans.co.za"
+    # Get user information from created_by_user
+    created_by_user = meta_section.get("created_by_user", {})
+    user_name = created_by_user.get("full_name", "N/A")
+    user_position = created_by_user.get("job_title", "N/A")
+    user_email = created_by_user.get("email", "N/A")
+    user_tel_number = created_by_user.get("phone", "N/A")
     
     # Get component names as a list for the components list
     component_names = [
@@ -266,10 +269,10 @@ def prepare_quote_context(quote_data: Dict[str, Any]) -> Dict[str, Any]:
         "motor_pole": str(motor_details.get("poles", "N/A")),
         "motor_speed": str(motor_details.get("speed", "N/A")),
         
-        # User information (with dummy values as requested)
-        "user_name": created_by,
-        "user_position": "Sales Engineer",  # Dummy value
-        "user_tel_number": "+27 XX XXX XXXX",  # Dummy value
+        # User information from created_by_user
+        "user_name": user_name,
+        "user_position": user_position,
+        "user_tel_number": user_tel_number,
         "user_email": user_email,
         
         # Rotor assembly components

@@ -20,10 +20,10 @@ This document provides a quick reference for mapping template variables in the W
 | `{{ motor_product_range }}` | `specification.motor.motor_details.product_range` | Text |
 | `{{ motor_pole }}` | `specification.motor.motor_details.poles` | Number as string |
 | `{{ motor_speed }}` | `specification.motor.motor_details.speed` | Number as string |
-| `{{ user_name }}` | `meta.created_by` | Text |
-| `{{ user_position }}` | N/A | "Sales Engineer" (dummy) |
-| `{{ user_tel_number }}` | N/A | "+27 XX XXX XXXX" (dummy) |
-| `{{ user_email }}` | Derived from `meta.created_by` | "username@airblowfans.co.za" |
+| `{{ user_name }}` | `meta.created_by_user.full_name` | Text (e.g., "Bernard Viviers") |
+| `{{ user_position }}` | `meta.created_by_user.job_title` | Text (e.g., "Sales Engineer") |
+| `{{ user_tel_number }}` | `meta.created_by_user.phone` | Text (e.g., "+27 82 345 6789") |
+| `{{ user_email }}` | `meta.created_by_user.email` | Text (e.g., "bernard.viviers@airblowfans.co.za") |
 | `{{ rotor_assembly_components }}` | Derived from `specification.fan.fan_configuration.auto_selected_components` | Comma-separated names |
 | `{{ component_subtotal }}` | `calculations.totals.components` | Formatted currency |
 | `{{ motor_unit_price }}` | `calculations.totals.motor` | Formatted currency |
