@@ -27,7 +27,7 @@ except (KeyError, AttributeError):
 
 # Log what was loaded (for debugging)
 logger.info(f"API_BASE_URL: {API_BASE_URL}")
-logger.info(f"API_KEY loaded: {API_KEY}, {bool(API_KEY)} (length: {len(API_KEY)})")
+logger.info(f"API_KEY loaded: {bool(API_KEY)} (length: {len(API_KEY)})")
 
 
 def get_api_headers():

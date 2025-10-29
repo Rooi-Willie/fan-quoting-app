@@ -1,7 +1,7 @@
 id,username,email,password_hash,full_name,phone,department,job_title,role,is_active,external_id,created_at,last_login
-1,Bernard,bernard@airblowfans.co.za,$2b$12$bfjhO1FcVCZtvPhaPO1kqeS3gbvg862QcCQy2JT.PZnhMLwVLqPTa,Bernard Viviers,+27 11 452 0726,Engineering,Engineer,admin,TRUE,bernard-001,2025-10-28 00:00:00,
-2,Gavin,gavin@airblowfans.co.za,$2b$12$0ERrFGciAt9u4PbV9MOgaObB48OWrgasxhucVRzLPgH5RC/WFi/Zi,Gavin Ratner,+27 11 452 0726,Sales,Sales Manager,sales,TRUE,gavin-001,2025-10-28 00:00:00,
+1,Bernard,bernard@airblowfans.co.za,$2b$12$kfkU3GKPKbdRFMEozcoSDu2caZVpiOqHOOco0R/ZfinglYUMtgFIy,Bernard Viviers,+27 11 452 0726,Engineering,Engineer,admin,TRUE,bernard-001,2025-10-28 00:00:00,
+2,Gavin,gavin@airblowfans.co.za,$2b$12$W6/Uk4IHKv7zu4fzyKyCLONGNdpryHycSndaZBXevXONAPVruV3z.,Gavin Ratner,+27 11 452 0726,Sales,Sales Manager,sales,TRUE,gavin-001,2025-10-28 00:00:00,
 3,Heinrich,heinrich@airblowfans.co.za,$2b$12$EP2/trv5kTtCGaRVUR2GduhzFADAu9XEZuAxza5N.kEjGPw2X0DA2,Heinrich Jacobs,+27 11 452 0726,Engineering,Engineering Manager,engineer,TRUE,heinrich-001,2025-10-28 00:00:00,
 4,Dylan,dylan@airblowfans.co.za,$2b$12$klw9r6uE/C5Q9OtYQnEnau6.Gq7wZlopkoVV4l83894W67n8Krmvq,Dylan Cornelius,+27 11 452 0726,Sales,Sales Representative,sales,TRUE,dylan-001,2025-10-28 00:00:00,
 5,Pieter,pieter@airblowfans.co.za,$2b$12$zXLh7wMpYP0baSSytd0BRO02roGKD6oJ3TlL5Z6Wdo8iT6XxQQ9ge,Pieter Rossouw,+27 11 452 0726,Engineering,Engineer,engineer,TRUE,pieter-001,2025-10-28 00:00:00,
-6,demo,demo@airblowfans.co.za,$2b$12$FR4ZAOFFlWpM.FsYhILOjeqQ5H32KsBRaZxHkuowsm6NFFq0gQ3p.,Demo User,+27 11 452 0726,Demo,Demo User,user,TRUE,demo-001,2025-10-28 00:00:00,
+6,demo,demo@airblowfans.co.za,$2b$12$PYbwEg9770NRV9rbkN/JB.hxLgRlUMb9YikPFEKvcLzEqWItK754.,Demo User,+27 11 452 0726,Demo,Demo User,user,TRUE,demo-001,2025-10-28 00:00:00,
