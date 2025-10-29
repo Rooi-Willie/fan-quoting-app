@@ -283,9 +283,27 @@ def render_main_content():
 def save_quote():
     """Save the current quote to the database using v3 schema"""
     try:
-        # Get current user ID (use 1 for development until auth is implemented)
-        user_id = 1
+        import datetime as _dt
+        
+        # Get current user ID from session state
+        user_id = st.session_state.get("user_id", 1)
         qd = st.session_state.quote_data
+        
+        # Update meta section with last modification info
+        qd["meta"]["updated_at"] = _dt.datetime.utcnow().isoformat() + "Z"
+        
+        # Add last_modified_by_user if user is logged in
+        if st.session_state.get("logged_in"):
+            qd["meta"]["last_modified_by_user"] = {
+                "id": st.session_state.get("user_id"),
+                "username": st.session_state.get("username"),
+                "full_name": st.session_state.get("full_name"),
+                "email": st.session_state.get("email"),
+                "phone": st.session_state.get("phone", ""),
+                "department": st.session_state.get("department", ""),
+                "job_title": st.session_state.get("job_title", ""),
+                "role": st.session_state.get("user_role", "user"),
+            }
         
         # Get data from v3 sections - handle v3 schema structure correctly
         quote_section = qd.get("quote", {})

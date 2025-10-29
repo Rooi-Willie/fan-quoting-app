@@ -18,6 +18,26 @@ import streamlit as st
 
 from utils import ensure_server_summary_up_to_date, get_api_headers
 
+def _get_user_session_data() -> Dict | None:
+    """Extract user session data from st.session_state if logged in.
+    
+    Returns:
+        Dict with user profile data if logged in, None otherwise
+    """
+    if st.session_state.get("logged_in"):
+        return {
+            "user_id": st.session_state.get("user_id"),
+            "username": st.session_state.get("username"),
+            "full_name": st.session_state.get("full_name"),
+            "email": st.session_state.get("email"),
+            "phone": st.session_state.get("phone", ""),
+            "department": st.session_state.get("department", ""),
+            "job_title": st.session_state.get("job_title", ""),
+            "user_role": st.session_state.get("user_role", "user"),
+        }
+    return None
+
+
 API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8080")
 
 # --- Schema v3 Support ---
@@ -105,11 +125,15 @@ def initialize_session_state_from_quote_data(qd: dict) -> None:
     # Note: We don't set widget values here as that causes conflicts
     # Widgets will read their values from quote_data in render functions
 
-def _new_quote_data(username: str | None = None) -> Dict:
+def _new_quote_data(username: str | None = None, user_session: Dict | None = None) -> Dict:
     """Create a fresh quote_data structure.
 
     Creates a new quote with organized sections for specifications, pricing, and calculations.
     Fetches default markup values from the global settings API.
+    
+    Args:
+        username: Legacy parameter for username (kept for backward compatibility)
+        user_session: Full user session dict from st.session_state with user profile data
     """
     import datetime as _dt
     ref_user = (username or "demo").split("@")[0]
@@ -120,13 +144,34 @@ def _new_quote_data(username: str | None = None) -> Dict:
     # Fetch rates and settings for context population
     rates_and_settings = _fetch_rates_and_settings()
     
+    # Build created_by_user object if user_session provided
+    created_by_user = None
+    if user_session:
+        created_by_user = {
+            "id": user_session.get("user_id"),
+            "username": user_session.get("username"),
+            "full_name": user_session.get("full_name"),
+            "email": user_session.get("email"),
+            "phone": user_session.get("phone", ""),
+            "department": user_session.get("department", ""),
+            "job_title": user_session.get("job_title", ""),
+            "role": user_session.get("user_role", "user"),
+        }
+        ref_user = user_session.get("username", "demo").split("@")[0]
+    
+    meta = {
+        "version": NEW_SCHEMA_VERSION,
+        "created_at": _dt.datetime.utcnow().isoformat()+"Z",
+        "updated_at": _dt.datetime.utcnow().isoformat()+"Z",
+        "created_by": ref_user,
+    }
+    
+    # Add created_by_user if available
+    if created_by_user:
+        meta["created_by_user"] = created_by_user
+    
     return {
-        "meta": {
-            "version": NEW_SCHEMA_VERSION,
-            "created_at": _dt.datetime.utcnow().isoformat()+"Z",
-            "updated_at": _dt.datetime.utcnow().isoformat()+"Z",
-            "created_by": ref_user,
-        },
+        "meta": meta,
         "quote": {
             "reference": f"Q{ref_user[:1].upper()}001",
             "client": "",
@@ -329,12 +374,18 @@ def _handle_fan_id_change():
     """Handle fan UID selection change updating schema."""
     # Ensure quote_data exists
     if "quote_data" not in st.session_state or not isinstance(st.session_state.quote_data, dict):
-        st.session_state.quote_data = _new_quote_data()
+        st.session_state.quote_data = _new_quote_data(
+            username=st.session_state.get("username"),
+            user_session=_get_user_session_data()
+        )
     
     qd = st.session_state.quote_data
     if qd.get("meta", {}).get("version") != NEW_SCHEMA_VERSION:
         # If not current schema version, start fresh
-        st.session_state.quote_data = _new_quote_data()
+        st.session_state.quote_data = _new_quote_data(
+            username=st.session_state.get("username"),
+            user_session=_get_user_session_data()
+        )
         qd = st.session_state.quote_data
 
     # Get the current widget key suffix to read the correct widget state
@@ -563,12 +614,19 @@ def render_sidebar_widgets():
 	"""Render the sidebar widgets."""
 	# Ensure quote_data exists
 	if "quote_data" not in st.session_state or not isinstance(st.session_state.quote_data, dict):
-		st.session_state.quote_data = _new_quote_data()
+		st.session_state.quote_data = _new_quote_data(
+			username=st.session_state.get("username"),
+			user_session=_get_user_session_data()
+		)
 	
 	qd = st.session_state.quote_data
 	if qd.get("meta", {}).get("version") != NEW_SCHEMA_VERSION:
 		# If not current schema version, start fresh
-		st.session_state.quote_data = _new_quote_data()
+		st.session_state.quote_data = _new_quote_data(
+			username=st.session_state.get("username"),
+			user_session=_get_user_session_data()
+		)
+		qd = st.session_state.quote_data
 		qd = st.session_state.quote_data
 	
 	if "current_fan_config" not in st.session_state:

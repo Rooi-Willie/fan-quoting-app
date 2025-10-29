@@ -31,13 +31,36 @@ tab_titles = ["1. Project Info", "2. Motor Selection", "3. Fan Configuration", "
 
 # --- Initialize Session State for Quote Data ---
 # This ensures data persists across tab switches and reruns within this page.
+
+# Helper to get user session data for quote initialization
+def _get_user_session():
+    """Extract user session data if logged in"""
+    if st.session_state.get("logged_in"):
+        return {
+            "user_id": st.session_state.get("user_id"),
+            "username": st.session_state.get("username"),
+            "full_name": st.session_state.get("full_name"),
+            "email": st.session_state.get("email"),
+            "phone": st.session_state.get("phone", ""),
+            "department": st.session_state.get("department", ""),
+            "job_title": st.session_state.get("job_title", ""),
+            "user_role": st.session_state.get("user_role", "user"),
+        }
+    return None
+
 if "quote_data" not in st.session_state:
-    st.session_state.quote_data = _new_quote_data(st.session_state.get("username"))
+    st.session_state.quote_data = _new_quote_data(
+        username=st.session_state.get("username"),
+        user_session=_get_user_session()
+    )
 else:
     # Ensure we're using current schema, start fresh if not
     qd = st.session_state.quote_data
     if not isinstance(qd, dict) or qd.get("meta", {}).get("version") != NEW_SCHEMA_VERSION:
-        st.session_state.quote_data = _new_quote_data(st.session_state.get("username"))
+        st.session_state.quote_data = _new_quote_data(
+            username=st.session_state.get("username"),
+            user_session=_get_user_session()
+        )
     else:
         # If quote_data exists and is v3, initialize session state from it
         # This handles the case where a quote was loaded for editing
@@ -51,19 +74,34 @@ if st.session_state.quote_data.get("calculations", {}).get("components"):
 if st.sidebar.button("🔄 Start New Quote / Reset Form", use_container_width=True):
     # Reset specific quote data, keep login info
     logged_in_status = st.session_state.get("logged_in", False)
-    username = st.session_state.get("username", "")
+    user_data = {
+        "user_id": st.session_state.get("user_id"),
+        "username": st.session_state.get("username", ""),
+        "full_name": st.session_state.get("full_name", ""),
+        "email": st.session_state.get("email", ""),
+        "phone": st.session_state.get("phone", ""),
+        "department": st.session_state.get("department", ""),
+        "job_title": st.session_state.get("job_title", ""),
+        "user_role": st.session_state.get("user_role", "user"),
+    }
     
     # Increment widget reset counter to force all widgets to recreate with new keys
     # This is more reliable than st.rerun() for resetting widget states
     current_counter = st.session_state.get("widget_reset_counter", 0)
     
     st.session_state.clear() # Clears everything
-    st.session_state.logged_in = logged_in_status # Restore login
-    st.session_state.username = username
+    
+    # Restore login info
+    st.session_state.logged_in = logged_in_status
+    for key, value in user_data.items():
+        st.session_state[key] = value
     st.session_state.widget_reset_counter = current_counter + 1  # Increment to force widget reset
     
-    # Create fresh quote data
-    st.session_state.quote_data = _new_quote_data(username)
+    # Create fresh quote data with user session
+    st.session_state.quote_data = _new_quote_data(
+        username=user_data.get("username"),
+        user_session=user_data if logged_in_status else None
+    )
     
     # Rerun to apply changes immediately
     st.rerun()
