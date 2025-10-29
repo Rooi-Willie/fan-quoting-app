@@ -125,6 +125,109 @@ st.divider()
 # Quote details from the saved JSON
 quote_data = quote.get("quote_data") or {}
 
+# User information section
+meta = quote_data.get("meta", {})
+created_by_user = meta.get("created_by_user")
+last_modified_by_user = meta.get("last_modified_by_user")
+
+if created_by_user or last_modified_by_user:
+    st.markdown("### 👤 Quote History")
+    
+    user_info_cols = st.columns(2)
+    
+    # Created by information
+    with user_info_cols[0]:
+        if created_by_user:
+            st.markdown("**Created By**")
+            
+            # User profile card
+            st.markdown(f"""
+            <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                        padding: 1rem; border-radius: 0.5rem; color: white;'>
+                <div style='display: flex; align-items: center; margin-bottom: 0.5rem;'>
+                    <div style='background: rgba(255,255,255,0.2); width: 48px; height: 48px; 
+                                border-radius: 50%; display: flex; align-items: center; 
+                                justify-content: center; font-size: 1.5rem; margin-right: 1rem;'>
+                        👤
+                    </div>
+                    <div>
+                        <h3 style='margin: 0; font-size: 1.2rem;'>{created_by_user.get('full_name', created_by_user.get('username', 'Unknown'))}</h3>
+                        <p style='margin: 0; font-size: 0.875rem; opacity: 0.9;'>{created_by_user.get('job_title', '')} {('• ' + created_by_user.get('department', '')) if created_by_user.get('department') else ''}</p>
+                    </div>
+                </div>
+                <div style='background: rgba(255,255,255,0.1); padding: 0.75rem; border-radius: 0.375rem; margin-top: 0.5rem;'>
+                    <p style='margin: 0; font-size: 0.875rem;'>
+                        <strong>📧</strong> {created_by_user.get('email', 'N/A')}<br>
+                        <strong>📞</strong> {created_by_user.get('phone', 'N/A')}<br>
+                        <strong>🏷️</strong> Role: {created_by_user.get('role', 'user').title()}
+                    </p>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            # Fallback for legacy quotes
+            created_by = meta.get("created_by", "Unknown")
+            st.markdown(f"""
+            <div style='background: #f3f4f6; padding: 1rem; border-radius: 0.5rem;'>
+                <p style='margin: 0;'><strong>Created by:</strong> {created_by}</p>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    # Last modified by information
+    with user_info_cols[1]:
+        if last_modified_by_user:
+            st.markdown("**Last Modified By**")
+            
+            # Check if same user as creator
+            is_same_user = (created_by_user and 
+                          created_by_user.get('id') == last_modified_by_user.get('id'))
+            
+            if is_same_user:
+                st.markdown(f"""
+                <div style='background: #f3f4f6; padding: 1rem; border-radius: 0.5rem; 
+                            display: flex; align-items: center; justify-content: center; height: 100%;'>
+                    <p style='margin: 0; color: #6b7280; text-align: center;'>
+                        <em>Same as creator</em>
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                # Different user modified the quote
+                st.markdown(f"""
+                <div style='background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
+                            padding: 1rem; border-radius: 0.5rem; color: white;'>
+                    <div style='display: flex; align-items: center; margin-bottom: 0.5rem;'>
+                        <div style='background: rgba(255,255,255,0.2); width: 48px; height: 48px; 
+                                    border-radius: 50%; display: flex; align-items: center; 
+                                    justify-content: center; font-size: 1.5rem; margin-right: 1rem;'>
+                            ✏️
+                        </div>
+                        <div>
+                            <h3 style='margin: 0; font-size: 1.2rem;'>{last_modified_by_user.get('full_name', last_modified_by_user.get('username', 'Unknown'))}</h3>
+                            <p style='margin: 0; font-size: 0.875rem; opacity: 0.9;'>{last_modified_by_user.get('job_title', '')} {('• ' + last_modified_by_user.get('department', '')) if last_modified_by_user.get('department') else ''}</p>
+                        </div>
+                    </div>
+                    <div style='background: rgba(255,255,255,0.1); padding: 0.75rem; border-radius: 0.375rem; margin-top: 0.5rem;'>
+                        <p style='margin: 0; font-size: 0.875rem;'>
+                            <strong>📧</strong> {last_modified_by_user.get('email', 'N/A')}<br>
+                            <strong>📞</strong> {last_modified_by_user.get('phone', 'N/A')}<br>
+                            <strong>🏷️</strong> Role: {last_modified_by_user.get('role', 'user').title()}
+                        </p>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div style='background: #f3f4f6; padding: 1rem; border-radius: 0.5rem; 
+                        display: flex; align-items: center; justify-content: center; height: 100%;'>
+                <p style='margin: 0; color: #6b7280; text-align: center;'>
+                    <em>No modifications yet</em>
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    st.divider()
+
 # Extract schema data paths
 fan_node = quote_data.get("specification", {}).get("fan", {})
 calc_node = quote_data.get("calculations", {})
