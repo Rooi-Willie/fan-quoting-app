@@ -135,6 +135,14 @@ if not check_password():
 # --- If Logged In ---
 st.sidebar.success(f"👤 {st.session_state.full_name}")
 st.sidebar.caption(f"Role: {st.session_state.user_role.title()}")
+
+# Logout button
+if st.sidebar.button("🚪 Logout", use_container_width=True, type="secondary"):
+    # Clear all session state
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.rerun()
+
 st.sidebar.divider()
 
 st.header(f"Welcome, {st.session_state.full_name}!")
