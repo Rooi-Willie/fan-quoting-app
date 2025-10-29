@@ -93,32 +93,50 @@ with header_col3:
 
 # Project information section with enhanced cards
 st.markdown("### 📋 Project Information")
-project_cols = st.columns(4)
 
-with project_cols[0]:
-    st.container()
-    with st.container():
-        st.markdown("**Client**")
-        st.markdown(f"<p style='font-size: 1.2rem; margin: 0; color: white;'>{quote['client_name'] or 'Not specified'}</p>", unsafe_allow_html=True)
+creation_date = datetime.datetime.fromisoformat(quote['creation_date'].replace('Z', '+00:00'))
+formatted_date = creation_date.strftime('%Y-%m-%d')
 
-with project_cols[1]:
-    st.container()
-    with st.container():
-        st.markdown("**Project**")
-        st.markdown(f"<p style='font-size: 1.2rem; margin: 0; color: white;'>{quote['project_name'] or 'Not specified'}</p>", unsafe_allow_html=True)
+project_info_html = f"""<div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1rem;'>
+<div style='background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); padding: 1.25rem; border-radius: 0.5rem; color: white;'>
+<div style='display: flex; align-items: center; margin-bottom: 0.5rem;'>
+<div style='background: rgba(255,255,255,0.2); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; margin-right: 0.75rem;'>🏢</div>
+<div style='flex: 1;'>
+<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Client</p>
+<p style='margin: 0.25rem 0 0 0; font-size: 1.1rem; font-weight: bold;'>{quote['client_name'] or 'Not specified'}</p>
+</div>
+</div>
+</div>
+<div style='background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); padding: 1.25rem; border-radius: 0.5rem; color: white;'>
+<div style='display: flex; align-items: center; margin-bottom: 0.5rem;'>
+<div style='background: rgba(255,255,255,0.2); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; margin-right: 0.75rem;'>📁</div>
+<div style='flex: 1;'>
+<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Project</p>
+<p style='margin: 0.25rem 0 0 0; font-size: 1.1rem; font-weight: bold;'>{quote['project_name'] or 'Not specified'}</p>
+</div>
+</div>
+</div>
+<div style='background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); padding: 1.25rem; border-radius: 0.5rem; color: white;'>
+<div style='display: flex; align-items: center; margin-bottom: 0.5rem;'>
+<div style='background: rgba(255,255,255,0.2); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; margin-right: 0.75rem;'>📍</div>
+<div style='flex: 1;'>
+<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Location</p>
+<p style='margin: 0.25rem 0 0 0; font-size: 1.1rem; font-weight: bold;'>{quote['project_location'] or 'Not specified'}</p>
+</div>
+</div>
+</div>
+<div style='background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 1.25rem; border-radius: 0.5rem; color: white;'>
+<div style='display: flex; align-items: center; margin-bottom: 0.5rem;'>
+<div style='background: rgba(255,255,255,0.2); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; margin-right: 0.75rem;'>📅</div>
+<div style='flex: 1;'>
+<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Created</p>
+<p style='margin: 0.25rem 0 0 0; font-size: 1.1rem; font-weight: bold;'>{formatted_date}</p>
+</div>
+</div>
+</div>
+</div>"""
 
-with project_cols[2]:
-    st.container()
-    with st.container():
-        st.markdown("**Location**")
-        st.markdown(f"<p style='font-size: 1.2rem; margin: 0; color: white;'>{quote['project_location'] or 'Not specified'}</p>", unsafe_allow_html=True)
-        
-with project_cols[3]:
-    st.container()
-    with st.container():
-        st.markdown("**Created**")
-        creation_date = datetime.datetime.fromisoformat(quote['creation_date'].replace('Z', '+00:00'))
-        st.markdown(f"<p style='font-size: 1.2rem; margin: 0; color: white;'>{creation_date.strftime('%Y-%m-%d')}</p>", unsafe_allow_html=True)
+st.markdown(project_info_html, unsafe_allow_html=True)
 
 st.divider()
 
