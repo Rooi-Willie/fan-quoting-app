@@ -9,7 +9,7 @@ from export_utils import generate_docx, generate_filename
 
 # API_BASE_URL should be configured, e.g., via environment variable
 
-API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
+API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8080")
 
 def render_main_content():
     st.header("5. Review & Finalize Quote")

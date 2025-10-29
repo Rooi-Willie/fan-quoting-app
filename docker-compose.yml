@@ -24,7 +24,9 @@ services:
     volumes:
       - ./api/app:/app/app # Mount local code for live reload
     ports:
-      - "8000:8000"
+      - "8080:8080"  # Match Google Cloud standard port
+    environment:
+      - PORT=8080  # Set PORT env var for consistency
     env_file:
       - .env
     depends_on:

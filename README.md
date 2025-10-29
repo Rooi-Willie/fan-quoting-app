@@ -103,8 +103,8 @@ docker-compose down -v
 
 #### Access Points
 * **UI**: http://localhost:8501
-* **API**: http://localhost:8000
-* **API Docs**: http://localhost:8000/docs
+* **API**: http://localhost:8080
+* **API Docs**: http://localhost:8080/docs
 * **PostgreSQL**: localhost:5433 (for DBeaver/external tools)
 
 #### Live Development
@@ -122,7 +122,7 @@ docker-compose down -v
 
 # Terminal 2: Run API locally
 cd api
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8080
 
 # Terminal 3: Run UI locally
 cd ui

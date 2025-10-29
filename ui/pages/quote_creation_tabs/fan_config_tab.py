@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # API_BASE_URL should be configured, e.g., via environment variable
 # Docker Compose will set this from .env for the UI service.
 # Fallback is provided for local development if API is on localhost:8000.
-API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
+API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8080")
 
 # Initialize callback counters in session state
 if "callback_counters" not in st.session_state:

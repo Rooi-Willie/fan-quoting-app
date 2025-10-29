@@ -7,7 +7,7 @@ from utils import get_api_headers
 
 # API_BASE_URL should be configured, e.g., via environment variable
 # Fallback is provided for local development.
-API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
+API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8080")
 
 @st.cache_data
 def get_available_motors(available_kw: List[int], poles: Optional[int] = None) -> Optional[List[Dict]]:

@@ -10,7 +10,7 @@ from utils import get_api_headers
 
 # API_BASE_URL should be configured, e.g., via environment variable
 # Fallback is provided for local development.
-API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
+API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8080")
 
 # Page configuration
 st.set_page_config(page_title=f"Quote Details - {APP_TITLE}", layout="wide")

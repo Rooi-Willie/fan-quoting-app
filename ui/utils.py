@@ -16,9 +16,9 @@ logger = logging.getLogger(__name__)
 
 # Shared API base URL and API Key
 try:
-    API_BASE_URL = st.secrets["API_BASE_URL"] if "API_BASE_URL" in st.secrets else os.getenv("API_BASE_URL", "http://api:8000")
+    API_BASE_URL = st.secrets["API_BASE_URL"] if "API_BASE_URL" in st.secrets else os.getenv("API_BASE_URL", "http://api:8080")
 except (KeyError, AttributeError):
-    API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
+    API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8080")
 
 try:
     API_KEY = st.secrets["API_KEY"] if "API_KEY" in st.secrets else os.getenv("API_KEY", "")

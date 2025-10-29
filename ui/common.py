@@ -18,7 +18,7 @@ import streamlit as st
 
 from utils import ensure_server_summary_up_to_date, get_api_headers
 
-API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8000")
+API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8080")
 
 # --- Schema v3 Support ---
 NEW_SCHEMA_VERSION = 3

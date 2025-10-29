@@ -62,8 +62,8 @@ docker-compose down
 
 ### Access URLs
 * **UI**: http://localhost:8501
-* **API**: http://localhost:8000
-* **API Docs**: http://localhost:8000/docs
+* **API**: http://localhost:8080
+* **API Docs**: http://localhost:8080/docs
 * **Database**: localhost:5433 (DBeaver/pgAdmin)
 
 ---
