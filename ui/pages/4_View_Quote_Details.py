@@ -237,42 +237,46 @@ motor_node = quote_data.get("specification", {}).get("motor", {})
 # Fan configuration section with enhanced display
 st.markdown("### ⚙️ Fan Configuration")
 
-# Fan overview card
-with st.container():
-    fan_overview_cols = st.columns([2, 1, 1, 1, 1])
-    
-    with fan_overview_cols[0]:
-        st.markdown("**Fan Configuration**")
-        config_id = fan_node.get("config_id") or fan_node.get("fan_configuration", {}).get("uid", "N/A")
-        st.markdown(f"Configuration: <span style='color: #3b82f6; font-weight: bold;'>{config_id}</span>", unsafe_allow_html=True)
-        blade_sets = str(fan_node.get("blade_sets") or "N/A")
-        st.markdown(f"Blade sets: <span style='color: #10b981; font-weight: bold;'>{blade_sets}</span>", unsafe_allow_html=True)
-        
-    with fan_overview_cols[1]:
-        st.markdown("**Fan Size**")
-        fan_size = fan_node.get("fan_configuration", {}).get("fan_size_mm") or "N/A"
-        st.markdown(f"<p style='font-size: 1.5rem; font-weight: bold; margin: 0; color: #3b82f6;'>{fan_size}</p>", unsafe_allow_html=True)
-        if fan_size != "N/A":
-            st.markdown("<p style='margin: 0; color: #6b7280;'>mm</p>", unsafe_allow_html=True)
-    
-    with fan_overview_cols[2]:
-        st.markdown("**Hub Size**")
-        hub_size = fan_node.get("fan_configuration", {}).get("hub_size_mm") or fan_node.get("hub_size_mm") or "N/A"
-        st.markdown(f"<p style='font-size: 1.5rem; font-weight: bold; margin: 0; color: #10b981;'>{hub_size}</p>", unsafe_allow_html=True)
-        if hub_size != "N/A":
-            st.markdown("<p style='margin: 0; color: #6b7280;'>mm</p>", unsafe_allow_html=True)
-        
-    with fan_overview_cols[3]:
-        st.markdown("**Component Markup**")
-        component_markup = calc_node.get('component_markup') or quote.get('component_markup', 1.4)
-        markup_pct = (float(component_markup) - 1) * 100
-        st.markdown(f"<p style='font-size: 1.5rem; font-weight: bold; margin: 0; color: #f59e0b;'>{markup_pct:.0f}%</p>", unsafe_allow_html=True)
-        
-    with fan_overview_cols[4]:
-        st.markdown("**Motor Markup**")
-        motor_markup = calc_node.get('motor_markup') or quote.get('motor_markup', 1.2)
-        markup_pct = (float(motor_markup) - 1) * 100
-        st.markdown(f"<p style='font-size: 1.5rem; font-weight: bold; margin: 0; color: #8b5cf6;'>{markup_pct:.0f}%</p>", unsafe_allow_html=True)
+fan_config = fan_node.get("fan_configuration", {})
+config_id = fan_node.get("config_id") or fan_config.get("uid", "N/A")
+blade_sets = str(fan_node.get("blade_sets") or "N/A")
+fan_size = fan_config.get("fan_size_mm") or "N/A"
+hub_size = fan_config.get("hub_size_mm") or fan_node.get("hub_size_mm") or "N/A"
+component_markup = calc_node.get('component_markup') or quote.get('component_markup', 1.4)
+motor_markup = calc_node.get('motor_markup') or quote.get('motor_markup', 1.2)
+
+# Main fan info card - build HTML without leading whitespace
+fan_html = f"""<div style='background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 1.5rem; border-radius: 0.5rem; color: white; margin-bottom: 1rem;'>
+<div style='display: flex; align-items: center; margin-bottom: 1rem;'>
+<div style='background: rgba(255,255,255,0.2); width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin-right: 1.5rem;'>⚙️</div>
+<div><h3 style='margin: 0; font-size: 1.5rem;'>{config_id}</h3>
+<p style='margin: 0; font-size: 0.875rem; opacity: 0.9;'>Fan Configuration</p></div>
+</div>
+<div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;'>
+<div style='background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 0.375rem;'>
+<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Blade Sets</p>
+<p style='margin: 0.25rem 0 0 0; font-size: 1.5rem; font-weight: bold;'>{blade_sets}</p>
+</div>
+<div style='background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 0.375rem;'>
+<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Fan Size</p>
+<p style='margin: 0.25rem 0 0 0; font-size: 1.5rem; font-weight: bold;'>{fan_size}{'mm' if fan_size != 'N/A' else ''}</p>
+</div>
+<div style='background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 0.375rem;'>
+<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Hub Size</p>
+<p style='margin: 0.25rem 0 0 0; font-size: 1.5rem; font-weight: bold;'>{hub_size}{'mm' if hub_size != 'N/A' else ''}</p>
+</div>
+<div style='background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 0.375rem;'>
+<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Component Markup</p>
+<p style='margin: 0.25rem 0 0 0; font-size: 1.5rem; font-weight: bold;'>{((float(component_markup) - 1) * 100):.0f}%</p>
+</div>
+<div style='background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 0.375rem;'>
+<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Motor Markup</p>
+<p style='margin: 0.25rem 0 0 0; font-size: 1.5rem; font-weight: bold;'>{((float(motor_markup) - 1) * 100):.0f}%</p>
+</div>
+</div>
+</div>"""
+
+st.markdown(fan_html, unsafe_allow_html=True)
 
 st.divider()
 
@@ -282,75 +286,90 @@ if motor_node.get("motor_details") or quote_data.get("calculations", {}).get("mo
     motor = motor_node.get("motor_details", {})
     motor_calc = quote_data.get("calculations", {}).get("motor", {})
     
-    motor_main_cols = st.columns([2, 2])
+    # Extract motor details
+    supplier = motor.get("supplier_name", "Not specified")
+    mount_type = motor_node.get("mount_type", "Not specified")
+    product_range = motor.get("product_range", "Not specified")
+    output = motor.get("rated_output", "N/A")
+    output_unit = motor.get("rated_output_unit", "")
+    speed = motor.get("speed", "N/A")
+    speed_unit = motor.get("speed_unit", "")
+    poles = motor.get("poles", "N/A")
+    base_price = motor_calc.get("base_price", 0)
+    final_price = motor_calc.get("final_price", 0)
+    motor_markup_val = quote.get('motor_markup', 1.2)
+    markup_pct = (float(motor_markup_val) - 1) * 100
     
-    with motor_main_cols[0]:
-        st.markdown("**Technical Specifications**")
+    # Motor specifications card - build HTML without leading whitespace
+    motor_html = f"""<div style='background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 1.5rem; border-radius: 0.5rem; color: white; margin-bottom: 1rem;'>
+<div style='display: flex; align-items: center; margin-bottom: 1rem;'>
+<div style='background: rgba(255,255,255,0.2); width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin-right: 1.5rem;'>🔌</div>
+<div><h3 style='margin: 0; font-size: 1.5rem;'>{supplier}</h3>
+<p style='margin: 0; font-size: 0.875rem; opacity: 0.9;'>{product_range}</p></div>
+</div>
+<div style='display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1rem;'>
+<div style='background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 0.375rem;'>
+<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Mount Type</p>
+<p style='margin: 0.25rem 0 0 0; font-size: 1.2rem; font-weight: bold;'>{mount_type}</p>
+</div>
+<div style='background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 0.375rem;'>
+<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Poles</p>
+<p style='margin: 0.25rem 0 0 0; font-size: 1.2rem; font-weight: bold;'>{poles}</p>
+</div>
+<div style='background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 0.375rem;'>
+<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Rated Output</p>
+<p style='margin: 0.25rem 0 0 0; font-size: 1.2rem; font-weight: bold;'>{output} {output_unit}</p>
+</div>
+<div style='background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 0.375rem;'>
+<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Speed</p>
+<p style='margin: 0.25rem 0 0 0; font-size: 1.2rem; font-weight: bold;'>{speed} {speed_unit}</p>
+</div>
+</div>"""
+    
+    st.markdown(motor_html, unsafe_allow_html=True)
+    
+    # Pricing section within the same card
+    pricing_section = quote_data.get("pricing", {})
+    discount_data = pricing_section.get('motor_supplier_discount', {})
+    supplier_discount = discount_data.get('applied_discount', 0.0)
+    
+    if base_price > 0:
+        pricing_html = f"""<div style='background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 0.375rem;'>
+<p style='margin: 0 0 0.5rem 0; font-size: 0.875rem; opacity: 0.9; font-weight: 600;'>PRICING BREAKDOWN</p>
+<div style='display: flex; justify-content: space-between; margin-bottom: 0.5rem;'>
+<span>Base Price:</span>
+<span style='font-weight: bold;'>R {float(base_price):,.2f}</span>
+</div>"""
         
-        # Create a more organized layout with consistent spacing
-        st.markdown("---")
-            
-        # Left column specs
-        col1, col2 = st.columns(2)
+        if supplier_discount > 0:
+            discount_multiplier = 1.0 - (supplier_discount / 100.0)
+            discounted_price = float(base_price) * discount_multiplier
+            pricing_html += f"""<div style='display: flex; justify-content: space-between; margin-bottom: 0.5rem;'>
+<span>Supplier Discount ({supplier_discount:.2f}%):</span>
+<span style='font-weight: bold;'>R {discounted_price:,.2f}</span>
+</div>"""
         
-        with col1:
-            st.markdown("**Supplier:**")
-            supplier = motor.get("supplier_name", "Not specified")
-            st.markdown(f"<div style='margin-bottom: 15px; padding-left: 10px;'>{supplier}</div>", unsafe_allow_html=True)
-            
-            st.markdown("**Mount Type:**")
-            mount_type = motor_node.get("mount_type", "Not specified")
-            st.markdown(f"<div style='margin-bottom: 15px; padding-left: 10px;'>{mount_type}</div>", unsafe_allow_html=True)
-            
-            st.markdown("**Product Range:**")
-            product_range = motor.get("product_range", "Not specified")
-            st.markdown(f"<div style='margin-bottom: 15px; padding-left: 10px;'>{product_range}</div>", unsafe_allow_html=True)
-            
-        with col2:
-            st.markdown("**Rated Output:**")
-            output = motor.get("rated_output", "N/A")
-            output_unit = motor.get("rated_output_unit", "")
-            st.markdown(f"<div style='margin-bottom: 15px; padding-left: 10px; font-weight: bold; color: #3b82f6;'>{output} {output_unit}</div>", unsafe_allow_html=True)
-            
-            st.markdown("**Speed:**")
-            speed = motor.get("speed", "N/A")
-            speed_unit = motor.get("speed_unit", "")
-            st.markdown(f"<div style='margin-bottom: 15px; padding-left: 10px; font-weight: bold; color: #10b981;'>{speed} {speed_unit}</div>", unsafe_allow_html=True)
-            
-            st.markdown("**Pole:**")
-            pole = motor.get("poles", "Not specified")
-            st.markdown(f"<div style='margin-bottom: 15px; padding-left: 10px;'>{pole}</div>", unsafe_allow_html=True)
-        
-    with motor_main_cols[1]:
-        st.markdown("**Pricing Breakdown**")
-        st.markdown("---")
-            
-        base_price = motor_calc.get("base_price", 0)
-        final_price = motor_calc.get("final_price", 0)
-        motor_markup = quote.get('motor_markup', 1.2)
-        markup_pct = (float(motor_markup) - 1) * 100
-        
-        if base_price > 0:
-            st.markdown(f"**Base Price:** R {float(base_price):,.2f}")
-            
-            # Show supplier discount if applicable
-            pricing_section = quote_data.get("pricing", {})
-            discount_data = pricing_section.get('motor_supplier_discount', {})
-            supplier_discount = discount_data.get('applied_discount', 0.0)
-            if supplier_discount > 0:
-                discount_multiplier = 1.0 - (supplier_discount / 100.0)
-                discounted_price = float(base_price) * discount_multiplier
-                st.markdown(f"**Supplier Discount:** {supplier_discount:.2f}% ({discount_data.get('notes', '')})")
-                st.markdown(f"**After Discount:** R {discounted_price:,.2f}")
-            
-            st.markdown(f"**Markup Applied:** {markup_pct:.0f}%")
-            st.markdown(f"**Final Price:** <span style='font-size: 1.3rem; font-weight: bold; color: #10b981;'>R {float(final_price):,.2f}</span>", unsafe_allow_html=True)
-        else:
-            st.markdown(f"**Final Price:** <span style='font-size: 1.3rem; font-weight: bold; color: #10b981;'>R {float(final_price):,.2f}</span>", unsafe_allow_html=True)
-            
-        # Show additional motor details if available
-        if motor.get("efficiency"):
-            st.markdown(f"**Efficiency:** {motor['efficiency']}%")
+        pricing_html += f"""<div style='display: flex; justify-content: space-between; margin-bottom: 0.5rem;'>
+<span>Markup ({markup_pct:.0f}%):</span>
+<span style='font-weight: bold;'>Applied</span>
+</div>
+<div style='border-top: 2px solid rgba(255,255,255,0.3); margin-top: 0.5rem; padding-top: 0.5rem;'>
+<div style='display: flex; justify-content: space-between;'>
+<span style='font-size: 1.1rem; font-weight: bold;'>Final Price:</span>
+<span style='font-size: 1.3rem; font-weight: bold;'>R {float(final_price):,.2f}</span>
+</div>
+</div>
+</div>"""
+    else:
+        pricing_html = f"""<div style='background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 0.375rem;'>
+<p style='margin: 0 0 0.5rem 0; font-size: 0.875rem; opacity: 0.9; font-weight: 600;'>PRICING</p>
+<div style='display: flex; justify-content: space-between;'>
+<span style='font-size: 1.1rem; font-weight: bold;'>Final Price:</span>
+<span style='font-size: 1.3rem; font-weight: bold;'>R {float(final_price):,.2f}</span>
+</div>
+</div>"""
+    
+    st.markdown(pricing_html + "</div>", unsafe_allow_html=True)
     
     st.divider()
 
@@ -501,31 +520,68 @@ with cost_breakdown_cols[3]:
                f"<p style='margin: 0; color: rgba(255,255,255,0.8); font-size: 0.875rem;'>Final price</p>"
                f"</div>", unsafe_allow_html=True)
 
-# Cost breakdown details with improved colors for readability
+# Cost breakdown details with card-based design
 st.markdown("**💰 Detailed Cost Breakdown**")
 
 # Material and labour breakdown
 cost_detail_cols = st.columns(2)
 
 with cost_detail_cols[0]:
-    st.markdown("**Material & Labour Costs**")
     if material_cost > 0 or labour_cost > 0:
-        st.markdown(f"**Material Cost:** <span style='color: #10b981; font-weight: bold; float: right;'>R {float(material_cost):>8,.2f}</span>", unsafe_allow_html=True)
-        st.markdown(f"**Labour Cost:** <span style='color: #f59e0b; font-weight: bold; float: right;'>R {float(labour_cost):>8,.2f}</span>", unsafe_allow_html=True)
         subtotal = float(material_cost) + float(labour_cost)
-        st.markdown(f"**Subtotal:** <span style='color: #3b82f6; font-weight: bold; float: right;'>R {subtotal:>8,.2f}</span>", unsafe_allow_html=True)
+        breakdown_html = f"""<div style='background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 1.5rem; border-radius: 0.5rem; color: white;'>
+<div style='display: flex; align-items: center; margin-bottom: 1rem;'>
+<div style='background: rgba(255,255,255,0.2); width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-right: 1rem;'>💵</div>
+<div><h3 style='margin: 0; font-size: 1.3rem;'>Material & Labour</h3>
+<p style='margin: 0; font-size: 0.875rem; opacity: 0.9;'>Cost Components</p></div>
+</div>
+<div style='background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 0.375rem;'>
+<div style='display: flex; justify-content: space-between; margin-bottom: 0.75rem;'>
+<span style='font-size: 0.875rem;'>Material Cost:</span>
+<span style='font-weight: bold; font-size: 1rem;'>R {float(material_cost):,.2f}</span>
+</div>
+<div style='display: flex; justify-content: space-between; margin-bottom: 0.75rem;'>
+<span style='font-size: 0.875rem;'>Labour Cost:</span>
+<span style='font-weight: bold; font-size: 1rem;'>R {float(labour_cost):,.2f}</span>
+</div>
+<div style='border-top: 2px solid rgba(255,255,255,0.3); padding-top: 0.75rem; margin-top: 0.5rem;'>
+<div style='display: flex; justify-content: space-between;'>
+<span style='font-size: 1rem; font-weight: bold;'>Subtotal:</span>
+<span style='font-size: 1.2rem; font-weight: bold;'>R {subtotal:,.2f}</span>
+</div>
+</div>
+</div>
+</div>"""
+        st.markdown(breakdown_html, unsafe_allow_html=True)
     else:
-        st.info("Detailed breakdown not available")
+        st.markdown("""<div style='background: #f3f4f6; padding: 1.5rem; border-radius: 0.5rem; text-align: center;'>
+<p style='margin: 0; color: #6b7280;'><em>Detailed breakdown not available</em></p>
+</div>""", unsafe_allow_html=True)
 
 with cost_detail_cols[1]:
-    st.markdown("**Markup Applied**")
     component_markup = quote.get('component_markup', 1.4)
     motor_markup = quote.get('motor_markup', 1.2)
     comp_markup_pct = (float(component_markup) - 1) * 100
     motor_markup_pct = (float(motor_markup) - 1) * 100
     
-    st.markdown(f"**Component Markup:** <span style='color: #8b5cf6; font-weight: bold; float: right;'>{comp_markup_pct:>6.0f}%</span>", unsafe_allow_html=True)
-    st.markdown(f"**Motor Markup:** <span style='color: #ef4444; font-weight: bold; float: right;'>{motor_markup_pct:>6.0f}%</span>", unsafe_allow_html=True)
+    markup_html = f"""<div style='background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); padding: 1.5rem; border-radius: 0.5rem; color: white;'>
+<div style='display: flex; align-items: center; margin-bottom: 1rem;'>
+<div style='background: rgba(255,255,255,0.2); width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-right: 1rem;'>📊</div>
+<div><h3 style='margin: 0; font-size: 1.3rem;'>Markup Applied</h3>
+<p style='margin: 0; font-size: 0.875rem; opacity: 0.9;'>Profit Margins</p></div>
+</div>
+<div style='background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 0.375rem;'>
+<div style='display: flex; justify-content: space-between; margin-bottom: 0.75rem;'>
+<span style='font-size: 0.875rem;'>Component Markup:</span>
+<span style='font-weight: bold; font-size: 1.2rem;'>{comp_markup_pct:.0f}%</span>
+</div>
+<div style='display: flex; justify-content: space-between;'>
+<span style='font-size: 0.875rem;'>Motor Markup:</span>
+<span style='font-weight: bold; font-size: 1.2rem;'>{motor_markup_pct:.0f}%</span>
+</div>
+</div>
+</div>"""
+    st.markdown(markup_html, unsafe_allow_html=True)
     
 st.divider()
 
