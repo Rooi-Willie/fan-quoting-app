@@ -24,23 +24,3 @@ def get_image_path(component_name):
     return os.path.join(IMAGE_FOLDER_PATH, filename)
 
 COMPONENT_IMAGES = {name: get_image_path(name) for name in COMPONENT_ORDER}
-
-# Define Row structure: (Label, Type, Default/Dummy Value, Format Hint/Units)
-# Types: 'DB' (Database/Fixed), 'Calc' (Calculated), 'Mod' (Modifiable)
-ROW_DEFINITIONS = [
-    ("Overall Diameter", 'DB', 1000.0, "mm"),
-    ("Total Length", 'DB', 500.0, "mm"),
-    ("Stiffening Factor", 'DB', 1.1, "factor"),
-    ("Markup", 'DB', 25.0, "%"),
-    ("Thickness", 'Mod', 5.0, "mm"),
-    ("Fabrication Waste", 'Mod', 15.0, "%"),
-    ("Ideal Mass", 'Calc', 50.0, "kg"),
-    ("Real Mass", 'Calc', 55.0, "kg"),
-    ("Feedstock Mass", 'Calc', 63.25, "kg"),
-    (f"Material Cost", 'Calc', 1265.00, CURRENCY_SYMBOL),
-    ("Labour", 'Calc', 10.0, "hrs"),
-    (f"Total Cost", 'Calc', 2500.00, CURRENCY_SYMBOL),
-]
-
-# --- Motor Options ---
-MOTOR_TYPES = ["Standard AC", "IE3 AC", "EC Motor", "Hazardous Area Motor"]

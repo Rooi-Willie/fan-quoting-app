@@ -1,5 +1,4 @@
 import streamlit as st
-from common import NEW_SCHEMA_VERSION
 
 def render_main_content():
     st.header("1. Project Information")

@@ -3,7 +3,7 @@ import os
 import pandas as pd  # Keep for potential future use
 from typing import Optional, List, Dict
 import requests
-from config import COMPONENT_ORDER, COMPONENT_IMAGES, ROW_DEFINITIONS, IMAGE_FOLDER_PATH, CURRENCY_SYMBOL
+from config import COMPONENT_IMAGES, CURRENCY_SYMBOL
 from utils import ensure_server_summary_up_to_date, build_summary_dataframe, get_ordered_component_names, build_ordered_component_rows, get_api_headers
 from common import recompute_all_components
 from common import (
