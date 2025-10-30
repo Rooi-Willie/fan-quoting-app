@@ -431,6 +431,7 @@ def update_quote(
     """
     Update an existing quote with new quote data.
     Extracts summary fields from the updated quote_data.
+    Note: quote_ref is intentionally NOT updated to maintain revision chain integrity.
     """
     # Get the existing quote
     db_quote = get_quote(db, quote_id)
@@ -439,6 +440,14 @@ def update_quote(
     
     # Update the quote_data
     db_quote.quote_data = quote_data
+    
+    # Extract project information from quote_data
+    quote_section = quote_data.get("quote", {}) or {}
+    
+    # Update project information fields (but NOT quote_ref to preserve revision chain)
+    db_quote.client_name = quote_section.get("client")
+    db_quote.project_name = quote_section.get("project")
+    db_quote.project_location = quote_section.get("location")
     
     # Re-extract summary fields from the updated quote_data
     summary = _extract_summary_from_quote_data(quote_data)

@@ -24,11 +24,27 @@ def render_main_content():
             key=f"widget_client_name{widget_key_suffix}",
         )
     with cols[1]:
-        quote_section["reference"] = st.text_input(
-            "Our Quote Reference",
-            value=quote_section.get("reference", ""),
-            key=f"widget_quote_ref_us{widget_key_suffix}",
-        )
+        # Check if editing an existing quote - if so, make quote_ref read-only
+        is_editing = st.session_state.get("editing_quote_id") is not None
+        
+        if is_editing:
+            # Display as disabled input to show it's not editable
+            st.text_input(
+                "Our Quote Reference",
+                value=quote_section.get("reference", ""),
+                key=f"widget_quote_ref_us_disabled{widget_key_suffix}",
+                disabled=True,
+                help="Quote reference cannot be changed when editing to maintain revision history integrity"
+            )
+            # Keep the value in quote_section unchanged
+        else:
+            # Allow editing for new quotes
+            quote_section["reference"] = st.text_input(
+                "Our Quote Reference",
+                value=quote_section.get("reference", ""),
+                key=f"widget_quote_ref_us{widget_key_suffix}",
+            )
+        
         quote_section["location"] = st.text_input(
             "Project Location / Site",
             value=quote_section.get("location", ""),
