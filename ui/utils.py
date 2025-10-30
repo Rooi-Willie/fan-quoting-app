@@ -1,12 +1,20 @@
 import os
 import json
 from typing import Dict, List, Optional
+import datetime
 
 import pandas as pd
 from pandas.io.formats.style import Styler
 import requests
 import streamlit as st
 import logging
+
+# South Africa timezone (UTC+2 / SAST)
+SAST_TZ = datetime.timezone(datetime.timedelta(hours=2))
+
+def get_sast_now():
+    """Return current datetime in South Africa timezone (UTC+2 / SAST)"""
+    return datetime.datetime.now(SAST_TZ)
 
 # Configure basic logging (optional, but good for setup)
 logging.basicConfig(level=logging.DEBUG,format='%(asctime)s - %(levelname)s - %(filename)s - %(message)s')
@@ -299,7 +307,7 @@ def populate_context_rates_and_settings(qd: dict) -> None:
 	
 	if rates_and_settings:
 		context_section['rates_and_settings'] = {
-			'timestamp': pd.Timestamp.now().isoformat(),
+			'timestamp': get_sast_now().isoformat(),
 			'full_settings_data': rates_and_settings  # Complete settings record for reference
 		}
 

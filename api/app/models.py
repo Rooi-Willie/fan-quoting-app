@@ -9,6 +9,13 @@ from sqlalchemy.orm import relationship, backref
 import datetime
 from .database import Base
 
+# South Africa timezone (UTC+2 / SAST)
+SAST_TZ = datetime.timezone(datetime.timedelta(hours=2))
+
+def get_sast_now():
+    """Return current datetime in South Africa timezone (UTC+2 / SAST)"""
+    return datetime.datetime.now(SAST_TZ)
+
 
 class FanConfiguration(Base):
     """
@@ -240,10 +247,10 @@ class User(Base):
     role = Column(String, default="user")
     is_active = Column(Boolean, default=True)
     external_id = Column(String)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    last_login = Column(DateTime)
+    created_at = Column(DateTime(timezone=True), default=get_sast_now)
+    last_login = Column(DateTime(timezone=True))
     created_by = Column(Integer)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=get_sast_now)
 
 class Quote(Base):
     __tablename__ = "quotes"
@@ -253,7 +260,7 @@ class Quote(Base):
     original_quote_id = Column(Integer, ForeignKey("quotes.id"), nullable=True)
     revision_number = Column(Integer, default=1)
     user_id = Column(Integer, ForeignKey("users.id"))
-    creation_date = Column(DateTime, default=datetime.datetime.utcnow)
+    creation_date = Column(DateTime(timezone=True), default=get_sast_now)
     status = Column(String, default="draft")
     
     # Project information

@@ -196,10 +196,14 @@ def _new_quote_data(username: str | None = None, user_session: Dict | None = Non
     # Auto-generate next available quote reference
     quote_ref = _fetch_next_quote_ref(user_initials)
     
+    # Use South Africa timezone (UTC+2 / SAST)
+    sast_tz = _dt.timezone(_dt.timedelta(hours=2))
+    now_sast = _dt.datetime.now(sast_tz)
+    
     meta = {
         "version": NEW_SCHEMA_VERSION,
-        "created_at": _dt.datetime.utcnow().isoformat()+"Z",
-        "updated_at": _dt.datetime.utcnow().isoformat()+"Z",
+        "created_at": now_sast.isoformat(),
+        "updated_at": now_sast.isoformat(),
         "created_by": ref_user,
     }
     
@@ -264,7 +268,7 @@ def _new_quote_data(username: str | None = None, user_session: Dict | None = Non
         },
         "context": {
             "rates_and_settings": {
-                "timestamp": _dt.datetime.utcnow().isoformat()+"Z",
+                "timestamp": now_sast.isoformat(),
                 "full_settings_data": rates_and_settings if rates_and_settings else {}
             },
         },

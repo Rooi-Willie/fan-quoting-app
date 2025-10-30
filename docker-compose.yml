@@ -5,6 +5,9 @@ services:
     image: postgres:15 # Or your preferred version
     container_name: quoting_db_dev
     restart: always
+    environment:
+      - TZ=Africa/Johannesburg
+      - PGTZ=Africa/Johannesburg
     volumes:
       - postgres_data_dev:/var/lib/postgresql/data/
       # Mounts the SQL scripts to be run on first-time initialization

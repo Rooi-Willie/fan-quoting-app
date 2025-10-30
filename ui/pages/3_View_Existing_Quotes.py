@@ -7,6 +7,9 @@ import datetime
 from common import _new_quote_data
 from utils import get_api_headers
 
+# South Africa timezone (UTC+2 / SAST)
+SAST_TZ = datetime.timezone(datetime.timedelta(hours=2))
+
 # API_BASE_URL should be configured, e.g., via environment variable
 # Fallback is provided for local development.
 API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8080")
@@ -34,13 +37,15 @@ with st.expander("Filters", expanded=True):
         status_filter = st.selectbox("Status", status_options)
     
     with col3:
+        # Get current date in SAST for date range picker
+        now_sast = datetime.datetime.now(SAST_TZ).date()
         date_range = st.date_input(
             "Date Range",
             value=(
-                datetime.datetime.now() - datetime.timedelta(days=30),
-                datetime.datetime.now()
+                now_sast - datetime.timedelta(days=30),
+                now_sast
             ),
-            max_value=datetime.datetime.now()
+            max_value=now_sast
         )
 
 # Function to load quotes
@@ -62,8 +67,9 @@ def load_quotes():
         
         if date_range and len(date_range) == 2:
             start_date, end_date = date_range
-            start_date = datetime.datetime.combine(start_date, datetime.time.min)
-            end_date = datetime.datetime.combine(end_date, datetime.time.max)
+            # Make start_date and end_date timezone-aware (SAST)
+            start_date = datetime.datetime.combine(start_date, datetime.time.min, tzinfo=SAST_TZ)
+            end_date = datetime.datetime.combine(end_date, datetime.time.max, tzinfo=SAST_TZ)
             
             quotes = [
                 q for q in quotes 

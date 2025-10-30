@@ -151,10 +151,10 @@ CREATE TABLE IF NOT EXISTS users (
     role VARCHAR(50) DEFAULT 'user',  -- 'admin', 'engineer', 'sales', 'user', 'guest'
     is_active BOOLEAN DEFAULT TRUE,
     external_id VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_login TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    last_login TIMESTAMPTZ,
     created_by INTEGER,  -- User ID who created this account
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS quotes (
@@ -163,7 +163,7 @@ CREATE TABLE IF NOT EXISTS quotes (
     original_quote_id INTEGER,
     revision_number INTEGER NOT NULL DEFAULT 1,
     user_id INTEGER NOT NULL,
-    creation_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    creation_date TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(50) DEFAULT 'draft',
     
     -- Project information

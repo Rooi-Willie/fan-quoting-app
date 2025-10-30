@@ -289,8 +289,12 @@ def save_quote():
         user_id = st.session_state.get("user_id", 1)
         qd = st.session_state.quote_data
         
+        # Use South Africa timezone (UTC+2 / SAST)
+        sast_tz = _dt.timezone(_dt.timedelta(hours=2))
+        now_sast = _dt.datetime.now(sast_tz)
+        
         # Update meta section with last modification info
-        qd["meta"]["updated_at"] = _dt.datetime.utcnow().isoformat() + "Z"
+        qd["meta"]["updated_at"] = now_sast.isoformat()
         
         # Add last_modified_by_user if user is logged in
         if st.session_state.get("logged_in"):

@@ -6,10 +6,17 @@ Provides endpoints for user authentication and profile management
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 from app.database import get_db
 from app import schemas, crud, models
+
+# South Africa timezone (UTC+2 / SAST)
+SAST_TZ = timezone(timedelta(hours=2))
+
+def get_sast_now():
+    """Return current datetime in South Africa timezone (UTC+2 / SAST)"""
+    return datetime.now(SAST_TZ)
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -62,7 +69,7 @@ def update_last_login(user_id: int, db: Session = Depends(get_db)):
             detail="User not found"
         )
     
-    user.last_login = datetime.utcnow()
+    user.last_login = get_sast_now()
     db.commit()
     
     return {"message": "Last login updated", "timestamp": user.last_login}
@@ -112,7 +119,7 @@ def update_user(
     for field, value in user_update.dict(exclude_unset=True).items():
         setattr(user, field, value)
     
-    user.updated_at = datetime.utcnow()
+    user.updated_at = get_sast_now()
     db.commit()
     db.refresh(user)
     
@@ -130,7 +137,7 @@ def deactivate_user(user_id: int, db: Session = Depends(get_db)):
         )
     
     user.is_active = False
-    user.updated_at = datetime.utcnow()
+    user.updated_at = get_sast_now()
     db.commit()
     
     return {"message": "User deactivated", "user_id": user_id}
