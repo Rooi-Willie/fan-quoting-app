@@ -10,6 +10,59 @@ router = APIRouter(
     tags=["saved_quotes"]
 )
 
+@router.get("/next-reference")
+def get_next_quote_reference(user_initials: Optional[str] = None, db: Session = Depends(get_db)):
+    """Get the next available quote reference number.
+    
+    Args:
+        user_initials: Optional initials to use (e.g., 'BV' for Bernard Viviers).
+                      If not provided, returns generic pattern.
+    
+    Returns:
+        dict with next_ref and pattern information
+    """
+    try:
+        next_ref = crud.generate_next_quote_ref(db, user_initials)
+        return {
+            "next_ref": next_ref,
+            "pattern": "Q[INITIALS][NUMBER]",
+            "example": "QBV0001"
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error generating quote reference: {str(e)}"
+        )
+
+@router.get("/validate-reference/{quote_ref}")
+def validate_quote_reference(quote_ref: str, db: Session = Depends(get_db)):
+    """Check if a quote reference is available (not used by any original quote).
+    
+    Args:
+        quote_ref: The quote reference to validate
+    
+    Returns:
+        dict with is_available flag and suggestion if not available
+    """
+    try:
+        is_available = crud.is_quote_ref_available(db, quote_ref)
+        result = {"is_available": is_available, "quote_ref": quote_ref}
+        
+        if not is_available:
+            # Extract initials from the quote_ref to suggest next available
+            import re
+            match = re.match(r'Q([A-Z]+)', quote_ref)
+            initials = match.group(1) if match else None
+            suggestion = crud.generate_next_quote_ref(db, initials)
+            result["suggestion"] = suggestion
+            
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error validating quote reference: {str(e)}"
+        )
+
 @router.post("/", response_model=schemas.Quote)
 def create_quote(quote: schemas.QuoteCreate, db: Session = Depends(get_db)):
     """Create a new quote"""

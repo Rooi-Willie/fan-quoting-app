@@ -329,9 +329,51 @@ def save_quote():
             st.session_state["last_saved_quote_id"] = saved_quote["id"]
             
         else:
-            # CREATE new quote
+            # CREATE new quote - validate and auto-fix quote_ref if duplicate
+            quote_ref = quote_section.get("reference") or qd.get("quote_ref", "")
+            
+            # Validate quote reference uniqueness
+            try:
+                validation_response = requests.get(
+                    f"{API_BASE_URL}/saved-quotes/validate-reference/{quote_ref}",
+                    headers=get_api_headers()
+                )
+                if validation_response.ok:
+                    validation_data = validation_response.json()
+                    
+                    # If not available, auto-append suffix
+                    if not validation_data.get("is_available", True):
+                        original_ref = quote_ref
+                        suggested_ref = validation_data.get("suggestion", quote_ref + "-A")
+                        
+                        # Auto-append suffix (e.g., QBV0001 -> QBV0001-A)
+                        suffix_counter = 0
+                        suffix_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                        while suffix_counter < len(suffix_chars):
+                            test_ref = f"{original_ref}-{suffix_chars[suffix_counter]}"
+                            test_validation = requests.get(
+                                f"{API_BASE_URL}/saved-quotes/validate-reference/{test_ref}",
+                                headers=get_api_headers()
+                            )
+                            if test_validation.ok and test_validation.json().get("is_available", False):
+                                quote_ref = test_ref
+                                # Update in quote_data
+                                quote_section["reference"] = quote_ref
+                                st.warning(f"Quote reference '{original_ref}' already exists. Auto-adjusted to '{quote_ref}'")
+                                break
+                            suffix_counter += 1
+                        
+                        # If all suffixes exhausted, use suggested (next number)
+                        if suffix_counter >= len(suffix_chars):
+                            quote_ref = suggested_ref
+                            quote_section["reference"] = quote_ref
+                            st.warning(f"Quote reference '{original_ref}' already exists. Auto-adjusted to '{quote_ref}'")
+            except Exception as validation_error:
+                # If validation fails, proceed with original ref (database will catch duplicates)
+                st.warning(f"Could not validate quote reference: {str(validation_error)}")
+            
             payload = {
-                "quote_ref": quote_section.get("reference") or qd.get("quote_ref", ""),
+                "quote_ref": quote_ref,
                 "client_name": quote_section.get("client") or qd.get("client_name", ""),
                 "project_name": quote_section.get("project") or qd.get("project_name", ""),  # v3: project is a string
                 "project_location": quote_section.get("location") or qd.get("project_location", ""),  # v3: location is a string

@@ -333,6 +333,62 @@ def get_quotes_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 10
 def get_quote_revisions(db: Session, original_quote_id: int):
     return db.query(models.Quote).filter(models.Quote.original_quote_id == original_quote_id).order_by(models.Quote.revision_number).all()
 
+def is_quote_ref_available(db: Session, quote_ref: str) -> bool:
+    """Check if a quote reference is available (not used by any original quote).
+    
+    Args:
+        db: Database session
+        quote_ref: The quote reference to check
+        
+    Returns:
+        bool: True if available, False if already exists
+    """
+    existing = db.query(models.Quote).filter(
+        models.Quote.quote_ref == quote_ref,
+        models.Quote.original_quote_id == None  # Only check original quotes
+    ).first()
+    return existing is None
+
+def generate_next_quote_ref(db: Session, user_initials: Optional[str] = None) -> str:
+    """Generate the next available quote reference.
+    
+    Pattern: Q[INITIALS][NUMBER] (e.g., QBV0001)
+    
+    Args:
+        db: Database session
+        user_initials: Optional user initials (e.g., 'BV' for Bernard Viviers)
+        
+    Returns:
+        str: Next available quote reference
+    """
+    import re
+    
+    # Default to 'Q' if no initials provided
+    prefix = f"Q{user_initials}" if user_initials else "Q"
+    
+    # Query all original quotes (not revisions) with this prefix pattern
+    # Use LIKE for pattern matching
+    pattern = f"{prefix}%"
+    existing_quotes = db.query(models.Quote.quote_ref).filter(
+        models.Quote.quote_ref.like(pattern),
+        models.Quote.original_quote_id == None  # Only original quotes
+    ).all()
+    
+    # Extract numbers from existing quote refs
+    max_number = 0
+    for (quote_ref,) in existing_quotes:
+        # Extract number from pattern like QBV0001, QBV0002, QBV0001-A, etc.
+        match = re.search(r'(\d+)', quote_ref)
+        if match:
+            number = int(match.group(1))
+            max_number = max(max_number, number)
+    
+    # Generate next number with leading zeros (4 digits)
+    next_number = max_number + 1
+    next_ref = f"{prefix}{next_number:04d}"
+    
+    return next_ref
+
 def create_quote(db: Session, quote: schemas.QuoteCreate):
     # Mutably enrich quote_data with derived totals & extract summaries
     quote_data = quote.quote_data if isinstance(quote.quote_data, dict) else {}

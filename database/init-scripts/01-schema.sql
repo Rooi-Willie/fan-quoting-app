@@ -200,3 +200,8 @@ CREATE INDEX idx_quotes_client_name ON quotes(client_name);
 CREATE INDEX idx_quotes_fan_uid ON quotes(fan_uid);
 CREATE INDEX idx_quotes_created_by_user_name ON quotes(created_by_user_name);
 CREATE INDEX idx_quotes_last_modified_by_user_name ON quotes(last_modified_by_user_name);
+
+-- Ensure quote_ref is unique for original quotes (revisions can share the same ref)
+CREATE UNIQUE INDEX unique_original_quote_ref 
+ON quotes(quote_ref) 
+WHERE original_quote_id IS NULL;

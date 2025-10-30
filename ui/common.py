@@ -89,6 +89,33 @@ def _fetch_rates_and_settings() -> dict:
         pass  # Return empty dict on error
     return {}
 
+def _fetch_next_quote_ref(user_initials: Optional[str] = None) -> str:
+    """Fetch the next available quote reference from the API.
+    
+    Args:
+        user_initials: Optional user initials (e.g., 'BV' for Bernard Viviers)
+        
+    Returns:
+        str: Next available quote reference (e.g., 'QBV0001')
+    """
+    try:
+        params = {"user_initials": user_initials} if user_initials else {}
+        resp = requests.get(
+            f"{API_BASE_URL}/saved-quotes/next-reference",
+            params=params,
+            headers=get_api_headers()
+        )
+        if resp.ok:
+            data = resp.json()
+            return data.get("next_ref", "Q0001")
+    except requests.exceptions.RequestException:
+        pass  # Return fallback on error
+    
+    # Fallback: generate based on initials or default
+    if user_initials:
+        return f"Q{user_initials}0001"
+    return "Q0001"
+
 def initialize_session_state_from_quote_data(qd: dict) -> None:
     """Initialize session state variables from loaded quote_data.
     
@@ -129,7 +156,7 @@ def _new_quote_data(username: str | None = None, user_session: Dict | None = Non
     """Create a fresh quote_data structure.
 
     Creates a new quote with organized sections for specifications, pricing, and calculations.
-    Fetches default markup values from the global settings API.
+    Fetches default markup values from the global settings API and auto-generates quote reference.
     
     Args:
         username: Legacy parameter for username (kept for backward compatibility)
@@ -146,6 +173,7 @@ def _new_quote_data(username: str | None = None, user_session: Dict | None = Non
     
     # Build created_by_user object if user_session provided
     created_by_user = None
+    user_initials = None
     if user_session:
         created_by_user = {
             "id": user_session.get("user_id"),
@@ -158,6 +186,15 @@ def _new_quote_data(username: str | None = None, user_session: Dict | None = Non
             "role": user_session.get("user_role", "user"),
         }
         ref_user = user_session.get("username", "demo").split("@")[0]
+        
+        # Generate initials from full_name (e.g., "Bernard Viviers" -> "BV")
+        full_name = user_session.get("full_name", "")
+        if full_name:
+            name_parts = full_name.strip().split()
+            user_initials = "".join([part[0].upper() for part in name_parts if part])
+    
+    # Auto-generate next available quote reference
+    quote_ref = _fetch_next_quote_ref(user_initials)
     
     meta = {
         "version": NEW_SCHEMA_VERSION,
@@ -173,7 +210,7 @@ def _new_quote_data(username: str | None = None, user_session: Dict | None = Non
     return {
         "meta": meta,
         "quote": {
-            "reference": f"Q{ref_user[:1].upper()}001",
+            "reference": quote_ref,
             "client": "",
             "project": "",
             "location": "",
