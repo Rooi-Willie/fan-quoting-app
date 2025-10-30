@@ -381,9 +381,15 @@ def create_quote_revision(db: Session, original_quote_id: int, user_id: int, quo
     if not original_quote:
         return None
         
-    # Get highest revision number
-    existing_revisions = get_quote_revisions(db, original_quote_id)
-    next_revision = len(existing_revisions) + 1
+    # Get highest revision number from ALL quotes in this revision chain
+    # This includes the original quote AND all its revisions
+    max_revision = db.query(func.max(models.Quote.revision_number))\
+        .filter(
+            (models.Quote.id == original_quote_id) | 
+            (models.Quote.original_quote_id == original_quote_id)
+        ).scalar()
+    
+    next_revision = (max_revision or 0) + 1
     
     # Create revision using the same schema as create_quote but with revision info
     quote_create = schemas.QuoteCreate(

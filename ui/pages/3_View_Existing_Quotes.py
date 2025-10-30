@@ -222,9 +222,9 @@ else:
                     )
                     response.raise_for_status()
                     
-                    # Refresh quotes list
-                    quotes = load_quotes()
                     st.success("New revision created successfully.")
+                    # Trigger rerun to refresh the table
+                    st.rerun()
                 except Exception as e:
                     st.error(f"Error creating revision: {str(e)}")
             else:
