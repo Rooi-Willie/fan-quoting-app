@@ -97,7 +97,7 @@ st.markdown("### 📋 Project Information")
 creation_date = datetime.datetime.fromisoformat(quote['creation_date'].replace('Z', '+00:00'))
 formatted_date = creation_date.strftime('%Y-%m-%d')
 
-project_info_html = f"""<div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1rem;'>
+project_info_html = f"""<div style='display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1rem;'>
 <div style='background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); padding: 1.25rem; border-radius: 0.5rem; color: white;'>
 <div style='display: flex; align-items: center; margin-bottom: 0.5rem;'>
 <div style='background: rgba(255,255,255,0.2); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; margin-right: 0.75rem;'>🏢</div>
@@ -325,7 +325,7 @@ if motor_node.get("motor_details") or quote_data.get("calculations", {}).get("mo
 <div><h3 style='margin: 0; font-size: 1.5rem;'>{supplier}</h3>
 <p style='margin: 0; font-size: 0.875rem; opacity: 0.9;'>{product_range}</p></div>
 </div>
-<div style='display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1rem;'>
+<div style='display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1rem;'>
 <div style='background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 0.375rem;'>
 <p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Mount Type</p>
 <p style='margin: 0.25rem 0 0 0; font-size: 1.2rem; font-weight: bold;'>{mount_type}</p>
