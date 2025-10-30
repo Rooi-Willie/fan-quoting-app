@@ -308,23 +308,44 @@ def save_quote():
         # Get data from v3 sections - handle v3 schema structure correctly
         quote_section = qd.get("quote", {})
 
-        # Prepare payload using v3 structure
-        payload = {
-            "quote_ref": quote_section.get("reference") or qd.get("quote_ref", ""),
-            "client_name": quote_section.get("client") or qd.get("client_name", ""),
-            "project_name": quote_section.get("project") or qd.get("project_name", ""),  # v3: project is a string
-            "project_location": quote_section.get("location") or qd.get("project_location", ""),  # v3: location is a string
-            "user_id": user_id,
-            "quote_data": qd,
-        }
+        # Check if we're editing an existing quote or creating a new one
+        editing_quote_id = st.session_state.get("editing_quote_id")
         
-        # Call v3 API endpoint
-        response = requests.post(f"{API_BASE_URL}/saved-quotes/v3", json=payload, headers=get_api_headers())
-        response.raise_for_status()
-        
-        # Store the quote ID in session state for reference
-        saved_quote = response.json()
-        st.session_state["last_saved_quote_id"] = saved_quote["id"]
+        if editing_quote_id:
+            # UPDATE existing quote
+            payload = {
+                "quote_data": qd,
+                "user_id": user_id,
+            }
+            response = requests.put(
+                f"{API_BASE_URL}/saved-quotes/{editing_quote_id}",
+                json=payload,
+                headers=get_api_headers()
+            )
+            response.raise_for_status()
+            
+            # Store the quote ID in session state for reference
+            saved_quote = response.json()
+            st.session_state["last_saved_quote_id"] = saved_quote["id"]
+            
+        else:
+            # CREATE new quote
+            payload = {
+                "quote_ref": quote_section.get("reference") or qd.get("quote_ref", ""),
+                "client_name": quote_section.get("client") or qd.get("client_name", ""),
+                "project_name": quote_section.get("project") or qd.get("project_name", ""),  # v3: project is a string
+                "project_location": quote_section.get("location") or qd.get("project_location", ""),  # v3: location is a string
+                "user_id": user_id,
+                "quote_data": qd,
+            }
+            
+            # Call v3 API endpoint
+            response = requests.post(f"{API_BASE_URL}/saved-quotes/v3", json=payload, headers=get_api_headers())
+            response.raise_for_status()
+            
+            # Store the quote ID in session state for reference
+            saved_quote = response.json()
+            st.session_state["last_saved_quote_id"] = saved_quote["id"]
         
         return True
     except Exception as e:

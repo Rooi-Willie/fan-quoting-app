@@ -416,6 +416,47 @@ def create_quote_revision(db: Session, original_quote_id: int, user_id: int, quo
     db.refresh(db_quote)
     return db_quote
 
+def update_quote(
+    db: Session,
+    quote_id: int,
+    quote_data: dict,
+    user_id: int
+):
+    """
+    Update an existing quote with new quote data.
+    Extracts summary fields from the updated quote_data.
+    """
+    # Get the existing quote
+    db_quote = get_quote(db, quote_id)
+    if not db_quote:
+        return None
+    
+    # Update the quote_data
+    db_quote.quote_data = quote_data
+    
+    # Re-extract summary fields from the updated quote_data
+    summary = _extract_summary_from_quote_data(quote_data)
+    db_quote.fan_uid = summary.get("fan_uid")
+    db_quote.fan_size_mm = summary.get("fan_size_mm")
+    db_quote.blade_sets = summary.get("blade_sets")
+    db_quote.component_list = summary.get("component_list")
+    db_quote.component_markup = summary.get("component_markup")
+    db_quote.motor_markup = summary.get("motor_markup")
+    db_quote.motor_supplier = summary.get("motor_supplier")
+    db_quote.motor_rated_output = summary.get("motor_rated_output")
+    db_quote.total_price = summary.get("total_price")
+    db_quote.created_by_user_name = summary.get("created_by_user_name")
+    db_quote.last_modified_by_user_name = summary.get("last_modified_by_user_name")
+    
+    # Update the last_modified_by_user_id
+    db_quote.last_modified_by_user_id = user_id
+    
+    # Commit the changes
+    db.commit()
+    db.refresh(db_quote)
+    return db_quote
+
+
 def update_quote_status(db: Session, quote_id: int, status: str):
     db_quote = get_quote(db, quote_id)
     if not db_quote:

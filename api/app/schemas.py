@@ -259,11 +259,11 @@ class QuoteCreate(QuoteBase):
     user_id: int
 
 class QuoteUpdate(BaseModel):
-    client_name: Optional[str] = None
-    project_name: Optional[str] = None
-    project_location: Optional[str] = None
-    status: Optional[QuoteStatus] = None
-    quote_data: Optional[Dict[str, Any]] = None
+    quote_data: Dict[str, Any]
+    user_id: int
+
+class QuoteRevisionRequest(BaseModel):
+    user_id: int
 
 class QuoteRevision(BaseModel):
     original_quote_id: int

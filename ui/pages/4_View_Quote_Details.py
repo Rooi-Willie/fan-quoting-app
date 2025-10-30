@@ -659,6 +659,8 @@ with action_cols[0]:
     if st.button("✏️ Edit This Quote", use_container_width=True, type="primary"):
         # Load this quote for editing (migrated)
         st.session_state.quote_data = quote_data
+        # Store the quote ID for editing (enables UPDATE instead of CREATE)
+        st.session_state.editing_quote_id = quote_id
         st.switch_page("pages/2_Create_New_Quote.py")
     
     # Download Word Document button
@@ -721,9 +723,11 @@ with action_cols[3]:
     st.markdown("**Versioning**")
     if st.button("🔄 Create New Revision", use_container_width=True):
         try:
+            # Use logged-in user's ID
+            user_id = st.session_state.get("user_id", 1)
             response = requests.post(
                 f"{API_BASE_URL}/saved-quotes/{quote_id}/revise", 
-                json={"user_id": 1},
+                json={"user_id": user_id},
                 headers=get_api_headers()
             )
             response.raise_for_status()

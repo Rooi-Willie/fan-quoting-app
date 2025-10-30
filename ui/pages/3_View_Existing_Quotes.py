@@ -195,6 +195,9 @@ else:
                     qd_loaded = quote.get("quote_data") or {}
                     st.session_state.quote_data = qd_loaded
                     
+                    # Store the quote ID for editing (enables UPDATE instead of CREATE)
+                    st.session_state.editing_quote_id = quote_id
+                    
                     # Redirect to quote creation page
                     st.switch_page("pages/2_Create_New_Quote.py")
                 except Exception as e:
@@ -210,8 +213,13 @@ else:
                 
                 # Create new revision
                 try:
-                    # Using user_id 1 for development
-                    response = requests.post(f"{API_BASE_URL}/saved-quotes/{quote_id}/revise", json={"user_id": 1}, headers=get_api_headers())
+                    # Use logged-in user's ID
+                    user_id = st.session_state.get("user_id", 1)
+                    response = requests.post(
+                        f"{API_BASE_URL}/saved-quotes/{quote_id}/revise", 
+                        json={"user_id": user_id}, 
+                        headers=get_api_headers()
+                    )
                     response.raise_for_status()
                     
                     # Refresh quotes list
