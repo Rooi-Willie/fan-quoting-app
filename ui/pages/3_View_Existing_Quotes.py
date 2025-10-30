@@ -224,9 +224,35 @@ else:
     
     with col4:
         if st.button("Create New Quote", use_container_width=True):
-            # Clear existing quote data
-            if "quote_data" in st.session_state:
-                del st.session_state.quote_data
+            # Reset specific quote data, keep login info (same as Reset Form button)
+            logged_in_status = st.session_state.get("logged_in", False)
+            user_data = {
+                "user_id": st.session_state.get("user_id"),
+                "username": st.session_state.get("username", ""),
+                "full_name": st.session_state.get("full_name", ""),
+                "email": st.session_state.get("email", ""),
+                "phone": st.session_state.get("phone", ""),
+                "department": st.session_state.get("department", ""),
+                "job_title": st.session_state.get("job_title", ""),
+                "user_role": st.session_state.get("user_role", "user"),
+            }
+            
+            # Increment widget reset counter to force all widgets to recreate with new keys
+            current_counter = st.session_state.get("widget_reset_counter", 0)
+            
+            st.session_state.clear()  # Clears everything
+            
+            # Restore login info
+            st.session_state.logged_in = logged_in_status
+            for key, value in user_data.items():
+                st.session_state[key] = value
+            st.session_state.widget_reset_counter = current_counter + 1  # Increment to force widget reset
+            
+            # Create fresh quote data with user session
+            st.session_state.quote_data = _new_quote_data(
+                username=user_data.get("username"),
+                user_session=user_data if logged_in_status else None
+            )
             
             # Redirect to quote creation page
             st.switch_page("pages/2_Create_New_Quote.py")
