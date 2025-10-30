@@ -265,6 +265,9 @@ class QuoteUpdate(BaseModel):
 class QuoteRevisionRequest(BaseModel):
     user_id: int
 
+class QuoteStatusUpdate(BaseModel):
+    status: QuoteStatus
+
 class QuoteRevision(BaseModel):
     original_quote_id: int
 

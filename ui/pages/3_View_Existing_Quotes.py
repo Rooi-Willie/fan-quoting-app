@@ -102,6 +102,7 @@ else:
         df_data.append({
             "ID": q["id"],
             "Quote Ref": q["quote_ref"],
+            "Rev": q.get("revision_number", 1),
             "Client": q["client_name"],
             "Project": q["project_name"],
             "Date": formatted_date,
@@ -130,6 +131,7 @@ else:
         column_config={
             "ID": st.column_config.NumberColumn(format="%d"),
             "Quote Ref": st.column_config.TextColumn("Quote Ref"),
+            "Rev": st.column_config.NumberColumn("Rev", format="%d", help="Revision number"),
             "Client": st.column_config.TextColumn("Client"),
             "Project": st.column_config.TextColumn("Project"),
             "Date": st.column_config.TextColumn("Date"),
@@ -137,8 +139,8 @@ else:
             "Motor": st.column_config.TextColumn("Motor"),
             "Price": st.column_config.TextColumn("Price"),
             "Components": st.column_config.TextColumn("Components", width="medium", help="List of components in this quote"),
-            "Comp. Markup": st.column_config.TextColumn("Comp. Markup"),
-            "Motor Markup": st.column_config.TextColumn("Motor Markup"),
+            "Comp. Markup": st.column_config.TextColumn("Comp. Markup", width="small"),
+            "Motor Markup": st.column_config.TextColumn("Motor Markup", width="small"),
             "Status": st.column_config.TextColumn("Status"),
             "Created By": st.column_config.TextColumn("Created By"),
             "Last Mod. By": st.column_config.TextColumn("Last Mod. By")

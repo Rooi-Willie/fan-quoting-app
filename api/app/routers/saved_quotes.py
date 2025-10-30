@@ -110,9 +110,9 @@ def create_revision(quote_id: int, revision_request: schemas.QuoteRevisionReques
     return new_revision
 
 @router.patch("/{quote_id}/status", response_model=schemas.Quote)
-def update_status(quote_id: int, status: schemas.QuoteStatus, db: Session = Depends(get_db)):
+def update_status(quote_id: int, status_update: schemas.QuoteStatusUpdate, db: Session = Depends(get_db)):
     """Update the status of a quote"""
-    updated_quote = crud.update_quote_status(db, quote_id, status)
+    updated_quote = crud.update_quote_status(db, quote_id, status_update.status.value)
     if not updated_quote:
         raise HTTPException(status_code=404, detail="Quote not found")
     return updated_quote
