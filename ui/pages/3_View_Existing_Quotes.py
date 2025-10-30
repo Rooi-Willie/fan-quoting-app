@@ -94,20 +94,26 @@ else:
         creation_date = datetime.datetime.fromisoformat(q["creation_date"].replace("Z", "+00:00"))
         formatted_date = creation_date.strftime("%Y-%m-%d %H:%M")
         
-        # Create row
+        # Extract user information from summary fields
+        created_by_name = q.get("created_by_user_name") or "-"
+        last_modified_by_name = q.get("last_modified_by_user_name") or "-"
+        
+        # Create row with new column order
         df_data.append({
             "ID": q["id"],
             "Quote Ref": q["quote_ref"],
             "Client": q["client_name"],
             "Project": q["project_name"],
+            "Date": formatted_date,
             "Fan": q["fan_uid"],
-            "Components": "\n".join([f"• {comp}" for comp in q["component_list"]]) if q.get("component_list") else "-",
-            "Component Markup": f"{((q.get('component_markup', 1.0) - 1) * 100):.1f}%" if q.get("component_markup") else "-",
-            "Motor Markup": f"{((q.get('motor_markup', 1.0) - 1) * 100):.1f}%" if q.get("motor_markup") else "-",
             "Motor": f"{q['motor_rated_output']} ({q['motor_supplier']})" if q["motor_rated_output"] else "-",
             "Price": f"R {q['total_price']:,.2f}" if q["total_price"] else "-",
+            "Components": "\n".join([f"• {comp}" for comp in q["component_list"]]) if q.get("component_list") else "-",
+            "Comp. Markup": f"{((q.get('component_markup', 1.0) - 1) * 100):.1f}%" if q.get("component_markup") else "-",
+            "Motor Markup": f"{((q.get('motor_markup', 1.0) - 1) * 100):.1f}%" if q.get("motor_markup") else "-",
             "Status": q["status"].capitalize(),
-            "Date": formatted_date
+            "Created By": created_by_name,
+            "Last Mod. By": last_modified_by_name
         })
     
     df = pd.DataFrame(df_data)
@@ -126,14 +132,16 @@ else:
             "Quote Ref": st.column_config.TextColumn("Quote Ref"),
             "Client": st.column_config.TextColumn("Client"),
             "Project": st.column_config.TextColumn("Project"),
+            "Date": st.column_config.TextColumn("Date"),
             "Fan": st.column_config.TextColumn("Fan"),
-            "Components": st.column_config.TextColumn("Components", width="medium", help="List of components in this quote"),
-            "Component Markup": st.column_config.TextColumn("Comp. Markup", width="small"),
-            "Motor Markup": st.column_config.TextColumn("Motor Markup", width="small"),
             "Motor": st.column_config.TextColumn("Motor"),
             "Price": st.column_config.TextColumn("Price"),
+            "Components": st.column_config.TextColumn("Components", width="medium", help="List of components in this quote"),
+            "Comp. Markup": st.column_config.TextColumn("Comp. Markup"),
+            "Motor Markup": st.column_config.TextColumn("Motor Markup"),
             "Status": st.column_config.TextColumn("Status"),
-            "Date": st.column_config.TextColumn("Date")
+            "Created By": st.column_config.TextColumn("Created By"),
+            "Last Mod. By": st.column_config.TextColumn("Last Mod. By")
         },
         on_select="rerun",  # Rerun the script when a row is selected
         selection_mode="single-row",  # Allow single row selection

@@ -14,7 +14,8 @@ def _extract_summary_from_quote_data(qd: Dict[str, Any]) -> Dict[str, Any]:
     """Extract summary fields from quote_data structure for database storage."""
     if not isinstance(qd, dict):
         return {"fan_uid": None, "fan_size_mm": None, "blade_sets": None, "component_list": [],
-                "component_markup": None, "motor_markup": None, "total_price": None, "motor_supplier": None, "motor_rated_output": None}
+                "component_markup": None, "motor_markup": None, "total_price": None, "motor_supplier": None, 
+                "motor_rated_output": None, "created_by_user_name": None, "last_modified_by_user_name": None}
 
     # Extract from structure
     meta = qd.get("meta", {}) or {}
@@ -43,6 +44,13 @@ def _extract_summary_from_quote_data(qd: Dict[str, Any]) -> Dict[str, Any]:
     motor_supplier = motor_details.get("supplier_name")
     motor_rated_output = str(motor_details.get("rated_output")) if motor_details.get("rated_output") else None
 
+    # User info from meta
+    created_by_user = meta.get("created_by_user", {}) or {}
+    last_modified_by_user = meta.get("last_modified_by_user", {}) or {}
+    
+    created_by_user_name = created_by_user.get("full_name") or created_by_user.get("username")
+    last_modified_by_user_name = last_modified_by_user.get("full_name") or last_modified_by_user.get("username")
+
     # Calculate total price from calculations
     component_totals = calculations.get("component_totals", {}) or {}
     motor_calculations = calculations.get("motor", {}) or {}
@@ -62,6 +70,8 @@ def _extract_summary_from_quote_data(qd: Dict[str, Any]) -> Dict[str, Any]:
         "motor_supplier": motor_supplier,
         "motor_rated_output": motor_rated_output,
         "total_price": total_price,
+        "created_by_user_name": created_by_user_name,
+        "last_modified_by_user_name": last_modified_by_user_name,
     }
 
 

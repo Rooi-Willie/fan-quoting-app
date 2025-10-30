@@ -284,6 +284,8 @@ class QuoteSummary(QuoteBase):
     motor_supplier: Optional[str] = None
     motor_rated_output: Optional[str] = None
     total_price: Optional[float] = None
+    created_by_user_name: Optional[str] = None
+    last_modified_by_user_name: Optional[str] = None
     
     class Config:
         orm_mode = True

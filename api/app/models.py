@@ -271,6 +271,8 @@ class Quote(Base):
     motor_supplier = Column(String)
     motor_rated_output = Column(String)
     total_price = Column(Numeric(10, 2))
+    created_by_user_name = Column(String)  # Extracted from quote_data.meta.created_by_user.full_name
+    last_modified_by_user_name = Column(String)  # Extracted from quote_data.meta.last_modified_by_user.full_name
     
     # Core quote data
     quote_data = Column(JSONB)

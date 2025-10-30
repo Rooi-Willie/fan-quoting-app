@@ -181,6 +181,8 @@ CREATE TABLE IF NOT EXISTS quotes (
     motor_supplier VARCHAR(255),
     motor_rated_output VARCHAR(100),
     total_price DECIMAL(10, 2),
+    created_by_user_name VARCHAR(255),
+    last_modified_by_user_name VARCHAR(255),
     
     -- Core quote data storage
     quote_data JSONB NOT NULL,
@@ -196,3 +198,5 @@ CREATE INDEX idx_quotes_creation_date ON quotes(creation_date);
 CREATE INDEX idx_quotes_status ON quotes(status);
 CREATE INDEX idx_quotes_client_name ON quotes(client_name);
 CREATE INDEX idx_quotes_fan_uid ON quotes(fan_uid);
+CREATE INDEX idx_quotes_created_by_user_name ON quotes(created_by_user_name);
+CREATE INDEX idx_quotes_last_modified_by_user_name ON quotes(last_modified_by_user_name);
