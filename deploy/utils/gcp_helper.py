@@ -67,11 +67,21 @@ class GCPHelper:
             --backup-start-time={config['backup']['start_time']} \
             --maintenance-window-day={config['maintenance']['day']} \
             --maintenance-window-hour={config['maintenance']['hour']} \
+            --database-flags=timezone=Africa/Johannesburg \
             --assign-ip \
             --authorized-networks=0.0.0.0/0 \
             --quiet"""
         
         self.run_command(cmd)
+    
+    def set_database_timezone(self, instance_name, timezone='Africa/Johannesburg'):
+        """Set timezone for Cloud SQL instance"""
+        self.logger.info(f"Setting timezone to {timezone}...")
+        cmd = f"""gcloud sql instances patch {instance_name} \
+            --database-flags=timezone={timezone} \
+            --quiet"""
+        self.run_command(cmd)
+        self.logger.success(f"Timezone set to {timezone}")
     
     def instance_exists(self, instance_name):
         """Check if Cloud SQL instance exists"""

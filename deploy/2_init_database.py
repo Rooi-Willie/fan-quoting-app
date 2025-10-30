@@ -175,6 +175,9 @@ def main():
     
     if gcp.instance_exists(instance_name):
         logger.info("Instance already exists, skipping creation")
+        # Ensure timezone is set for existing instances
+        logger.info("Verifying timezone configuration...")
+        gcp.set_database_timezone(instance_name)
     else:
         logger.info("This will take 5-10 minutes...")
         
@@ -182,7 +185,7 @@ def main():
             with logger.spinner("Creating instance"):
                 gcp.create_sql_instance(instance_name, db_config)
             
-            logger.success("Cloud SQL instance created")
+            logger.success("Cloud SQL instance created with timezone set to Africa/Johannesburg")
         except Exception as e:
             logger.exit_with_error(f"Failed to create instance: {e}")
     
