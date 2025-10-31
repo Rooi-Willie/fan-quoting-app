@@ -19,7 +19,9 @@ echo.
 
 REM Step 2: Verify sensitive files exist
 echo [2/7] Verifying sensitive files exist...
-call check_sensitive.bat
+cd ..
+call utils\check_sensitive.bat
+cd utils
 echo.
 
 echo Press any key to continue with backup, or Ctrl+C to cancel...
@@ -27,7 +29,9 @@ pause >nul
 
 REM Step 3: Create backup
 echo [3/7] Creating backup...
-call backup_sensitive.bat
+cd ..
+call utils\backup_sensitive.bat
+cd utils
 echo.
 
 REM Step 4: Show uncommitted changes
@@ -86,7 +90,9 @@ if errorlevel 1 (
 
 echo.
 echo Verifying sensitive files after merge...
-call check_sensitive.bat
+cd ..
+call utils\check_sensitive.bat
+cd utils
 
 echo.
 echo ========================================

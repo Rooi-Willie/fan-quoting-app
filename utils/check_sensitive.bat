@@ -14,7 +14,7 @@ echo Checking for sensitive configuration files...
 echo.
 
 REM Check deploy/config.yaml
-if exist "deploy\config.yaml" (
+if exist "..\deploy\config.yaml" (
     echo [✓] deploy\config.yaml - FOUND
     set /a FOUND+=1
 ) else (
@@ -23,7 +23,7 @@ if exist "deploy\config.yaml" (
 )
 
 REM Check .env
-if exist ".env" (
+if exist "..\.env" (
     echo [✓] .env - FOUND
     set /a FOUND+=1
 ) else (
@@ -32,7 +32,7 @@ if exist ".env" (
 )
 
 REM Check ui/.streamlit/secrets.toml
-if exist "ui\.streamlit\secrets.toml" (
+if exist "..\ui\.streamlit\secrets.toml" (
     echo [✓] ui\.streamlit\secrets.toml - FOUND
     set /a FOUND+=1
 ) else (
@@ -41,11 +41,11 @@ if exist "ui\.streamlit\secrets.toml" (
 )
 
 REM Check cloud_sql_proxy.exe
-if exist "deploy\cloud_sql_proxy.exe" (
-    echo [✓] deploy\cloud_sql_proxy.exe - FOUND
+if exist "..\deploy\bin\cloud_sql_proxy.exe" (
+    echo [✓] deploy\bin\cloud_sql_proxy.exe - FOUND
     set /a FOUND+=1
 ) else (
-    echo [✗] deploy\cloud_sql_proxy.exe - MISSING (will be downloaded if needed)
+    echo [✗] deploy\bin\cloud_sql_proxy.exe - MISSING (will be downloaded if needed)
 )
 
 echo.
@@ -71,7 +71,7 @@ echo.
 echo Checking which files are gitignored...
 echo.
 
-git check-ignore -v deploy\config.yaml .env ui\.streamlit\secrets.toml 2>nul
+git check-ignore -v ..\deploy\config.yaml ..\.env ..\ui\.streamlit\secrets.toml 2>nul
 if errorlevel 1 (
     echo ⚠️  Some files may NOT be gitignored!
     echo Run: git status
@@ -83,7 +83,7 @@ echo RECOMMENDATIONS
 echo ========================================
 echo.
 echo Before merging branches:
-echo   1. Run: backup_sensitive.bat
+echo   1. Run: utils\backup_sensitive.bat
 echo   2. Verify backup was created
 echo   3. Perform your git operations
 echo   4. Restore if needed from backup folder
