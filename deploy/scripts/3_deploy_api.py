@@ -91,8 +91,8 @@ def main():
         sys.exit(0)
     
     # Change to API directory (relative to the project root)
-    script_dir = Path(__file__).parent.parent  # deploy/
-    project_root = script_dir.parent           # fan-quoting-app/
+    script_dir = Path(__file__).parent.parent   # deploy/
+    project_root = script_dir.parent            # fan-quoting-app/
     api_dir = project_root / "api"
     
     if not api_dir.exists():
