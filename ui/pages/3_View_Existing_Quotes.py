@@ -71,10 +71,31 @@ def load_quotes():
             start_date = datetime.datetime.combine(start_date, datetime.time.min, tzinfo=SAST_TZ)
             end_date = datetime.datetime.combine(end_date, datetime.time.max, tzinfo=SAST_TZ)
             
-            quotes = [
-                q for q in quotes 
-                if start_date <= datetime.datetime.fromisoformat(q["creation_date"].replace("Z", "+00:00")) <= end_date
-            ]
+            filtered_quotes = []
+            for q in quotes:
+                try:
+                    # Parse creation_date - handle both formats
+                    creation_date_str = q["creation_date"]
+                    if isinstance(creation_date_str, str):
+                        # Remove Z and add +00:00 for proper ISO format, then convert to SAST
+                        creation_date = datetime.datetime.fromisoformat(creation_date_str.replace("Z", "+00:00"))
+                    else:
+                        # If already a datetime object, ensure it's timezone-aware
+                        creation_date = creation_date_str
+                        if creation_date.tzinfo is None:
+                            creation_date = creation_date.replace(tzinfo=SAST_TZ)
+                    
+                    # Convert to SAST for comparison
+                    creation_date_sast = creation_date.astimezone(SAST_TZ)
+                    
+                    if start_date <= creation_date_sast <= end_date:
+                        filtered_quotes.append(q)
+                except Exception as e:
+                    # Skip quotes with invalid dates
+                    st.warning(f"Skipping quote with invalid date: {q.get('quote_ref', 'unknown')}")
+                    continue
+            
+            quotes = filtered_quotes
         
         return quotes
     except Exception as e:
@@ -96,9 +117,21 @@ else:
     # Convert to DataFrame for display
     df_data = []
     for q in quotes:
-        # Format creation date
-        creation_date = datetime.datetime.fromisoformat(q["creation_date"].replace("Z", "+00:00"))
-        formatted_date = creation_date.strftime("%Y-%m-%d %H:%M")
+        try:
+            # Format creation date - handle timezone properly
+            creation_date_str = q["creation_date"]
+            if isinstance(creation_date_str, str):
+                creation_date = datetime.datetime.fromisoformat(creation_date_str.replace("Z", "+00:00"))
+            else:
+                creation_date = creation_date_str
+                if creation_date.tzinfo is None:
+                    creation_date = creation_date.replace(tzinfo=SAST_TZ)
+            
+            # Convert to SAST for display
+            creation_date_sast = creation_date.astimezone(SAST_TZ)
+            formatted_date = creation_date_sast.strftime("%Y-%m-%d %H:%M")
+        except Exception as e:
+            formatted_date = "Invalid date"
         
         # Extract user information from summary fields
         created_by_name = q.get("created_by_user_name") or "-"
