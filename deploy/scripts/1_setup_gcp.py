@@ -10,8 +10,8 @@ import secrets
 import string
 from pathlib import Path
 
-# Add parent directory to path for imports
-sys.path.append(str(Path(__file__).parent))
+# Add deploy directory to path for utils imports
+sys.path.append(str(Path(__file__).parent.parent))
 
 from utils.logger import Logger
 from utils.gcp_helper import GCPHelper
@@ -19,7 +19,7 @@ from utils.gcp_helper import GCPHelper
 
 def load_config():
     """Load configuration from config.yaml"""
-    config_path = Path(__file__).parent / "config.yaml"
+    config_path = Path(__file__).parent.parent / "config.yaml"
     
     if not config_path.exists():
         Logger.exit_with_error(
@@ -60,7 +60,7 @@ def save_api_key(config, api_key):
     """Save generated API key to config"""
     config['api']['api_key'] = api_key
     
-    config_path = Path(__file__).parent / "config.yaml"
+    config_path = Path(__file__).parent.parent / "config.yaml"
     with open(config_path, 'w') as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
     

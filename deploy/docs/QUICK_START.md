@@ -13,16 +13,16 @@
 nano deploy/config.yaml  # Change app_password and root_password
 
 # 2. Setup GCP
-python deploy/1_setup_gcp.py
+python deploy/scripts/_setup_gcp.py
 
 # 3. Create database
-python deploy/2_init_database.py
+python deploy/scripts/_init_database.py
 
 # 4. Deploy API
-python deploy/3_deploy_api.py
+python deploy/scripts/_deploy_api.py
 
 # 5. Deploy UI (follow instructions)
-python deploy/4_deploy_ui.py
+python deploy/scripts/_deploy_ui.py
 ```
 
 ---
@@ -51,7 +51,7 @@ gcloud --version  # Should show Google Cloud SDK
 ### Step 1: GCP Setup (20 minutes)
 
 ```bash
-python deploy/1_setup_gcp.py
+python deploy/scripts/_setup_gcp.py
 ```
 
 **You'll be asked to:**
@@ -71,7 +71,7 @@ python deploy/1_setup_gcp.py
 ### Step 2: Database (30 minutes)
 
 ```bash
-python deploy/2_init_database.py
+python deploy/scripts/_init_database.py
 ```
 
 **What happens:**
@@ -92,7 +92,7 @@ python deploy/2_init_database.py
 ### Step 3: API (10 minutes)
 
 ```bash
-python deploy/3_deploy_api.py
+python deploy/scripts/_deploy_api.py
 ```
 
 **What happens:**
@@ -112,7 +112,7 @@ python deploy/3_deploy_api.py
 ### Step 4: UI (10 minutes)
 
 ```bash
-python deploy/4_deploy_ui.py
+python deploy/scripts/_deploy_ui.py
 ```
 
 **Follow the interactive guide:**
@@ -143,13 +143,13 @@ python deploy/4_deploy_ui.py
 
 ```bash
 # Stop services when not in use (saves ~$15/month)
-python deploy/6_manage_resources.py --action stop
+python deploy/scripts/_manage_resources.py --action stop
 
 # Start when needed
-python deploy/6_manage_resources.py --action start
+python deploy/scripts/_manage_resources.py --action start
 
 # Auto-shutdown schedule (weekends)
-python deploy/6_manage_resources.py --action schedule-enable
+python deploy/scripts/_manage_resources.py --action schedule-enable
 ```
 
 ---
@@ -158,7 +158,7 @@ python deploy/6_manage_resources.py --action schedule-enable
 
 ```bash
 # View logs and status
-python deploy/5_monitor.py
+python deploy/scripts/_monitor.py
 
 # Options:
 # 1. API logs
@@ -179,7 +179,7 @@ git commit -m "Your changes"
 git push origin main
 
 # Redeploy API
-python deploy/3_deploy_api.py
+python deploy/scripts/_deploy_api.py
 
 # UI auto-deploys on git push
 ```
@@ -203,10 +203,10 @@ python deploy/cleanup.py
 → Check `.streamlit/secrets.toml` has correct API_KEY
 
 ### "Database connection failed"
-→ Run: `python deploy/6_manage_resources.py --action status`
+→ Run: `python deploy/scripts/_manage_resources.py --action status`
 
 ### "Deployment failed"
-→ Check logs: `python deploy/5_monitor.py`
+→ Check logs: `python deploy/scripts/_monitor.py`
 
 ---
 

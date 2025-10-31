@@ -1,4 +1,4 @@
-# 🚀 Deployment Scripts# 🚀 Deployment Scripts# Deployment Scripts
+# 🚀 Deployment Scripts# 🚀 Deployment Scripts# 🚀 Deployment Scripts# Deployment Scripts
 
 
 
@@ -6,7 +6,7 @@ Automated deployment system for the Fan Quoting Application to Google Cloud Plat
 
 
 
----Automated deployment system for the Fan Quoting Application to Google Cloud Platform.Python-based deployment automation for the Fan Quoting Application.
+---Automated deployment system for the Fan Quoting Application to Google Cloud Platform.
 
 
 
@@ -14,213 +14,437 @@ Automated deployment system for the Fan Quoting Application to Google Cloud Plat
 
 
 
-```---## 📁 Files Overview
+```---Automated deployment system for the Fan Quoting Application to Google Cloud Platform.Python-based deployment automation for the Fan Quoting Application.
 
 deploy/
 
-├── docs/                       # Documentation
+├── README.md                          # This file
 
-│   ├── DEPLOYMENT_GUIDE.md     # Complete deployment guide (START HERE)
+├── config.yaml                        # Configuration (CHANGE PASSWORDS!)
 
-│   ├── QUICK_START.md          # Fast deployment checklist## 📁 Directory Structure| File | Purpose | When to Run |
+├── config.yaml.template              # Template for configuration## 📁 Directory Structure
 
-│   └── GITIGNORE_GUIDE.md      # Security and .gitignore info
-
-│|------|---------|-------------|
-
-├── utils/                      # Helper modules
-
-│   ├── logger.py               # Colored console output```| `config.yaml` | Configuration & passwords | Edit before first deployment |
-
-│   ├── gcp_helper.py           # GCP API wrapper
-
-│   └── db_helper.py            # Database operationsdeploy/| `1_setup_gcp.py` | Initial GCP setup | Once (first time) |
+├── requirements.txt                   # Python dependencies
 
 │
 
-├── config.yaml                 # Configuration (CHANGE PASSWORDS!)├── docs/                       # Documentation| `2_init_database.py` | Create & initialize database | Once (or after cleanup) |
+├── scripts/                           # Deployment scripts
 
-├── requirements.txt            # Python dependencies
+│   ├── 1_setup_gcp.py                # Step 1: GCP project setup```---## 📁 Files Overview
 
-││   ├── DEPLOYMENT_GUIDE.md     # Complete deployment guide (START HERE)| `3_deploy_api.py` | Deploy API to Cloud Run | Every API code change |
+│   ├── 2_init_database.py            # Step 2: Database initialization
+
+│   ├── 3_deploy_api.py               # Step 3: Deploy API to Cloud Rundeploy/
+
+│   ├── 4_deploy_ui.py                # Step 4: Deploy UI to Streamlit Cloud
+
+│   ├── 5_monitor.py                  # Monitoring and logs├── docs/                       # Documentation
+
+│   ├── 6_manage_resources.py         # Start/stop/schedule resources
+
+│   ├── cleanup.py                    # Delete all GCP resources│   ├── DEPLOYMENT_GUIDE.md     # Complete deployment guide (START HERE)
+
+│   └── test_deployment.py            # Post-deployment testing
+
+││   ├── QUICK_START.md          # Fast deployment checklist## 📁 Directory Structure| File | Purpose | When to Run |
+
+├── utils/                             # Helper modules
+
+│   ├── logger.py                     # Colored console output│   └── GITIGNORE_GUIDE.md      # Security and .gitignore info
+
+│   ├── gcp_helper.py                 # GCP API wrapper
+
+│   └── db_helper.py                  # Database operations│|------|---------|-------------|
+
+│
+
+├── bin/                               # Downloaded executables (git-ignored)├── utils/                      # Helper modules
+
+│   └── cloud_sql_proxy.exe           # Cloud SQL Proxy
+
+││   ├── logger.py               # Colored console output```| `config.yaml` | Configuration & passwords | Edit before first deployment |
+
+└── docs/                              # Documentation
+
+    ├── README.md                     # Documentation index│   ├── gcp_helper.py           # GCP API wrapper
+
+    ├── DEPLOYMENT_GUIDE.md           # Complete deployment guide ⭐ START HERE
+
+    ├── QUICK_START.md                # Fast deployment checklist│   └── db_helper.py            # Database operationsdeploy/| `1_setup_gcp.py` | Initial GCP setup | Once (first time) |
+
+    ├── CONFIGURATION_GUIDE.md        # Config & secrets management
+
+    ├── API_KEY_REFERENCE.md          # API key workflows│
+
+    ├── DATABASE_CONNECTION_GUIDE.md  # Connect to Cloud SQL locally
+
+    ├── GITIGNORE_GUIDE.md            # Security and .gitignore info├── config.yaml                 # Configuration (CHANGE PASSWORDS!)├── docs/                       # Documentation| `2_init_database.py` | Create & initialize database | Once (or after cleanup) |
+
+    │
+
+    └── archive/                       # Historical documentation├── requirements.txt            # Python dependencies
+
+        ├── RESTRUCTURE_COMPLETE.md   # Repository restructure notes
+
+        └── TIMEZONE_DEPLOYMENT.md    # Timezone implementation notes││   ├── DEPLOYMENT_GUIDE.md     # Complete deployment guide (START HERE)| `3_deploy_api.py` | Deploy API to Cloud Run | Every API code change |
+
+```
 
 ├── 1_setup_gcp.py              # Step 1: GCP project setup
 
-├── 2_init_database.py          # Step 2: Database initialization│   ├── QUICK_START.md          # Fast deployment checklist| `4_deploy_ui.py` | Instructions for Streamlit deployment | Once + when updating UI |
-
-├── 3_deploy_api.py             # Step 3: Deploy API to Cloud Run
-
-├── 4_deploy_ui.py              # Step 4: Deploy UI to Streamlit Cloud│   └── GITIGNORE_GUIDE.md      # Security and .gitignore info| `5_monitor.py` | View logs and status | As needed |
-
-├── 5_monitor.py                # Monitoring and logs
-
-├── 6_manage_resources.py       # Start/stop/schedule resources│| `6_manage_resources.py` | Start/stop services | Daily/weekly |
-
-├── cleanup.py                  # Delete all GCP resources
-
-└── test_deployment.py          # Post-deployment testing├── utils/                      # Helper modules| `cleanup.py` | Delete all resources | Rarely (destructive!) |
-
-```
-
-│   ├── logger.py               # Colored console output
-
-**Note:** Cloud Run uses automatic source-based deployment with Google Cloud Buildpacks. No Dockerfile needed!
-
-│   ├── gcp_helper.py           # GCP API wrapper## 🚀 Quick Start
-
 ---
 
-│   └── db_helper.py            # Database operations
+├── 2_init_database.py          # Step 2: Database initialization│   ├── QUICK_START.md          # Fast deployment checklist| `4_deploy_ui.py` | Instructions for Streamlit deployment | Once + when updating UI |
 
 ## 🚀 Quick Start
 
-│```bash
+├── 3_deploy_api.py             # Step 3: Deploy API to Cloud Run
 
 ### 1. Install Dependencies
 
-├── config.yaml                 # Configuration (CHANGE PASSWORDS!)# 1. Install dependencies
+├── 4_deploy_ui.py              # Step 4: Deploy UI to Streamlit Cloud│   └── GITIGNORE_GUIDE.md      # Security and .gitignore info| `5_monitor.py` | View logs and status | As needed |
 
 ```bash
+
+# Install deployment tools├── 5_monitor.py                # Monitoring and logs
+
+pip install -r deploy/requirements.txt
+
+```├── 6_manage_resources.py       # Start/stop/schedule resources│| `6_manage_resources.py` | Start/stop services | Daily/weekly |
+
+
+
+### 2. Configure Passwords├── cleanup.py                  # Delete all GCP resources
+
+
+
+```bash└── test_deployment.py          # Post-deployment testing├── utils/                      # Helper modules| `cleanup.py` | Delete all resources | Rarely (destructive!) |
+
+# Edit config.yaml and change these passwords
+
+notepad deploy\config.yaml```
+
+
+
+# REQUIRED: Change these two passwords│   ├── logger.py               # Colored console output
+
+# - database.credentials.app_password
+
+# - database.credentials.root_password**Note:** Cloud Run uses automatic source-based deployment with Google Cloud Buildpacks. No Dockerfile needed!
+
+```
+
+│   ├── gcp_helper.py           # GCP API wrapper## 🚀 Quick Start
+
+### 3. Run Deployment Scripts
+
+---
+
+```bash
+
+# Step 1: Setup GCP (one-time)│   └── db_helper.py            # Database operations
+
+python deploy/scripts/1_setup_gcp.py
+
+## 🚀 Quick Start
+
+# Step 2: Initialize database (one-time)
+
+python deploy/scripts/2_init_database.py│```bash
+
+
+
+# Step 3: Deploy API### 1. Install Dependencies
+
+python deploy/scripts/3_deploy_api.py
+
+├── config.yaml                 # Configuration (CHANGE PASSWORDS!)# 1. Install dependencies
+
+# Step 4: Deploy UI (follow instructions)
+
+python deploy/scripts/4_deploy_ui.py```bash
+
+```
 
 # Navigate to project root├── requirements.txt            # Python dependenciespip install -r requirements.txt
 
+---
+
 cd fan-quoting-app
+
+## 📖 Documentation
 
 ├── Dockerfile.api              # Production Docker image
 
-# Install deployment tools
+**New to deployment?**
+
+- 📘 [Quick Start Guide](docs/QUICK_START.md) - Get deployed in 1 hour# Install deployment tools
+
+- 📗 [Complete Deployment Guide](docs/DEPLOYMENT_GUIDE.md) - Step-by-step instructions
 
 pip install -r deploy/requirements.txt│# 2. Configure (IMPORTANT!)
 
-```
+**Need help with specific topics?**
 
-├── 1_setup_gcp.py              # Step 1: GCP project setupnano config.yaml  # Change passwords!
+- 📚 [Documentation Index](docs/README.md) - Find the right guide for your task```
 
-### 2. Configure Passwords
+- 🔐 [Configuration Guide](docs/CONFIGURATION_GUIDE.md) - Understanding credentials
 
-├── 2_init_database.py          # Step 2: Database initialization
+- 🔑 [API Key Reference](docs/API_KEY_REFERENCE.md) - API key questions answered├── 1_setup_gcp.py              # Step 1: GCP project setupnano config.yaml  # Change passwords!
 
-```bash
+- 🗄️ [Database Connection Guide](docs/DATABASE_CONNECTION_GUIDE.md) - Connect to Cloud SQL
 
-# Edit config.yaml and change these passwords:├── 3_deploy_api.py             # Step 3: Deploy API to Cloud Run# 3. Deploy
+- 🔒 [GitIgnore Guide](docs/GITIGNORE_GUIDE.md) - Security best practices### 2. Configure Passwords
 
-notepad deploy\config.yaml
 
-├── 4_deploy_ui.py              # Step 4: Deploy UI to Streamlit Cloudpython 1_setup_gcp.py
+
+---├── 2_init_database.py          # Step 2: Database initialization
+
+
+
+## 🔐 Security```bash
+
+
+
+**CRITICAL:** Never commit `config.yaml` to git!# Edit config.yaml and change these passwords:├── 3_deploy_api.py             # Step 3: Deploy API to Cloud Run# 3. Deploy
+
+
+
+The `.gitignore` file protects sensitive files:notepad deploy\config.yaml
+
+- `deploy/config.yaml` (database passwords, API keys)
+
+- `deploy/bin/` (binary executables)├── 4_deploy_ui.py              # Step 4: Deploy UI to Streamlit Cloudpython 1_setup_gcp.py
+
+- `ui/.streamlit/secrets.toml` (Streamlit secrets)
 
 # Change:
 
-# - database.credentials.app_password├── 5_monitor.py                # Monitoring and logspython 2_init_database.py
+Verify with:
 
-# - database.credentials.root_password
+```bash# - database.credentials.app_password├── 5_monitor.py                # Monitoring and logspython 2_init_database.py
 
-```├── 6_manage_resources.py       # Start/stop/schedule resourcespython 3_deploy_api.py
+git status --ignored | findstr config.yaml
 
-
-
-### 3. Run Deployment Scripts├── cleanup.py                  # Delete all GCP resourcespython 4_deploy_ui.py  # Follow instructions
+```# - database.credentials.root_password
 
 
 
-```bash└── test_deployment.py          # Post-deployment testing```
-
-# Step 1: Setup GCP (one-time)
-
-python deploy/1_setup_gcp.py```
+See [GitIgnore Guide](docs/GITIGNORE_GUIDE.md) for complete security checklist.```├── 6_manage_resources.py       # Start/stop/schedule resourcespython 3_deploy_api.py
 
 
+
+---
+
+
+
+## 🛠️ Script Reference### 3. Run Deployment Scripts├── cleanup.py                  # Delete all GCP resourcespython 4_deploy_ui.py  # Follow instructions
+
+
+
+| Script | Purpose | When to Run |
+
+|--------|---------|-------------|
+
+| `1_setup_gcp.py` | Initial GCP project setup | Once (first time) |```bash└── test_deployment.py          # Post-deployment testing```
+
+| `2_init_database.py` | Create & initialize database | Once (or after cleanup) |
+
+| `3_deploy_api.py` | Deploy API to Cloud Run | After API code changes |# Step 1: Setup GCP (one-time)
+
+| `4_deploy_ui.py` | Deploy UI to Streamlit Cloud | Once + when updating UI |
+
+| `5_monitor.py` | View logs and status | As needed for monitoring |python deploy/scripts/_setup_gcp.py```
+
+| `6_manage_resources.py` | Start/stop/schedule services | Daily/weekly cost management |
+
+| `cleanup.py` | Delete all GCP resources | Rarely (destructive!) |
+
+| `test_deployment.py` | Test deployed application | After deployment |
 
 # Step 2: Initialize database (one-time)## 📖 Documentation
 
-python deploy/2_init_database.py
+---
+
+python deploy/scripts/_init_database.py
+
+## 💡 Common Tasks
 
 ---
 
-# Step 3: Deploy API (uses automatic buildpacks)
+### Update API After Code Changes
 
-python deploy/3_deploy_api.py- **Quick Start**: `../QUICK_START.md` (10-minute overview)
+```bash# Step 3: Deploy API (uses automatic buildpacks)
+
+python deploy/scripts/3_deploy_api.py
+
+```python deploy/scripts/_deploy_api.py- **Quick Start**: `../QUICK_START.md` (10-minute overview)
 
 
 
-# Step 4: Deploy UI (follow instructions)## 🚀 Quick Start- **Full Guide**: `../DEPLOYMENT_GUIDE.md` (comprehensive)
+### Update Database Schema
 
-python deploy/4_deploy_ui.py
+```bash
+
+python deploy/scripts/2_init_database.py# Step 4: Deploy UI (follow instructions)## 🚀 Quick Start- **Full Guide**: `../DEPLOYMENT_GUIDE.md` (comprehensive)
+
+python deploy/scripts/3_deploy_api.py  # Restart API to use new schema
+
+```python deploy/scripts/_deploy_ui.py
+
+
+
+### Check Deployment Status```
+
+```bash
+
+python deploy/scripts/5_monitor.py
 
 ```
-
-
 
 ---### 1. Install Dependencies## ⚙️ Utilities
 
+### Stop Services to Save Costs
+
+```bash
+
+python deploy/scripts/6_manage_resources.py --action stop
+
+```## 📚 Documentation
 
 
-## 📚 Documentation
 
+### Start Services
 
+```bash
 
-- **[DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md)** - Complete step-by-step guide```bashThe `utils/` folder contains helper modules:
+python deploy/scripts/6_manage_resources.py --action start- **[DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md)** - Complete step-by-step guide```bashThe `utils/` folder contains helper modules:
+
+```
 
 - **[QUICK_START.md](docs/QUICK_START.md)** - Fast deployment checklist
 
+---
+
 - **[GITIGNORE_GUIDE.md](docs/GITIGNORE_GUIDE.md)** - Security and git configuration# Navigate to project root
 
-
-
----cd fan-quoting-app- `logger.py` - Beautiful console output
-
-
-
-## 🔒 Security- `gcp_helper.py` - Google Cloud API wrappers
+## 🌐 Architecture
 
 
 
-**CRITICAL:** Never commit `config.yaml` to git!# Install deployment tools- `db_helper.py` - Database operations
+```
+
+User Browser---cd fan-quoting-app- `logger.py` - Beautiful console output
+
+    ↓
+
+Cloudflare DNS (quoting.airblowfans.org)
+
+    ↓
+
+Streamlit Cloud (UI)## 🔒 Security- `gcp_helper.py` - Google Cloud API wrappers
+
+    ↓ (API Key Authentication)
+
+Google Cloud Run (API)
+
+    ↓ (Private Connection)
+
+Google Cloud SQL (Database)**CRITICAL:** Never commit `config.yaml` to git!# Install deployment tools- `db_helper.py` - Database operations
+
+```
 
 
+
+**Monthly Cost Estimate:** $18-30/month
 
 The `.gitignore` file protects:pip install -r deploy/requirements.txt
 
+---
+
 - `deploy/config.yaml` (passwords)
+
+## 📊 Monitoring
 
 - `ui/.streamlit/secrets.toml` (API key)```## 🔐 Security
 
-
-
-Verify with:
+### View Logs
 
 ```bash
 
-git status --ignored | Select-String "config.yaml"### 2. Configure Passwords**NEVER commit these files to git:**
+# API logs
+
+python deploy/scripts/5_monitor.pyVerify with:
+
+
+
+# Or use gcloud directly```bash
+
+gcloud run services logs read quoting-api --project=abf-fan-quoting-app
+
+```git status --ignored | Select-String "config.yaml"### 2. Configure Passwords**NEVER commit these files to git:**
+
+
+
+### Check Status```
+
+```bash
+
+python deploy/scripts/6_manage_resources.py --action status- `config.yaml` (contains passwords)
 
 ```
-
-- `config.yaml` (contains passwords)
 
 ---
 
-```bash- `cloud_sql_proxy.exe` (binary file)
+### Access URLs
 
-## 📊 Daily Operations
+- **API**: https://quoting-api-*.run.app```bash- `cloud_sql_proxy.exe` (binary file)
+
+- **API Docs**: https://quoting-api-*.run.app/docs
+
+- **UI**: https://quoting.airblowfans.org## 📊 Daily Operations
+
+- **GCP Console**: https://console.cloud.google.com
 
 # Edit config.yaml and change these passwords:- `**/__pycache__/` (Python cache)
 
+---
+
 ### Check Status
+
+## 🔗 Related Documentation
 
 ```bashnotepad deploy\config.yaml
 
-python deploy/6_manage_resources.py --action status
+- **Project README**: [../README.md](../README.md) - Project overview
+
+- **Workflow Guide**: [../WORKFLOW_QUICK_REFERENCE.md](../WORKFLOW_QUICK_REFERENCE.md) - Development workflowpython deploy/scripts/_manage_resources.py --action status
+
+- **Schema Documentation**: [../../Documentation/quote_data_schema_v3.md](../../Documentation/quote_data_schema_v3.md)
 
 ```These are automatically excluded by `.gitignore`.
 
+---
 
+
+
+## 📞 Need Help?
 
 ### Stop Resources (Save Money)# Change:
 
-```bash
+1. Check the [Documentation Index](docs/README.md) for the right guide
 
-python deploy/6_manage_resources.py --action stop# - database.credentials.app_password## 💰 Cost Management
+2. Read the [Troubleshooting section](docs/DEPLOYMENT_GUIDE.md#troubleshooting) in the Deployment Guide```bash
+
+3. Review the [FAQ section](docs/DEPLOYMENT_GUIDE.md#faq) in the Deployment Guide
+
+python deploy/scripts/_manage_resources.py --action stop# - database.credentials.app_password## 💰 Cost Management
+
+---
 
 ```
+
+**Note:** Cloud Run uses automatic source-based deployment with Google Cloud Buildpacks. No Dockerfile needed!
 
 # - database.credentials.root_password
 
@@ -228,7 +452,7 @@ python deploy/6_manage_resources.py --action stop# - database.credentials.app_pa
 
 ```bash``````bash
 
-python deploy/6_manage_resources.py --action start
+python deploy/scripts/_manage_resources.py --action start
 
 ```# Check current cost estimate
 
@@ -238,7 +462,7 @@ python deploy/6_manage_resources.py --action start
 
 ```bash
 
-python deploy/5_monitor.py
+python deploy/scripts/_monitor.py
 
 ```
 
@@ -250,23 +474,23 @@ python deploy/5_monitor.py
 
 ## 💰 Cost Optimization
 
-python deploy/1_setup_gcp.py
+python deploy/scripts/_setup_gcp.py
 
 **Enable Auto-Shutdown:**
 
 ```bash# Enable auto-shutdown (weekends only)
 
-python deploy/6_manage_resources.py --action schedule-enable
+python deploy/scripts/_manage_resources.py --action schedule-enable
 
 ```# Step 2: Initialize database (one-time)python 6_manage_resources.py --action schedule-enable
 
 
 
-**Disable Auto-Shutdown:**python deploy/2_init_database.py```
+**Disable Auto-Shutdown:**python deploy/scripts/_init_database.py```
 
 ```bash
 
-python deploy/6_manage_resources.py --action schedule-disable
+python deploy/scripts/_manage_resources.py --action schedule-disable
 
 ```
 
@@ -274,7 +498,7 @@ python deploy/6_manage_resources.py --action schedule-disable
 
 Default schedule (configurable in `config.yaml`):
 
-- **Shutdown:** 6 PM weekdayspython deploy/3_deploy_api.py
+- **Shutdown:** 6 PM weekdayspython deploy/scripts/_deploy_api.py
 
 - **Startup:** 8 AM weekdays
 
@@ -286,7 +510,7 @@ Default schedule (configurable in `config.yaml`):
 
 ## 🧪 Testing
 
-python deploy/4_deploy_ui.pypython 5_monitor.py
+python deploy/scripts/_deploy_ui.pypython 5_monitor.py
 
 After deployment, run:
 
@@ -330,7 +554,7 @@ Tests:---python 5_monitor.py  # Choose option 5
 
 cd fan-quoting-app
 
-python deploy/1_setup_gcp.py---```bash
+python deploy/scripts/_setup_gcp.py---```bash
 
 ```
 
@@ -414,7 +638,7 @@ For detailed help, see:
 
 **Estimated Time:** 45-60 minutes (first deployment)
 
-python deploy/6_manage_resources.py --action statusSee the full deployment guide for detailed troubleshooting and FAQs.
+python deploy/scripts/_manage_resources.py --action statusSee the full deployment guide for detailed troubleshooting and FAQs.
 
 ---
 
@@ -426,9 +650,9 @@ python deploy/6_manage_resources.py --action statusSee the full deployment guide
 
 To update the API after code changes:```bash
 
-```bashpython deploy/6_manage_resources.py --action stop
+```bashpython deploy/scripts/_manage_resources.py --action stop
 
-python deploy/3_deploy_api.py```
+python deploy/scripts/_deploy_api.py```
 
 ```
 
@@ -436,9 +660,9 @@ python deploy/3_deploy_api.py```
 
 To update CSV data:```bash
 
-```bashpython deploy/6_manage_resources.py --action start
+```bashpython deploy/scripts/_manage_resources.py --action start
 
-python deploy/2_init_database.py```
+python deploy/scripts/_init_database.py```
 
 ```
 
@@ -446,7 +670,7 @@ python deploy/2_init_database.py```
 
 The UI auto-deploys when you push to GitHub.```bash
 
-python deploy/5_monitor.py
+python deploy/scripts/_monitor.py
 
 ---```
 
@@ -464,7 +688,7 @@ Cloud Run uses **automatic source-based deployment**:## 💰 Cost Optimization
 
 2. Cloud Run detects it's a Python app (via `requirements.txt`)```bash
 
-3. Google Cloud Buildpacks automatically:python deploy/6_manage_resources.py --action schedule-enable
+3. Google Cloud Buildpacks automatically:python deploy/scripts/_manage_resources.py --action schedule-enable
 
    - Installs Python 3.11```
 
@@ -474,7 +698,7 @@ Cloud Run uses **automatic source-based deployment**:## 💰 Cost Optimization
 
    - Optimizes the container for production```bash
 
-4. Deploys to Cloud Runpython deploy/6_manage_resources.py --action schedule-disable
+4. Deploys to Cloud Runpython deploy/scripts/_manage_resources.py --action schedule-disable
 
 ```
 
@@ -517,7 +741,7 @@ Tests:
 ```bash
 # Make sure you're in the fan-quoting-app directory
 cd fan-quoting-app
-python deploy/1_setup_gcp.py
+python deploy/scripts/_setup_gcp.py
 ```
 
 **2. "Please change default passwords"**
@@ -567,12 +791,12 @@ For detailed help, see:
 
 To update the API after code changes:
 ```bash
-python deploy/3_deploy_api.py
+python deploy/scripts/_deploy_api.py
 ```
 
 To update CSV data:
 ```bash
-python deploy/2_init_database.py
+python deploy/scripts/_init_database.py
 ```
 
 The UI auto-deploys when you push to GitHub.

@@ -9,14 +9,15 @@ import yaml
 import requests
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).parent))
+# Add deploy directory to path for utils imports
+sys.path.append(str(Path(__file__).parent.parent))
 
 from utils.logger import Logger
 
 
 def load_config():
     """Load configuration"""
-    config_path = Path(__file__).parent / "config.yaml"
+    config_path = Path(__file__).parent.parent / "config.yaml"
     with open(config_path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 

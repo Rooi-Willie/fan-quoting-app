@@ -21,6 +21,11 @@ deploy/cloud_sql_proxy
 cloud-sql-proxy.exe
 cloud-sql-proxy
 
+# Deployment binaries folder
+deploy/bin/
+*.exe
+*.dll
+
 # ========= DEFAULT GITIGNORE FOR PYTHON PROJECTS =========
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -102,24 +102,24 @@ git push origin main
 
 ### Update Database Schema
 ```bash
-python deploy/2_init_database.py
+python deploy/scripts/2_init_database.py
 ```
 
 ### Deploy API
 ```bash
-python deploy/3_deploy_api.py
+python deploy/scripts/3_deploy_api.py
 ```
 
 ### Deploy UI
 ```bash
-python deploy/4_deploy_ui.py
+python deploy/scripts/4_deploy_ui.py
 ```
 
 ### Full Deployment (after database changes)
 ```bash
-python deploy/2_init_database.py
-python deploy/3_deploy_api.py
-python deploy/4_deploy_ui.py
+python deploy/scripts/2_init_database.py
+python deploy/scripts/3_deploy_api.py
+python deploy/scripts/4_deploy_ui.py
 ```
 
 ---
@@ -193,7 +193,7 @@ docker-compose up
 ```bash
 # Check what's using the port
 netstat -ano | findstr :8501
-netstat -ano | findstr :8000
+netstat -ano | findstr :8080
 netstat -ano | findstr :5433
 
 # Kill process or change port in docker-compose.yml
@@ -268,9 +268,9 @@ docker exec -it quoting_db_dev psql -U postgres -d fan_quoting_db
 
 ### Deployment Steps
 - [ ] Commit and push all changes
-- [ ] Update database: `python deploy/2_init_database.py`
-- [ ] Deploy API: `python deploy/3_deploy_api.py`
-- [ ] Deploy UI: `python deploy/4_deploy_ui.py`
+- [ ] Update database: `python deploy/scripts/2_init_database.py`
+- [ ] Deploy API: `python deploy/scripts/3_deploy_api.py`
+- [ ] Deploy UI: `python deploy/scripts/4_deploy_ui.py`
 - [ ] Test production deployment
 - [ ] Merge feature branch to main
 
@@ -286,8 +286,11 @@ docker exec -it quoting_db_dev psql -U postgres -d fan_quoting_db
 
 ### Documentation
 * Main README: `README.md`
+* All Documentation: `docs/README.md`
 * Schema Docs: `../Documentation/quote_data_schema_v3.md`
-* Deployment Guide: `deploy/docs/DEPLOYMENT_GUIDE.md`
+* Deployment Guides: `deploy/docs/README.md`
+* Features: `docs/features/`
+* Guides: `docs/guides/`
 * Auth Guide: `DUAL_AUTH_IMPLEMENTATION.md`
 
 ### Production URLs
@@ -298,7 +301,7 @@ docker exec -it quoting_db_dev psql -U postgres -d fan_quoting_db
 ### Development Tools
 * **Docker Dashboard**: Docker Desktop → Containers
 * **Database Client**: DBeaver, pgAdmin, or psql
-* **API Testing**: http://localhost:8000/docs (Swagger UI)
+* **API Testing**: http://localhost:8080/docs (Swagger UI)
 * **Git GUI**: GitHub Desktop, GitKraken, or command line
 
 ---

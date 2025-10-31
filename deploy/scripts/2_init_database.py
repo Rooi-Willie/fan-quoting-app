@@ -10,7 +10,8 @@ import subprocess
 import time
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).parent))
+# Add deploy directory to path for utils imports
+sys.path.append(str(Path(__file__).parent.parent))
 
 from utils.logger import Logger
 from utils.gcp_helper import GCPHelper
@@ -19,7 +20,7 @@ from utils.db_helper import DatabaseHelper
 
 def load_config():
     """Load configuration"""
-    config_path = Path(__file__).parent / "config.yaml"
+    config_path = Path(__file__).parent.parent / "config.yaml"
     with open(config_path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
@@ -83,7 +84,7 @@ def upload_csv_files(config, gcp):
 def start_cloud_sql_proxy(project_id, region, instance_name):
     """Start Cloud SQL Proxy in background"""
     logger = Logger()
-    proxy_path = Path(__file__).parent / "cloud_sql_proxy.exe"
+    proxy_path = Path(__file__).parent.parent / "bin" / "cloud_sql_proxy.exe"
     
     # Download proxy if not exists
     if not proxy_path.exists():

@@ -9,7 +9,8 @@ import yaml
 import os
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).parent))
+# Add deploy directory to path for utils imports
+sys.path.append(str(Path(__file__).parent.parent))
 
 from utils.logger import Logger
 from utils.gcp_helper import GCPHelper
@@ -17,7 +18,7 @@ from utils.gcp_helper import GCPHelper
 
 def load_config():
     """Load configuration"""
-    config_path = Path(__file__).parent / "config.yaml"
+    config_path = Path(__file__).parent.parent / "config.yaml"
     with open(config_path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
@@ -90,8 +91,8 @@ def main():
         sys.exit(0)
     
     # Change to API directory (relative to the project root)
-    script_dir = Path(__file__).parent  # deploy/
-    project_root = script_dir.parent    # fan-quoting-app/
+    script_dir = Path(__file__).parent.parent  # deploy/
+    project_root = script_dir.parent           # fan-quoting-app/
     api_dir = project_root / "api"
     
     if not api_dir.exists():

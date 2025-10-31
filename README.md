@@ -7,14 +7,14 @@ Auxiliary axial fan quoting application.
 ```bash
 docker-compose up          # Start all services
 # UI: http://localhost:8501
-# API: http://localhost:8000/docs
+# API: http://localhost:8080/docs
 ```
 
 ### Deploy to Production
 ```bash
-python deploy/2_init_database.py  # Update database
-python deploy/3_deploy_api.py     # Deploy API
-python deploy/4_deploy_ui.py      # Deploy UI
+python deploy/scripts/2_init_database.py  # Update database
+python deploy/scripts/3_deploy_api.py     # Deploy API
+python deploy/scripts/4_deploy_ui.py      # Deploy UI
 ```
 
 ### Create New Feature
@@ -26,11 +26,13 @@ git push origin feature/your-feature
 ```
 
 ## Documentation Index
-* **Quick Reference**: `WORKFLOW_QUICK_REFERENCE.md` ⭐ **Start here!**
-* **Schema**: `../Documentation/quote_data_schema_v3.md`
-* **Deployment**: `deploy/docs/DEPLOYMENT_GUIDE.md`
-* **Authentication**: `DUAL_AUTH_IMPLEMENTATION.md`
-* **API Reference**: http://localhost:8000/docs (when running)
+* **Quick Reference**: `WORKFLOW_QUICK_REFERENCE.md` ⭐ **Start here for development!**
+* **All Documentation**: `docs/README.md` - Complete documentation index
+* **Schema**: `../Documentation/quote_data_schema_v3.md` - Quote data structure
+* **Deployment**: `deploy/docs/README.md` - All deployment guides
+* **Features**: `docs/features/` - Implementation documentation
+* **Guides**: `docs/guides/` - How-to guides
+* **API Reference**: http://localhost:8080/docs (when running locally)
 
 ## Overview
 This repository contains a Streamlit UI and FastAPI backend for creating and managing axial fan quotations. Quote state is persisted as JSON (`quote_data`) alongside relational summary columns for efficient listing.
@@ -152,12 +154,12 @@ git push origin feature/feature-name
 
 # 5. Test with production data (optional)
 # Stop Docker, use Cloud SQL Proxy
-python deploy/2_init_database.py  # Update Cloud SQL schema
+python deploy/scripts/_init_database.py  # Update Cloud SQL schema
 # Test locally against Cloud SQL
 
 # 6. Deploy to production
-python deploy/3_deploy_api.py
-python deploy/4_deploy_ui.py
+python deploy/scripts/_deploy_api.py
+python deploy/scripts/_deploy_ui.py
 
 # 7. Merge to main
 git checkout main
@@ -220,22 +222,22 @@ git push origin main
 **Deployment Scripts** (in `deploy/` directory):
 ```bash
 # 1. Setup GCP resources (one-time)
-python deploy/1_setup_gcp.py
+python deploy/scripts/_setup_gcp.py
 
 # 2. Initialize/update database schema
-python deploy/2_init_database.py
+python deploy/scripts/_init_database.py
 
 # 3. Deploy API to Cloud Run
-python deploy/3_deploy_api.py
+python deploy/scripts/_deploy_api.py
 
 # 4. Deploy UI to Cloud Run (or Streamlit Cloud)
-python deploy/4_deploy_ui.py
+python deploy/scripts/_deploy_ui.py
 
 # 5. Monitor deployed services
-python deploy/5_monitor.py
+python deploy/scripts/_monitor.py
 
 # 6. Manage resources (start/stop/cleanup)
-python deploy/6_manage_resources.py
+python deploy/scripts/_manage_resources.py
 ```
 
 **See detailed deployment guide:** `deploy/docs/DEPLOYMENT_GUIDE.md`

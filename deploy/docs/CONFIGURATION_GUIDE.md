@@ -38,7 +38,7 @@ Your application uses **different credentials** for development and production:
 ```
 Docker Compose
 ├── PostgreSQL Database (localhost:5433)
-├── FastAPI Backend (localhost:8000)
+├── FastAPI Backend (localhost:8080)
 └── Streamlit UI (localhost:8501)
 ```
 
@@ -93,7 +93,7 @@ API_KEY = "dev-local-key-12345"
 
 #### Step 1: Generate Secure Key
 
-When you run `python deploy/1_setup_gcp.py`, it:
+When you run `python deploy/scripts/_setup_gcp.py`, it:
 
 ```python
 # Generates a secure 48-character random key
@@ -110,7 +110,7 @@ api:
 
 #### Step 2: Store in GCP Secret Manager
 
-When you run `python deploy/3_deploy_api.py`, it:
+When you run `python deploy/scripts/_deploy_api.py`, it:
 
 1. Reads the API key from `config.yaml`
 2. Stores it in GCP Secret Manager as `API_KEY`
@@ -118,7 +118,7 @@ When you run `python deploy/3_deploy_api.py`, it:
 
 #### Step 3: Configure Streamlit Cloud
 
-When you run `python deploy/4_deploy_ui.py`, it **displays instructions**:
+When you run `python deploy/scripts/_deploy_ui.py`, it **displays instructions**:
 
 ```bash
 ===========================================
@@ -216,7 +216,7 @@ database:
 
 #### Step 2: Create Cloud SQL Instance
 
-When you run `python deploy/2_init_database.py`:
+When you run `python deploy/scripts/_init_database.py`:
 
 1. Creates Cloud SQL instance with `root_password`
 2. Creates application database user with `app_password`
@@ -226,7 +226,7 @@ When you run `python deploy/2_init_database.py`:
 
 #### Step 3: Configure Cloud Run
 
-When you run `python deploy/3_deploy_api.py`:
+When you run `python deploy/scripts/_deploy_api.py`:
 
 Cloud Run environment variables are set:
 
@@ -291,7 +291,7 @@ DATABASE_URL=postgresql://devuser:devpassword@db:5432/quoting_db
 
 ```toml
 # API connection for local development
-API_BASE_URL = "http://api:8000"
+API_BASE_URL = "http://api:8080"
 API_KEY = "dev-local-key-12345"
 ```
 
@@ -425,7 +425,7 @@ Result:
 | **DB Password** | `devpassword` (simple) | `Xm9$kP2#wQ7n...` (complex) |
 | **DB Password Storage** | `.env` file | GCP Secret Manager |
 | **DB Connection** | TCP `@db:5432` | Unix socket `@/cloudsql/...` |
-| **API URL** | `http://api:8000` (local) | `https://...run.app` (public) |
+| **API URL** | `http://api:8080` (local) | `https://...run.app` (public) |
 | **Security** | Basic (file-based) | Advanced (Secret Manager, IAM) |
 
 ---
@@ -530,7 +530,7 @@ EOF
 
 # 2. Create secrets.toml
 cat > ui/.streamlit/secrets.toml << EOF
-API_BASE_URL = "http://api:8000"
+API_BASE_URL = "http://api:8080"
 API_KEY = "dev-local-key-12345"
 EOF
 
@@ -538,8 +538,8 @@ EOF
 docker-compose up -d
 
 # 4. Test
-curl http://localhost:8000/health
-curl -H "X-API-Key: dev-local-key-12345" http://localhost:8000/fans
+curl http://localhost:8080/health
+curl -H "X-API-Key: dev-local-key-12345" http://localhost:8080/fans
 ```
 
 ---
@@ -547,12 +547,12 @@ curl -H "X-API-Key: dev-local-key-12345" http://localhost:8000/fans
 ### Production Deployment Checklist
 
 - [ ] Edit `deploy/config.yaml` (set strong passwords)
-- [ ] Run `python deploy/1_setup_gcp.py` (generates API key)
+- [ ] Run `python deploy/scripts/_setup_gcp.py` (generates API key)
 - [ ] Note the generated API key from output or `config.yaml`
-- [ ] Run `python deploy/2_init_database.py` (stores DB passwords in Secret Manager)
-- [ ] Run `python deploy/3_deploy_api.py` (stores API key in Secret Manager)
+- [ ] Run `python deploy/scripts/_init_database.py` (stores DB passwords in Secret Manager)
+- [ ] Run `python deploy/scripts/_deploy_api.py` (stores API key in Secret Manager)
 - [ ] Note the API URL from output
-- [ ] Run `python deploy/4_deploy_ui.py` (shows Streamlit setup instructions)
+- [ ] Run `python deploy/scripts/_deploy_ui.py` (shows Streamlit setup instructions)
 - [ ] Copy API key from output to Streamlit Cloud dashboard
 - [ ] Copy API URL to Streamlit Cloud dashboard
 
@@ -581,5 +581,5 @@ If you're still having issues:
 
 4. Test API authentication:
    ```bash
-   curl -H "X-API-Key: dev-local-key-12345" http://localhost:8000/health
+   curl -H "X-API-Key: dev-local-key-12345" http://localhost:8080/health
    ```

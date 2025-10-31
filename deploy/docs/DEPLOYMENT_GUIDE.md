@@ -166,7 +166,7 @@ fan-quoting-app/
 
 ```bash
 # Run the setup script
-python deploy/1_setup_gcp.py
+python deploy/scripts/_setup_gcp.py
 ```
 
 **What this does:**
@@ -194,7 +194,7 @@ python deploy/1_setup_gcp.py
 
 ```bash
 # Create and initialize database
-python deploy/2_init_database.py
+python deploy/scripts/_init_database.py
 ```
 
 **What this does:**
@@ -219,7 +219,7 @@ python deploy/2_init_database.py
 
 ```bash
 # Deploy API to Cloud Run
-python deploy/3_deploy_api.py
+python deploy/scripts/_deploy_api.py
 ```
 
 **What this does:**
@@ -245,7 +245,7 @@ python deploy/3_deploy_api.py
 
 ```bash
 # Get instructions for Streamlit Cloud deployment
-python deploy/4_deploy_ui.py
+python deploy/scripts/_deploy_ui.py
 ```
 
 **Manual Steps (Follow script instructions):**
@@ -327,7 +327,7 @@ git commit -m "Your change description"
 git push origin main
 
 # 4. Deploy API (if API changed)
-python deploy/3_deploy_api.py
+python deploy/scripts/_deploy_api.py
 
 # 5. UI auto-deploys on git push (no action needed)
 ```
@@ -336,7 +336,7 @@ python deploy/3_deploy_api.py
 
 ```bash
 # Interactive monitoring
-python deploy/5_monitor.py
+python deploy/scripts/_monitor.py
 
 # Options:
 # 1. View API logs
@@ -357,16 +357,16 @@ Two options available:
 
 ```bash
 # Check status
-python deploy/6_manage_resources.py --action status
+python deploy/scripts/_manage_resources.py --action status
 
 # Stop services (save ~$15/month)
-python deploy/6_manage_resources.py --action stop
+python deploy/scripts/_manage_resources.py --action stop
 
 # Start services
-python deploy/6_manage_resources.py --action start
+python deploy/scripts/_manage_resources.py --action start
 
 # Enable auto-shutdown (weekends)
-python deploy/6_manage_resources.py --action schedule-enable
+python deploy/scripts/_manage_resources.py --action schedule-enable
 ```
 
 ---
@@ -388,14 +388,14 @@ python deploy/6_manage_resources.py --action schedule-enable
 
 1. **Auto-Shutdown Schedule** (saves ~$12/month):
    ```bash
-   python deploy/6_manage_resources.py --action schedule-enable
+   python deploy/scripts/_manage_resources.py --action schedule-enable
    ```
    - Stops Friday 6PM, starts Monday 7AM
    - Customizable in `deploy/config.yaml`
 
 2. **Manual Shutdown** (weekends/holidays):
    ```bash
-   python deploy/6_manage_resources.py --action stop
+   python deploy/scripts/_manage_resources.py --action stop
    ```
 
 3. **Scale to Zero** (when not in use):
@@ -487,7 +487,7 @@ gcloud sql users set-password app_user \
 echo NEW_PASSWORD | gcloud secrets versions add db-password --data-file=-
 
 # 4. Restart API
-python deploy/3_deploy_api.py
+python deploy/scripts/_deploy_api.py
 ```
 
 ### API Key Rotation
@@ -507,16 +507,16 @@ gcloud secrets versions add api-key --data-file=- < new_key.txt
 
 ```bash
 # Deploy API
-python deploy/3_deploy_api.py
+python deploy/scripts/_deploy_api.py
 
 # View logs
-python deploy/5_monitor.py
+python deploy/scripts/_monitor.py
 
 # Stop services (save money)
-python deploy/6_manage_resources.py --action stop
+python deploy/scripts/_manage_resources.py --action stop
 
 # Start services
-python deploy/6_manage_resources.py --action start
+python deploy/scripts/_manage_resources.py --action start
 
 # Delete everything
 python deploy/cleanup.py
@@ -543,7 +543,7 @@ gcloud billing accounts list
 
 ### Getting Help
 
-1. Check logs: `python deploy/5_monitor.py`
+1. Check logs: `python deploy/scripts/_monitor.py`
 2. Review troubleshooting section above
 3. Check GCP status: https://status.cloud.google.com/
 4. Check Streamlit status: https://status.streamlit.io/

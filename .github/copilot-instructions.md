@@ -77,7 +77,7 @@ headers = {"X-API-Key": API_KEY, "Content-Type": "application/json"}
 
 ### Local Development
 ```bash
-# Start all services (db on :5433, api on :8000, ui on :8501)
+# Start all services (db on :5433, api on :8080, ui on :8501)
 docker-compose up -d
 
 # Watch logs

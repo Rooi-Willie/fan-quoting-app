@@ -8,7 +8,7 @@
 
 1. **Run deployment script:**
    ```bash
-   python deploy/1_setup_gcp.py
+   python deploy/scripts/_setup_gcp.py
    ```
 
 2. **Script generates a secure API key** like:
@@ -22,7 +22,7 @@
      api_key: "abf_xK9mP2wQ7nF4jL8sY3vR5tU1oI6eA2dH4gJ9mN7pQ3sW"
    ```
 
-4. **Later, when you run** `python deploy/4_deploy_ui.py`, it shows:
+4. **Later, when you run** `python deploy/scripts/_deploy_ui.py`, it shows:
    ```
    ========================================
    COPY THIS TO STREAMLIT CLOUD:
@@ -53,7 +53,7 @@ Files on your computer:
 │   └── API_KEY=dev-local-key-12345
 │
 └── ui/.streamlit/secrets.toml     ← Streamlit reads this
-    ├── API_BASE_URL=http://api:8000
+    ├── API_BASE_URL=http://api:8080
     └── API_KEY=dev-local-key-12345
 
 Flow:
@@ -100,7 +100,7 @@ Cloud Run API → reads GCP Secrets → validates key → connects to database
 | Database User | `devuser` | `.env` | API → Database |
 | Database Password | `devpassword` | `.env` | API → Database |
 | API Key | `dev-local-key-12345` | `.env` + `secrets.toml` | UI → API |
-| API URL | `http://api:8000` | `secrets.toml` | UI → API |
+| API URL | `http://api:8080` | `secrets.toml` | UI → API |
 
 **Purpose:** Quick setup, easy debugging, no cost
 
@@ -135,7 +135,7 @@ POSTGRES_PASSWORD=devpassword
 API_KEY=dev-local-key-12345
 
 # Create ui/.streamlit/secrets.toml
-API_BASE_URL = "http://api:8000"
+API_BASE_URL = "http://api:8080"
 API_KEY = "dev-local-key-12345"
 ```
 
@@ -156,7 +156,7 @@ User opens http://localhost:8501
     ↓
 Streamlit reads secrets.toml
     ↓
-Sends request to http://api:8000 with header X-API-Key: dev-local-key-12345
+Sends request to http://api:8080 with header X-API-Key: dev-local-key-12345
     ↓
 API reads API_KEY from environment (from .env)
     ↓
@@ -187,7 +187,7 @@ api:
 
 #### 1_setup_gcp.py
 ```bash
-python deploy/1_setup_gcp.py
+python deploy/scripts/_setup_gcp.py
 
 # Generates:
 api_key: "abf_xK9mP2wQ7nF4jL8sY3vR5tU1oI6eA2dH4gJ9mN7pQ3sW"
@@ -197,7 +197,7 @@ api_key: "abf_xK9mP2wQ7nF4jL8sY3vR5tU1oI6eA2dH4gJ9mN7pQ3sW"
 
 #### 2_init_database.py
 ```bash
-python deploy/2_init_database.py
+python deploy/scripts/_init_database.py
 
 # Creates Cloud SQL instance
 # Stores in Secret Manager:
@@ -207,7 +207,7 @@ python deploy/2_init_database.py
 
 #### 3_deploy_api.py
 ```bash
-python deploy/3_deploy_api.py
+python deploy/scripts/_deploy_api.py
 
 # Stores in Secret Manager:
 - API_KEY → "abf_xK9mP2wQ7nF4jL8sY3vR5tU1oI6eA2dH4gJ9mN7pQ3sW"
@@ -224,7 +224,7 @@ API URL: https://fan-quoting-api-xyz123-uc.a.run.app
 
 #### 4_deploy_ui.py
 ```bash
-python deploy/4_deploy_ui.py
+python deploy/scripts/_deploy_ui.py
 
 # Shows you to copy:
 =================================
@@ -276,7 +276,7 @@ Connects to Cloud SQL via Unix socket with app_user:MyStr0ng!Pass#2024 ✓
 | **Database Password** | Simple (`devpassword`) | Complex (`MyStr0ng!Pass#2024`) |
 | **Password Storage** | Plain text in `.env` | Encrypted in Secret Manager |
 | **Database Connection** | TCP to localhost:5433 | Unix socket to Cloud SQL |
-| **API URL** | `http://api:8000` | `https://...run.app` |
+| **API URL** | `http://api:8080` | `https://...run.app` |
 | **Cost** | Free (local) | ~$20/month |
 | **Setup Time** | 5 minutes | 1-2 hours (first time) |
 | **Security Level** | Basic | Production-grade |
@@ -334,8 +334,8 @@ Both need the same key so UI can authenticate with API.
 **Development:** Just change it in `.env` and `secrets.toml`, restart Docker.
 
 **Production:** 
-1. Generate new key: `python deploy/1_setup_gcp.py` (it will ask if you want to regenerate)
-2. Update GCP Secret Manager: `python deploy/3_deploy_api.py` (redeploy)
+1. Generate new key: `python deploy/scripts/_setup_gcp.py` (it will ask if you want to regenerate)
+2. Update GCP Secret Manager: `python deploy/scripts/_deploy_api.py` (redeploy)
 3. Update Streamlit Cloud: Paste new key in dashboard
 4. Old key stops working immediately
 
@@ -364,7 +364,7 @@ docker-compose down
 docker-compose up -d
 
 # 5. Test
-curl -H "X-API-Key: dev-local-key-12345" http://localhost:8000/health
+curl -H "X-API-Key: dev-local-key-12345" http://localhost:8080/health
 # Should return: {"status":"healthy"}
 ```
 
@@ -398,7 +398,7 @@ docker logs quoting_api_dev
 docker logs quoting_db_dev
 
 # Development: Test API
-curl -H "X-API-Key: dev-local-key-12345" http://localhost:8000/health
+curl -H "X-API-Key: dev-local-key-12345" http://localhost:8080/health
 
 # Production: View API key in config
 cat deploy/config.yaml | grep api_key
