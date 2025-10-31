@@ -32,7 +32,7 @@ def upload_csv_files(config, gcp):
     
     bucket_name = config['data_storage']['bucket_name']
     # Make path relative to project root (parent of deploy folder)
-    project_root = Path(__file__).parent.parent
+    project_root = Path(__file__).parent.parent.parent
     csv_source = project_root / config['data_storage']['csv_source_path']
     
     # Create bucket
@@ -252,7 +252,7 @@ def main():
             logger.exit_with_error("Failed to connect to database")
         
         # Run init scripts - use absolute path, but skip 02-load-data.sql
-        project_root = Path(__file__).parent.parent
+        project_root = Path(__file__).parent.parent.parent
         scripts_dir = project_root / "database" / "init-scripts"
         logger.info("Running SQL initialization scripts...")
         # Only run schema creation (01-schema.sql), skip 02-load-data.sql
