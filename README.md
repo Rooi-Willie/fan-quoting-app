@@ -1,5 +1,6 @@
 # fan-quoting-app
 Auxiliary axial fan quoting application.
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Rooi-Willie/fan-quoting-app)
 
 ## Quick Start
 
