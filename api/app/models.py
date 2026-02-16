@@ -290,5 +290,23 @@ class Quote(Base):
                             backref=backref("original_quote", remote_side=[id]),
                             foreign_keys=[original_quote_id])
 
+class SettingsAuditLog(Base):
+    """
+    Tracks changes to settings tables (global_settings, labour_rates, materials,
+    motor_supplier_discounts) for audit purposes.
+    """
+    __tablename__ = "settings_audit_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    table_name = Column(String(100), nullable=False)
+    record_id = Column(String(100), nullable=False)
+    field_name = Column(String(100), nullable=False)
+    old_value = Column(String(255))
+    new_value = Column(String(255))
+    changed_by_user_id = Column(Integer, ForeignKey("users.id"))
+    changed_by_username = Column(String(50))
+    changed_at = Column(DateTime(timezone=True), default=get_sast_now)
+
+
 # Add the relationship to User class
 User.quotes = relationship("Quote", back_populates="user")

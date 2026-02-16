@@ -80,6 +80,21 @@ def api_post(endpoint: str, data: dict, **kwargs):
         return None
 
 
+def api_patch(endpoint: str, data: dict, **kwargs):
+    """Make PATCH request to API with authentication"""
+    url = f"{API_BASE_URL}{endpoint}"
+    headers = get_api_headers()
+
+    try:
+        response = requests.patch(url, json=data, headers=headers, **kwargs)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        logger.error(f"API PATCH request failed: {e}")
+        st.error(f"Failed to connect to API: {e}")
+        return None
+
+
 def _recompute_derived_totals_from_server(qd: dict) -> dict:
 	"""Compute client-side derived_totals using current quote_data and server_summary (v3 schema).
 

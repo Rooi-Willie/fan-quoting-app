@@ -190,21 +190,145 @@ def get_motor_supplier_discount(db: Session, supplier_name: str, effective_date:
 
 def get_materials(db: Session) -> List[models.Material]:
     """
-    Fetches all materials from the database.
+    Fetches all materials from the database, ordered by id.
     """
-    return db.query(models.Material).all()
+    return db.query(models.Material).order_by(models.Material.id).all()
 
 def get_labour_rates(db: Session) -> List[models.LabourRate]:
     """
-    Fetches all labour rates from the database.
+    Fetches all labour rates from the database, ordered by id.
     """
-    return db.query(models.LabourRate).all()
+    return db.query(models.LabourRate).order_by(models.LabourRate.id).all()
 
 def get_global_settings(db: Session) -> List[models.GlobalSetting]:
     """
     Fetches all global settings from the database.
     """
     return db.query(models.GlobalSetting).all()
+
+def get_motor_supplier_discounts(db: Session) -> List[models.MotorSupplierDiscount]:
+    """Fetches all motor supplier discount records, ordered by id."""
+    return db.query(models.MotorSupplierDiscount).order_by(
+        models.MotorSupplierDiscount.id
+    ).all()
+
+
+def _log_audit(db: Session, table_name: str, record_id: str, field_name: str,
+               old_value, new_value, user_id: Optional[int], username: Optional[str]):
+    """Helper to create an audit log entry for a settings change."""
+    audit = models.SettingsAuditLog(
+        table_name=table_name,
+        record_id=str(record_id),
+        field_name=field_name,
+        old_value=str(old_value) if old_value is not None else None,
+        new_value=str(new_value) if new_value is not None else None,
+        changed_by_user_id=user_id,
+        changed_by_username=username
+    )
+    db.add(audit)
+
+
+def update_global_setting(db: Session, setting_name: str, update: schemas.GlobalSettingUpdate,
+                          user_id: Optional[int] = None, username: Optional[str] = None) -> Optional[models.GlobalSetting]:
+    """Update a global setting value. Validates that the value is a positive number."""
+    setting = db.query(models.GlobalSetting).filter(
+        models.GlobalSetting.setting_name == setting_name
+    ).first()
+    if not setting:
+        return None
+
+    # Validate: must be a positive number
+    try:
+        numeric_val = float(update.setting_value)
+        if numeric_val <= 0:
+            raise ValueError(f"Value must be positive, got {numeric_val}")
+    except (ValueError, TypeError) as e:
+        raise ValueError(f"Invalid setting value '{update.setting_value}': must be a positive number. {e}")
+
+    old_value = setting.setting_value
+    setting.setting_value = update.setting_value
+    _log_audit(db, "global_settings", setting_name, "setting_value", old_value, update.setting_value, user_id, username)
+    db.commit()
+    db.refresh(setting)
+    return setting
+
+
+def update_labour_rate(db: Session, rate_id: int, update: schemas.LabourRateUpdate,
+                       user_id: Optional[int] = None, username: Optional[str] = None) -> Optional[models.LabourRate]:
+    """Update rate_per_hour and productivity_kg_per_day for a labour rate."""
+    rate = db.query(models.LabourRate).filter(models.LabourRate.id == rate_id).first()
+    if not rate:
+        return None
+
+    if update.rate_per_hour <= 0:
+        raise ValueError(f"rate_per_hour must be positive, got {update.rate_per_hour}")
+    if update.productivity_kg_per_day is not None and update.productivity_kg_per_day <= 0:
+        raise ValueError(f"productivity_kg_per_day must be positive or null, got {update.productivity_kg_per_day}")
+
+    # Log each changed field (use rate_name for readable audit trail)
+    if rate.rate_per_hour != update.rate_per_hour:
+        _log_audit(db, "labour_rates", rate.rate_name, "rate_per_hour",
+                   rate.rate_per_hour, update.rate_per_hour, user_id, username)
+    if rate.productivity_kg_per_day != update.productivity_kg_per_day:
+        _log_audit(db, "labour_rates", rate.rate_name, "productivity_kg_per_day",
+                   rate.productivity_kg_per_day, update.productivity_kg_per_day, user_id, username)
+
+    rate.rate_per_hour = update.rate_per_hour
+    rate.productivity_kg_per_day = update.productivity_kg_per_day
+    db.commit()
+    db.refresh(rate)
+    return rate
+
+
+def update_material(db: Session, material_id: int, update: schemas.MaterialUpdate,
+                    user_id: Optional[int] = None, username: Optional[str] = None) -> Optional[models.Material]:
+    """Update cost_per_unit for a material. Validates positive value."""
+    material = db.query(models.Material).filter(models.Material.id == material_id).first()
+    if not material:
+        return None
+
+    if update.cost_per_unit <= 0:
+        raise ValueError(f"cost_per_unit must be positive, got {update.cost_per_unit}")
+
+    if material.cost_per_unit != update.cost_per_unit:
+        _log_audit(db, "materials", material.name, "cost_per_unit",
+                   material.cost_per_unit, update.cost_per_unit, user_id, username)
+
+    material.cost_per_unit = update.cost_per_unit
+    db.commit()
+    db.refresh(material)
+    return material
+
+
+def update_motor_supplier_discount(db: Session, discount_id: int, update: schemas.MotorSupplierDiscountUpdate,
+                                   user_id: Optional[int] = None, username: Optional[str] = None) -> Optional[models.MotorSupplierDiscount]:
+    """Update discount_percentage for a motor supplier discount. Validates 0-100 range."""
+    discount = db.query(models.MotorSupplierDiscount).filter(
+        models.MotorSupplierDiscount.id == discount_id
+    ).first()
+    if not discount:
+        return None
+
+    if update.discount_percentage < 0 or update.discount_percentage > 100:
+        raise ValueError(f"discount_percentage must be 0-100, got {update.discount_percentage}")
+
+    if float(discount.discount_percentage) != update.discount_percentage:
+        _log_audit(db, "motor_supplier_discounts", discount.supplier_name, "discount_percentage",
+                   discount.discount_percentage, update.discount_percentage, user_id, username)
+
+    discount.discount_percentage = update.discount_percentage
+    db.commit()
+    db.refresh(discount)
+    return discount
+
+
+def get_settings_audit_log(db: Session, table_name: Optional[str] = None, limit: int = 50) -> List[models.SettingsAuditLog]:
+    """Fetch recent audit log entries, optionally filtered by table name."""
+    query = db.query(models.SettingsAuditLog).order_by(models.SettingsAuditLog.changed_at.desc())
+    if table_name:
+        query = query.filter(models.SettingsAuditLog.table_name == table_name)
+    return query.limit(limit).all()
+
 
 def get_rates_and_settings(db: Session) -> dict:
     """

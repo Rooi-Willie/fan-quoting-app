@@ -49,6 +49,50 @@ class GlobalSetting(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class GlobalSettingUpdate(BaseModel):
+    """Schema for updating a global setting value."""
+    setting_value: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LabourRateUpdate(BaseModel):
+    """Schema for updating editable fields of a labour rate."""
+    rate_per_hour: Decimal
+    productivity_kg_per_day: Optional[Decimal] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MaterialUpdate(BaseModel):
+    """Schema for updating the cost_per_unit of a material."""
+    cost_per_unit: Decimal
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MotorSupplierDiscountUpdate(BaseModel):
+    """Schema for updating the discount_percentage of a motor supplier discount."""
+    discount_percentage: float
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SettingsAuditLogEntry(BaseModel):
+    """Schema for a settings audit log entry in API responses."""
+    id: int
+    table_name: str
+    record_id: str
+    field_name: str
+    old_value: Optional[str] = None
+    new_value: Optional[str] = None
+    changed_by_user_id: Optional[int] = None
+    changed_by_username: Optional[str] = None
+    changed_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class Component(BaseModel):
     """
     Schema for representing a component in API responses.
