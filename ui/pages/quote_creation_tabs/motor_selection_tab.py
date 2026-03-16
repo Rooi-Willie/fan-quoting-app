@@ -35,11 +35,18 @@ def get_available_motors(available_kw: List[int], poles: Optional[int] = None) -
 def render_main_content():
     st.header("2. Motor Selection")
     
-    # Work with v3 schema structure
+    # Work with v4 schema — use active fan configuration
     qd = st.session_state.quote_data
-    spec_section = qd.setdefault("specification", {})
-    pricing_section = qd.setdefault("pricing", {})
-    calc_section = qd.setdefault("calculations", {})
+
+    from common import get_active_config
+    active_cfg = get_active_config(qd)
+    if not active_cfg:
+        st.warning("No fan configuration available. Please add one from the sidebar.")
+        return
+
+    spec_section = active_cfg.setdefault("specification", {})
+    pricing_section = active_cfg.setdefault("pricing", {})
+    calc_section = active_cfg.setdefault("calculations", {})
     
     # Get dynamic widget key suffix for widget reset support
     widget_reset_counter = st.session_state.get("widget_reset_counter", 0)

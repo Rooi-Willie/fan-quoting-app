@@ -1,4 +1,4 @@
-"""Quote data schema validation utilities (Stage 5).
+"""Quote data schema validation utilities (v4 multi-fan-configuration).
 
 Produces structured error lists without raising immediately so callers can
 aggregate or transform into HTTP 422 responses.
@@ -17,35 +17,55 @@ class ValidationIssue(dict):
 
 
 def validate_quote_data(qd: Dict[str, Any]) -> List[ValidationIssue]:
-    """Validation for quote_data structure."""
+    """Validation for v4 quote_data structure."""
     issues: List[ValidationIssue] = []
     if not isinstance(qd, dict):
         issues.append(ValidationIssue.make(path="/", code="not_object", message="quote_data root must be an object"))
         return issues
 
-    # Check main sections exist
-    required_sections = ["meta", "quote", "specification", "pricing", "calculations"]
-    for section in required_sections:
+    # Check top-level sections
+    for section in ["meta", "quote"]:
         if section not in qd:
-            # Don't fail on missing context - it's often populated later
-            if section != "context":
-                issues.append(ValidationIssue.make(f"/{section}", "missing", f"Required section '{section}' is missing"))
+            issues.append(ValidationIssue.make(f"/{section}", "missing", f"Required section '{section}' is missing"))
         elif not isinstance(qd[section], dict):
             issues.append(ValidationIssue.make(f"/{section}", "type", f"Section '{section}' must be an object"))
 
-    # Validate specification section
-    spec = qd.get("specification", {})
-    if isinstance(spec, dict):
-        # Check components list
-        components = spec.get("components", [])
-        if not isinstance(components, list):
-            issues.append(ValidationIssue.make("/specification/components", "type", "components must be list"))
-        else:
-            for idx, comp in enumerate(components):
-                if not isinstance(comp, dict):
-                    issues.append(ValidationIssue.make(f"/specification/components/{idx}", "type", "component must be object"))
-                elif "id" not in comp:
-                    issues.append(ValidationIssue.make(f"/specification/components/{idx}/id", "missing", "id is required"))
+    # Validate fan_configurations array
+    fan_configs = qd.get("fan_configurations")
+    if fan_configs is None:
+        issues.append(ValidationIssue.make("/fan_configurations", "missing", "Required section 'fan_configurations' is missing"))
+        return issues
+    if not isinstance(fan_configs, list):
+        issues.append(ValidationIssue.make("/fan_configurations", "type", "fan_configurations must be a list"))
+        return issues
+    if len(fan_configs) == 0:
+        issues.append(ValidationIssue.make("/fan_configurations", "empty", "fan_configurations must contain at least one entry"))
+        return issues
+
+    # Validate each fan configuration entry
+    for idx, cfg in enumerate(fan_configs):
+        prefix = f"/fan_configurations/{idx}"
+        if not isinstance(cfg, dict):
+            issues.append(ValidationIssue.make(prefix, "type", "fan configuration entry must be an object"))
+            continue
+
+        # Validate quantity
+        qty = cfg.get("quantity", 1)
+        if not isinstance(qty, (int, float)) or qty < 1:
+            issues.append(ValidationIssue.make(f"{prefix}/quantity", "invalid", "quantity must be >= 1"))
+
+        # Validate specification section
+        spec = cfg.get("specification")
+        if spec is not None and isinstance(spec, dict):
+            components = spec.get("components", [])
+            if not isinstance(components, list):
+                issues.append(ValidationIssue.make(f"{prefix}/specification/components", "type", "components must be list"))
+            else:
+                for cidx, comp in enumerate(components):
+                    if not isinstance(comp, dict):
+                        issues.append(ValidationIssue.make(f"{prefix}/specification/components/{cidx}", "type", "component must be object"))
+                    elif "id" not in comp:
+                        issues.append(ValidationIssue.make(f"{prefix}/specification/components/{cidx}/id", "missing", "id is required"))
 
     return issues
 

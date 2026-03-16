@@ -183,7 +183,12 @@ CREATE TABLE IF NOT EXISTS quotes (
     total_price DECIMAL(10, 2),
     created_by_user_name VARCHAR(255),
     last_modified_by_user_name VARCHAR(255),
-    
+
+    -- Multi-fan-configuration summary fields (v4)
+    fan_config_count INTEGER DEFAULT 1,
+    fan_config_summary JSONB,
+    total_quantity INTEGER DEFAULT 1,
+
     -- Core quote data storage
     quote_data JSONB NOT NULL,
     

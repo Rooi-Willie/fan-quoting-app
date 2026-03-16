@@ -70,21 +70,22 @@ def render_main_content():
         st.error("Quote data not initialized. Please start a new quote or refresh.")
         return
 
-    # Work with v3 schema structure
+    # Work with v4 schema — use active fan configuration
     qd = st.session_state.quote_data
-    
-    # Extract v3 sections
-    spec_section = qd.setdefault("specification", {})
-    pricing_section = qd.setdefault("pricing", {})
-    calc_section = qd.setdefault("calculations", {})
-    
-    # Fan configuration in specification.fan (v3 schema - updated structure)
+
+    from common import get_active_config
+    active_cfg = get_active_config(qd)
+    if not active_cfg:
+        st.warning("No fan configuration available. Please add one from the sidebar.")
+        return
+
+    # Extract sections from active config
+    spec_section = active_cfg.setdefault("specification", {})
+    pricing_section = active_cfg.setdefault("pricing", {})
+    calc_section = active_cfg.setdefault("calculations", {})
+
     fan_config = spec_section.setdefault("fan", {})
-    
-    # Components in specification.components (v3 schema - array of objects with id and name)
     components_list = spec_section.setdefault("components", [])
-    
-    # Component overrides in pricing.overrides (v3 schema)
     component_overrides = pricing_section.setdefault("overrides", {})
 
     st.subheader("Configure Selected Fan Components")

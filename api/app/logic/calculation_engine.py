@@ -807,3 +807,55 @@ def calculate_v3_components_summary(db: Session, request: schemas.QuoteRequest) 
         "calculations": calculations_section,
         "motor_markup_applied": motor_markup
     }
+
+
+# ==============================================================================
+# PART 6: MULTI-CONFIG GRAND TOTALS
+# ==============================================================================
+
+def compute_grand_totals(fan_configurations: list) -> dict:
+    """Aggregate totals across multiple fan configurations.
+
+    Each config's component/motor/buyout totals are multiplied by its quantity.
+
+    Args:
+        fan_configurations: List of fan config dicts from the v4 quote_data schema.
+
+    Returns:
+        dict with keys: components, motors, buyouts, grand_total
+    """
+    components_total = 0.0
+    motors_total = 0.0
+    buyouts_total = 0.0
+
+    for cfg in fan_configurations:
+        if not isinstance(cfg, dict):
+            continue
+        qty = cfg.get("quantity", 1)
+        calcs = cfg.get("calculations", {}) or {}
+        spec = cfg.get("specification", {}) or {}
+
+        comp_price = float(calcs.get("component_totals", {}).get("final_price", 0) or 0)
+        motor_price = float(calcs.get("motor", {}).get("final_price", 0) or 0)
+
+        buyout_price = 0.0
+        for b in (spec.get("buyouts", []) or []):
+            if not isinstance(b, dict):
+                continue
+            subtotal = b.get("subtotal")
+            if subtotal is None:
+                unit_cost = float(b.get("unit_cost", 0) or 0)
+                b_qty = float(b.get("qty", 0) or 0)
+                subtotal = unit_cost * b_qty
+            buyout_price += float(subtotal or 0)
+
+        components_total += comp_price * qty
+        motors_total += motor_price * qty
+        buyouts_total += buyout_price * qty
+
+    return {
+        "components": round(components_total, 2),
+        "motors": round(motors_total, 2),
+        "buyouts": round(buyouts_total, 2),
+        "grand_total": round(components_total + motors_total + buyouts_total, 2),
+    }

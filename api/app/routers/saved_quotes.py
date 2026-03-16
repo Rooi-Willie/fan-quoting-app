@@ -63,6 +63,23 @@ def validate_quote_reference(quote_ref: str, db: Session = Depends(get_db)):
             detail=f"Error validating quote reference: {str(e)}"
         )
 
+@router.post("/combine", response_model=schemas.Quote)
+def combine_quotes(request: schemas.CombineQuotesRequest, db: Session = Depends(get_db)):
+    """Combine multiple existing quotes into a new quote with merged fan configurations.
+
+    Original quotes remain untouched. The new quote gets a fresh reference
+    and records source_quote_ids in meta.
+    """
+    try:
+        return crud.combine_quotes(db=db, quote_ids=request.quote_ids, user_id=request.user_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error combining quotes: {str(e)}"
+        )
+
 @router.post("/", response_model=schemas.Quote)
 def create_quote(quote: schemas.QuoteCreate, db: Session = Depends(get_db)):
     """Create a new quote"""

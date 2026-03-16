@@ -156,14 +156,24 @@ else:
             "Last Mod. By": last_modified_by_name
         })
     
-    df = pd.DataFrame(df_data)
-    
     # Display table with selection
     # Initialize selected_row in session state if not present
     if 'selected_row' not in st.session_state:
         st.session_state.selected_row = None
-    
-    # Use the same approach as in motor_selection_tab.py
+
+    # Add Configs and Total Qty columns from v4 summary fields
+    for row in df_data:
+        q_match = next((q for q in quotes if q["id"] == row["ID"]), None)
+        if q_match:
+            row["Configs"] = q_match.get("fan_config_count", 1)
+            row["Total Qty"] = q_match.get("total_quantity", 1)
+        else:
+            row["Configs"] = 1
+            row["Total Qty"] = 1
+
+    df = pd.DataFrame(df_data)
+
+    # Use multi-row selection to support both single actions and combine
     st.dataframe(
         df,
         key="quotes_selection_df",
@@ -180,33 +190,67 @@ else:
             "Components": st.column_config.TextColumn("Components", width="medium", help="List of components in this quote"),
             "Comp. Markup": st.column_config.TextColumn("Comp. Markup", width="small"),
             "Motor Markup": st.column_config.TextColumn("Motor Markup", width="small"),
+            "Configs": st.column_config.NumberColumn("Configs", format="%d", help="Number of fan configurations"),
+            "Total Qty": st.column_config.NumberColumn("Total Qty", format="%d", help="Total fan quantity across all configs"),
             "Status": st.column_config.TextColumn("Status"),
             "Created By": st.column_config.TextColumn("Created By"),
             "Last Mod. By": st.column_config.TextColumn("Last Mod. By")
         },
-        on_select="rerun",  # Rerun the script when a row is selected
-        selection_mode="single-row",  # Allow single row selection
+        on_select="rerun",
+        selection_mode="multi-row",
         use_container_width=True,
         hide_index=True
     )
-    
-    # Process the selection when it changes (same approach as in motor_selection_tab.py)
+
+    # Process the selection
     selection = st.session_state.get("quotes_selection_df", {}).get("selection", {})
-    if selection.get("rows"):
-        selected_index = selection["rows"][0]
-        st.session_state.selected_row = df.iloc[selected_index].to_dict()
+    selected_rows = selection.get("rows", [])
+
+    if len(selected_rows) == 1:
+        st.session_state.selected_row = df.iloc[selected_rows[0]].to_dict()
+    elif len(selected_rows) > 1:
+        st.session_state.selected_row = df.iloc[selected_rows[0]].to_dict()
+    else:
+        st.session_state.selected_row = None
+
+    # Show currently selected quote(s)
+    if selected_rows:
+        selected_refs = [df.iloc[i]["Quote Ref"] for i in selected_rows]
+        if len(selected_rows) == 1:
+            col_info, col_clear = st.columns([5, 1])
+            with col_info:
+                st.success(f"Selected Quote: {selected_refs[0]} (ID: {st.session_state.selected_row['ID']})")
+            with col_clear:
+                if st.button("Clear Selection"):
+                    st.session_state.selected_row = None
+                    st.rerun()
+        else:
+            st.info(f"Selected {len(selected_rows)} quotes: {', '.join(selected_refs)}")
     
-    
-    # Show currently selected quote
-    if st.session_state.selected_row is not None:
-        col_info, col_clear = st.columns([5, 1])
-        with col_info:
-            st.success(f"Selected Quote: {st.session_state.selected_row['Quote Ref']} (ID: {st.session_state.selected_row['ID']})")
-        with col_clear:
-            if st.button("Clear Selection"):
-                st.session_state.selected_row = None
-                st.rerun()
-    
+    # Combine button (visible when 2+ selected)
+    if len(selected_rows) >= 2:
+        if st.button("Combine Selected Quotes", use_container_width=True, type="primary"):
+            try:
+                combine_ids = [int(df.iloc[i]["ID"]) for i in selected_rows]
+                user_id = st.session_state.get("user_id", 1)
+                response = requests.post(
+                    f"{API_BASE_URL}/saved-quotes/combine",
+                    json={"quote_ids": combine_ids, "user_id": user_id},
+                    headers=get_api_headers()
+                )
+                response.raise_for_status()
+                combined = response.json()
+                combined_id = combined["id"]
+                st.success(f"Combined quote created: {combined['quote_ref']} (ID: {combined_id})")
+
+                # Load the combined quote for editing
+                st.session_state.quote_data = combined.get("quote_data") or {}
+                st.session_state.editing_quote_id = combined_id
+                st.session_state.active_config_index = 0
+                st.switch_page("pages/2_Create_New_Quote.py")
+            except Exception as e:
+                st.error(f"Error combining quotes: {str(e)}")
+
     # Action buttons below the table
     col1, col2, col3, col4 = st.columns(4)
     
@@ -238,7 +282,8 @@ else:
                     
                     # Store the quote ID for editing (enables UPDATE instead of CREATE)
                     st.session_state.editing_quote_id = quote_id
-                    
+                    st.session_state.active_config_index = 0
+
                     # Redirect to quote creation page
                     st.switch_page("pages/2_Create_New_Quote.py")
                 except Exception as e:

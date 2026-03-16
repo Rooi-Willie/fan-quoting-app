@@ -1,13 +1,16 @@
 """Shared Streamlit UI helpers for the Create New Quote flow.
 
-v3 Schema Implementation:
-This module supports the v3 nested quote_data schema with clean section organization:
+v4 Schema Implementation:
+This module supports the v4 nested quote_data schema with multi-fan-configuration support:
 - meta: metadata and versioning
-- quote: project and client information
-- specification: technical specifications (fan, motor, components, buyouts)
-- pricing: pricing data (motor, component overrides)
-- calculations: computed values and server results
-- context: runtime context (fan_configuration, motor_details, rates_and_settings)
+- quote: project and client information (shared across all fan configs)
+- fan_configurations[]: array of fan configs, each containing:
+  - specification: technical specifications (fan, motor, components, buyouts)
+  - pricing: pricing data (motor, component overrides)
+  - calculations: computed values and server results
+  - quantity: fan quantity multiplier
+- grand_totals: aggregated totals across all fan configurations
+- context: runtime context (rates_and_settings)
 """
 from __future__ import annotations
 
@@ -40,8 +43,8 @@ def _get_user_session_data() -> Dict | None:
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8080")
 
-# --- Schema v3 Support ---
-NEW_SCHEMA_VERSION = 3
+# --- Schema v4 Support (multi-fan-configuration) ---
+NEW_SCHEMA_VERSION = 4
 
 def _fetch_default_markups() -> tuple[float, float]:
     """Fetch default markup values from the global settings API.
@@ -116,27 +119,124 @@ def _fetch_next_quote_ref(user_initials: Optional[str] = None) -> str:
         return f"Q{user_initials}0001"
     return "Q0001"
 
+def _new_fan_config_entry(
+    config_index: int = 0,
+    component_markup: float = 1.0,
+    motor_markup: float = 1.2,
+    label: str | None = None,
+) -> Dict:
+    """Create a blank fan configuration entry for the v4 schema.
+
+    Args:
+        config_index: Ordinal position of this config in the fan_configurations array.
+        component_markup: Default component markup multiplier.
+        motor_markup: Default motor markup multiplier.
+        label: User-facing label (auto-generated if None).
+
+    Returns:
+        Dict representing one fan configuration with empty specification/pricing/calculations.
+    """
+    return {
+        "config_index": config_index,
+        "quantity": 1,
+        "label": label or f"Fan Config {config_index + 1}",
+        "specification": {
+            "fan": {
+                "blade_sets": None,
+                "fan_configuration": {},
+            },
+            "motor": {
+                "mount_type": None,
+                "motor_details": {},
+            },
+            "components": [],
+            "buyouts": [],
+        },
+        "pricing": {
+            "component_markup": component_markup,
+            "motor_markup": motor_markup,
+            "motor_supplier_discount": {
+                "supplier_name": None,
+                "discount_percentage": 0.0,
+                "is_override": False,
+                "applied_discount": 0.0,
+                "notes": ""
+            },
+            "overrides": {},
+        },
+        "calculations": {
+            "timestamp": None,
+            "components": {},
+            "component_totals": {
+                "total_length_mm": 0.0,
+                "total_mass_kg": 0.0,
+                "total_labour_cost": 0.0,
+                "total_material_cost": 0.0,
+                "subtotal_cost": 0.0,
+                "final_price": 0.0,
+            },
+            "motor": {
+                "base_price": 0.0,
+                "final_price": 0.0,
+            },
+            "totals": {
+                "components": 0.0,
+                "motor": 0.0,
+                "buyouts": 0.0,
+                "grand_total": 0.0,
+            },
+            "unit_total": 0.0,
+            "line_total": 0.0,
+        },
+    }
+
+
+def get_active_config(qd: Dict) -> Dict:
+    """Return the active fan configuration entry from quote_data.
+
+    Uses st.session_state.active_config_index to select the correct config.
+    Falls back to the first config if the index is out of range.
+    """
+    configs = qd.get("fan_configurations", [])
+    idx = st.session_state.get("active_config_index", 0)
+    if not configs:
+        return {}
+    if idx >= len(configs):
+        idx = 0
+        st.session_state.active_config_index = 0
+    return configs[idx]
+
+
 def initialize_session_state_from_quote_data(qd: dict) -> None:
     """Initialize session state variables from loaded quote_data.
-    
+
     This function is called when a quote is loaded for editing to ensure
     all session state variables are properly populated from the quote_data.
-    
+
     Args:
-        qd: The quote_data dictionary (v3 schema)
+        qd: The quote_data dictionary (v4 schema)
     """
     if not isinstance(qd, dict):
         return
-    
-    # Extract sections
-    spec_section = qd.get("specification", {})
+
+    # Set active config index to first config
+    st.session_state.active_config_index = 0
+
+    # Extract fan config from first fan_configurations entry
+    configs = qd.get("fan_configurations", [])
+    if not configs:
+        st.session_state.current_fan_config = None
+        return
+
+    first_config = configs[0]
+    spec_section = first_config.get("specification", {})
     fan_section = spec_section.get("fan", {})
     fan_config_data = fan_section.get("fan_configuration", {})
-    
-    # 1. Initialize current_fan_config from quote_data
+
+    # Initialize current_fan_config from quote_data
     if fan_config_data and isinstance(fan_config_data, dict):
         st.session_state.current_fan_config = fan_config_data
-        
+
         # Also verify the fan config exists in the API and get fresh data if needed
         fan_id = fan_config_data.get("id")
         if fan_id:
@@ -148,7 +248,7 @@ def initialize_session_state_from_quote_data(qd: dict) -> None:
                     st.session_state.current_fan_config = matching_config
     else:
         st.session_state.current_fan_config = None
-    
+
     # Note: We don't set widget values here as that causes conflicts
     # Widgets will read their values from quote_data in render functions
 
@@ -220,51 +320,18 @@ def _new_quote_data(username: str | None = None, user_session: Dict | None = Non
             "location": "",
             "notes": "",
         },
-        "specification": {
-            "fan": {
-                "blade_sets": None,
-                "fan_configuration": {},
-            },
-            "motor": {
-                "mount_type": None,
-                "motor_details": {},
-            },
-            "components": [],
-            "buyouts": [],
-        },
-        "pricing": {
-            "component_markup": component_markup,
-            "motor_markup": motor_markup,
-            "motor_supplier_discount": {
-                "supplier_name": None,
-                "discount_percentage": 0.0,
-                "is_override": False,
-                "applied_discount": 0.0,
-                "notes": ""
-            },
-            "overrides": {},
-        },
-        "calculations": {
-            "timestamp": None,
-            "components": {},
-            "component_totals": {
-                "total_length_mm": 0.0,
-                "total_mass_kg": 0.0,
-                "total_labour_cost": 0.0,
-                "total_material_cost": 0.0,
-                "subtotal_cost": 0.0,
-                "final_price": 0.0,
-            },
-            "motor": {
-                "base_price": 0.0,
-                "final_price": 0.0,
-            },
-            "totals": {
-                "components": 0.0,
-                "motor": 0.0,
-                "buyouts": 0.0,
-                "grand_total": 0.0,
-            },
+        "fan_configurations": [
+            _new_fan_config_entry(
+                config_index=0,
+                component_markup=component_markup,
+                motor_markup=motor_markup,
+            ),
+        ],
+        "grand_totals": {
+            "components": 0.0,
+            "motors": 0.0,
+            "buyouts": 0.0,
+            "grand_total": 0.0,
         },
         "context": {
             "rates_and_settings": {
@@ -282,9 +349,12 @@ def update_quote_data_top_level_key(qd_top_level_key: str, widget_sstate_key: st
 
 
 def update_quote_data_nested(path: List[str], widget_sstate_key: str):
-    """Generic nested updater for quote_data using v3 schema.
+    """Generic nested updater for quote_data using v4 schema.
 
     path: list of keys drilling into the nested quote_data dict.
+          For per-config paths (specification, pricing, calculations), the path
+          is relative to the active fan_configuration entry.
+          For top-level paths (quote, meta), the path is relative to quote_data root.
     widget_sstate_key: key in st.session_state containing the value.
     """
     if "quote_data" not in st.session_state:
@@ -292,31 +362,44 @@ def update_quote_data_nested(path: List[str], widget_sstate_key: str):
     if widget_sstate_key not in st.session_state:
         return
     qd = st.session_state.quote_data
-    cur = qd
+
+    # Determine if this path targets a per-config section
+    per_config_sections = {"specification", "pricing", "calculations"}
+    if path and path[0] in per_config_sections:
+        # Route through active fan configuration
+        active_cfg = get_active_config(qd)
+        if not active_cfg:
+            return
+        cur = active_cfg
+    else:
+        # Top-level path (quote, meta, etc.)
+        cur = qd
+
     for k in path[:-1]:
         cur = cur.setdefault(k, {})
     cur[path[-1]] = st.session_state[widget_sstate_key]
 
 def update_quote_data_with_recalc(path: List[str], widget_sstate_key: str):
     """Enhanced updater that updates quote_data AND triggers immediate calculation refresh.
-    
+
     This prevents the "one step behind" issue by ensuring calculations are updated
     synchronously with UI input changes.
     """
     # First update the quote data
     update_quote_data_nested(path, widget_sstate_key)
-    
+
     # Immediately trigger calculation updates
     if "quote_data" in st.session_state:
         qd = st.session_state.quote_data
-        
+
         # Import here to avoid circular imports
         from utils import update_quote_totals, ensure_server_summary_up_to_date
-        
-        # Force server summary refresh if components exist
-        if qd.get("calculations", {}).get("components"):
+
+        # Force server summary refresh if components exist in active config
+        active_cfg = get_active_config(qd)
+        if active_cfg and active_cfg.get("calculations", {}).get("components"):
             ensure_server_summary_up_to_date(qd)
-        
+
         # Update local totals immediately
         update_quote_totals(qd)
 
@@ -349,32 +432,40 @@ def get_available_components(fan_config_id: int) -> Optional[List[Dict]]:
 
 
 def _handle_component_selection():
-    """Handle component multiselect change - store components as objects with id and name."""
+    """Handle component multiselect change - store components as objects with id and name.
+
+    Operates on the active fan configuration in the v4 schema.
+    """
     if "quote_data" not in st.session_state:
         return
-    
+
     # Get the current widget key suffix to read the correct widget state
     widget_reset_counter = st.session_state.get("widget_reset_counter", 0)
     widget_key = f"widget_fc_multiselect_components_{widget_reset_counter}"
-    
+
     if widget_key not in st.session_state:
         return
-    
+
     selected_names = st.session_state[widget_key]
     qd = st.session_state.quote_data
-    
+
+    # Get active fan configuration
+    active_cfg = get_active_config(qd)
+    if not active_cfg:
+        return
+
     # Get current fan configuration to fetch available components with IDs
     fan_config = st.session_state.get("current_fan_config")
     if not fan_config:
         return
-    
+
     available_components = get_available_components(fan_config.get("id"))
     if not available_components:
         return
-    
+
     # Create name to component mapping
     name_to_component = {comp['name']: comp for comp in available_components}
-    
+
     # Convert selected names to component objects
     component_objects = []
     for name in selected_names:
@@ -384,169 +475,142 @@ def _handle_component_selection():
                 "id": comp["id"],
                 "name": comp["name"]
             })
-    
+
     # Sort component objects by DB order_by column
-    # available_components is already sorted by order_by from the API
     ordered_names = [comp['name'] for comp in available_components]
     component_objects.sort(key=lambda x: ordered_names.index(x['name']) if x['name'] in ordered_names else 999)
-    
-    # Store as objects in specification.components
-    spec = qd.setdefault("specification", {})
+
+    # Store as objects in active config's specification.components
+    spec = active_cfg.setdefault("specification", {})
     spec["components"] = component_objects
-    
-    # ENHANCED: Clear calculations cache and trigger immediate recalculation
-    # This prevents stale totals when components are added/removed
-    calculations = qd.setdefault("calculations", {})
-    
-    # Clear component calculations that are no longer selected
+
+    # Clear calculations cache for components no longer selected
+    calculations = active_cfg.setdefault("calculations", {})
     if "components" in calculations:
         selected_names_set = set(selected_names)
         calculations["components"] = {
             name: calc_data for name, calc_data in calculations["components"].items()
             if name in selected_names_set
         }
-    
+
     # Trigger immediate total recalculation
     from utils import update_quote_totals
     update_quote_totals(qd)
 
 
 def _handle_fan_id_change():
-    """Handle fan UID selection change updating schema."""
+    """Handle fan UID selection change — operates on the active fan configuration (v4)."""
     # Ensure quote_data exists
     if "quote_data" not in st.session_state or not isinstance(st.session_state.quote_data, dict):
         st.session_state.quote_data = _new_quote_data(
             username=st.session_state.get("username"),
             user_session=_get_user_session_data()
         )
-    
+
     qd = st.session_state.quote_data
     if qd.get("meta", {}).get("version") != NEW_SCHEMA_VERSION:
-        # If not current schema version, start fresh
         st.session_state.quote_data = _new_quote_data(
             username=st.session_state.get("username"),
             user_session=_get_user_session_data()
         )
         qd = st.session_state.quote_data
 
+    # Get active fan configuration
+    active_cfg = get_active_config(qd)
+    if not active_cfg:
+        return
+
     # Get the current widget key suffix to read the correct widget state
     widget_reset_counter = st.session_state.get("widget_reset_counter", 0)
     widget_key = f"widget_fc_fan_id_{widget_reset_counter}"
-    
+
     if widget_key not in st.session_state:
         return
-    
+
     selected_fan_uid = st.session_state[widget_key]
-    
+
     # Check if fan config is actually changing (not just re-rendering)
-    current_fan_uid = None
-    fan_node = qd.get("specification", {}).get("fan", {})
+    spec = active_cfg.setdefault("specification", {})
+    fan_node = spec.setdefault("fan", {})
     fan_config_obj = fan_node.get("fan_configuration", {})
-    if isinstance(fan_config_obj, dict):
-        current_fan_uid = fan_config_obj.get("uid")
-    
+    current_fan_uid = fan_config_obj.get("uid") if isinstance(fan_config_obj, dict) else None
+
     fan_is_changing = (current_fan_uid != selected_fan_uid)
-    
+
     all_configs = get_all_fan_configs()
     if not all_configs:
         st.session_state.current_fan_config = None
-        spec = qd.setdefault("specification", {})
-        spec.setdefault("fan", {}).update({
-            "config_id": None, "uid": None, "fan_size_mm": None, 
+        fan_node.update({
+            "config_id": None, "uid": None, "fan_size_mm": None,
             "hub_size_mm": None, "blade_sets": None
         })
         spec.setdefault("components", [])
         return
-    
+
     selected_config = next((c for c in all_configs if c['uid'] == selected_fan_uid), None)
     if not selected_config:
         st.session_state.current_fan_config = None
-        spec = qd.setdefault("specification", {})
-        spec.setdefault("fan", {}).update({
-            "config_id": None, "uid": None, "fan_size_mm": None, 
+        fan_node.update({
+            "config_id": None, "uid": None, "fan_size_mm": None,
             "hub_size_mm": None, "blade_sets": None
         })
         spec.setdefault("components", [])
         return
 
     st.session_state.current_fan_config = selected_config
-    spec = qd.setdefault("specification", {})
-    fan_node = spec.setdefault("fan", {})
-    fan_node.update({
-        "fan_configuration": selected_config,
-    })
-    
+    fan_node["fan_configuration"] = selected_config
+
     # CRITICAL: If fan config is actually changing, clear all dependent data
     if fan_is_changing:
-        # Increment widget reset counter to force UI widgets to recreate
-        # This ensures markup and component selection widgets show the new defaults
         st.session_state.widget_reset_counter = widget_reset_counter + 1
-        
-        # Clear calculations (component and motor)
-        calc_section = qd.setdefault("calculations", {})
+
+        # Clear calculations in active config
+        calc_section = active_cfg.setdefault("calculations", {})
         calc_section["components"] = {}
         calc_section["component_totals"] = {
-            "total_length_mm": 0.0,
-            "total_mass_kg": 0.0,
-            "total_labour_cost": 0.0,
-            "total_material_cost": 0.0,
-            "subtotal_cost": 0.0,
-            "final_price": 0.0,
+            "total_length_mm": 0.0, "total_mass_kg": 0.0,
+            "total_labour_cost": 0.0, "total_material_cost": 0.0,
+            "subtotal_cost": 0.0, "final_price": 0.0,
         }
-        calc_section["motor"] = {
-            "base_price": 0.0,
-            "final_price": 0.0,
-        }
+        calc_section["motor"] = {"base_price": 0.0, "final_price": 0.0}
         calc_section["totals"] = {
-            "components": 0.0,
-            "motor": 0.0,
-            "buyouts": 0.0,
-            "grand_total": 0.0,
+            "components": 0.0, "motor": 0.0, "buyouts": 0.0, "grand_total": 0.0,
         }
+        calc_section["unit_total"] = 0.0
+        calc_section["line_total"] = 0.0
         calc_section.pop("server_summary", None)
         calc_section.pop("derived_totals", None)
-        
-        # Clear component overrides (thickness, waste %)
-        pricing_section = qd.setdefault("pricing", {})
+
+        # Clear component overrides (thickness, waste %) in active config pricing
+        pricing_section = active_cfg.setdefault("pricing", {})
         pricing_section["overrides"] = {}
-        
+
         # Reset markups to default values
         component_markup, motor_markup = _fetch_default_markups()
         pricing_section["component_markup"] = component_markup
         pricing_section["motor_markup"] = motor_markup
-        
+
         # Reset motor supplier discount
         pricing_section["motor_supplier_discount"] = {
-            "supplier_name": None,
-            "discount_percentage": 0.0,
-            "is_override": False,
-            "applied_discount": 0.0,
-            "notes": ""
+            "supplier_name": None, "discount_percentage": 0.0,
+            "is_override": False, "applied_discount": 0.0, "notes": ""
         }
-        
+
         # Clear motor selection
-        spec.setdefault("motor", {}).update({
-            "mount_type": None,
-            "motor_details": {},
-        })
-        
-        # Clear buy-out items
+        spec.setdefault("motor", {}).update({"mount_type": None, "motor_details": {}})
+
+        # Clear buy-out items and components
         spec["buyouts"] = []
-        
-        # Clear component selection in specification
         spec["components"] = []
-        
+
         # Clear any cached API responses
         st.session_state.pop("server_summary", None)
         st.session_state.pop("last_summary_payload_hash", None)
         st.session_state.pop("last_confirmed_motor_supplier", None)
-    
-    # No longer populate context.fan_configuration as it's moved to specification.fan.fan_configuration
-    
-    # Ensure pricing section exists with defaults (should already be set from initialization)
-    pricing = qd.setdefault("pricing", {})
+
+    # Ensure pricing section exists with defaults
+    pricing = active_cfg.setdefault("pricing", {})
     if "component_markup" not in pricing or pricing["component_markup"] is None:
-        # Fetch defaults if somehow missing (fallback safety)
         component_markup, _ = _fetch_default_markups()
         pricing["component_markup"] = component_markup
 
@@ -567,71 +631,63 @@ def _handle_fan_id_change():
         if comps:
             id_to_component = {c['id']: c for c in comps}
             comp_objects = [
-                {"id": comp_id, "name": id_to_component[comp_id]["name"]} 
-                for comp_id in auto_select_ids 
+                {"id": comp_id, "name": id_to_component[comp_id]["name"]}
+                for comp_id in auto_select_ids
                 if comp_id in id_to_component
             ]
-            
-            # Sort component objects by DB order_by column
-            # comps is already sorted by order_by from the API
             ordered_names = [comp['name'] for comp in comps]
             comp_objects.sort(key=lambda x: ordered_names.index(x['name']) if x['name'] in ordered_names else 999)
-    
-    spec.setdefault("components", [])
+
     spec["components"] = comp_objects
 
 
 def recompute_all_components(request_func) -> None:
 	"""Utility to recompute all selected components' calculated data in-place.
-	
-	Updated for v3 schema compatibility.
-	
+
+	Operates on the active fan configuration (v4 schema).
+
 	Parameters
 	----------
 	request_func : callable
 		A function accepting a hashable request_payload_tuple and returning a
 		result dict (mirrors get_component_details in fan_config_tab).
-		
-	Behavior
-	--------
-	- Ensures quote_data uses v3 schema.
-	- Iterates specification.components preserving order.
-	- Builds request payload per component (using overrides & current fan config).
-	- Writes results into calculations.components[name].
-	- Silently skips components lacking an id mapping.
 	"""
 	if "quote_data" not in st.session_state:
 		return
-		
+
 	qd = st.session_state.quote_data
 	if not isinstance(qd, dict):
 		return
-	
-	# Get v3 schema sections
-	spec = qd.get("specification", {})
+
+	# Get active fan configuration
+	active_cfg = get_active_config(qd)
+	if not active_cfg:
+		return
+
+	spec = active_cfg.get("specification", {})
 	fan_section = spec.get("fan", {})
 	fan_config = fan_section.get("fan_configuration", {})
 	selected_components = spec.get("components", [])
-	calculations_components = qd.setdefault("calculations", {}).setdefault("components", {})
-	
+	calculations_components = active_cfg.setdefault("calculations", {}).setdefault("components", {})
+
 	fan_config_id = fan_config.get("id")
-	markup_override = qd.get("pricing", {}).get("component_markup")
-	
+	markup_override = active_cfg.get("pricing", {}).get("component_markup")
+
 	# Process component objects with id and name
 	for comp_item in selected_components:
 		comp_id = comp_item.get("id")
 		comp_name = comp_item.get("name")
-			
+
 		if comp_id is None or not comp_name:
 			continue
-			
-		# Get component overrides from pricing.overrides
-		comp_overrides = qd.get("pricing", {}).get("overrides", {}).get(comp_name, {})
-		
+
+		# Get component overrides from active config's pricing.overrides
+		comp_overrides = active_cfg.get("pricing", {}).get("overrides", {}).get(comp_name, {})
+
 		# Build request payload
 		fabrication_waste_percentage = comp_overrides.get("fabrication_waste_pct")
 		fabrication_waste_factor = (fabrication_waste_percentage / 100.0) if fabrication_waste_percentage is not None else None
-		
+
 		request_payload = {
 			"fan_configuration_id": fan_config_id,
 			"component_id": comp_id,
@@ -640,52 +696,153 @@ def recompute_all_components(request_func) -> None:
 			"fabrication_waste_factor_override": fabrication_waste_factor,
 			"markup_override": markup_override,
 		}
-		
+
 		request_payload_tuple = tuple(sorted(request_payload.items()))
 		result = request_func(request_payload_tuple)
-		
+
 		if result:
 			calculations_components[comp_name] = result
-	
+
 	# Update session state
 	st.session_state.quote_data = qd
 
 
+def _handle_config_selector_change():
+	"""Handle fan configuration selector change in the sidebar."""
+	widget_key = "widget_config_selector"
+	if widget_key not in st.session_state:
+		return
+	selected_label = st.session_state[widget_key]
+	qd = st.session_state.get("quote_data", {})
+	configs = qd.get("fan_configurations", [])
+	for i, cfg in enumerate(configs):
+		if cfg.get("label") == selected_label:
+			st.session_state.active_config_index = i
+			# Update current_fan_config from the newly active config
+			fan_cfg = cfg.get("specification", {}).get("fan", {}).get("fan_configuration", {})
+			st.session_state.current_fan_config = fan_cfg if fan_cfg else None
+			break
+	# Force widget recreation when switching configs
+	st.session_state.widget_reset_counter = st.session_state.get("widget_reset_counter", 0) + 1
+
+
+def _handle_quantity_change():
+	"""Handle fan quantity change for the active config."""
+	widget_key = "widget_fan_quantity"
+	if widget_key not in st.session_state:
+		return
+	qd = st.session_state.get("quote_data", {})
+	active_cfg = get_active_config(qd)
+	if active_cfg:
+		active_cfg["quantity"] = int(st.session_state[widget_key])
+		from utils import update_quote_totals
+		update_quote_totals(qd)
+
+
 def render_sidebar_widgets():
-	"""Render the sidebar widgets."""
+	"""Render the sidebar widgets for the v4 multi-config schema."""
 	# Ensure quote_data exists
 	if "quote_data" not in st.session_state or not isinstance(st.session_state.quote_data, dict):
 		st.session_state.quote_data = _new_quote_data(
 			username=st.session_state.get("username"),
 			user_session=_get_user_session_data()
 		)
-	
+
 	qd = st.session_state.quote_data
 	if qd.get("meta", {}).get("version") != NEW_SCHEMA_VERSION:
-		# If not current schema version, start fresh
 		st.session_state.quote_data = _new_quote_data(
 			username=st.session_state.get("username"),
 			user_session=_get_user_session_data()
 		)
 		qd = st.session_state.quote_data
-		qd = st.session_state.quote_data
-	
+
 	if "current_fan_config" not in st.session_state:
 		st.session_state.current_fan_config = None
-	
-	# Initialize widget reset counter for forcing widget recreation
+
+	if "active_config_index" not in st.session_state:
+		st.session_state.active_config_index = 0
+
 	if "widget_reset_counter" not in st.session_state:
 		st.session_state.widget_reset_counter = 0
-	
-	# Create dynamic key suffix to force widget reset when needed
+
 	widget_key_suffix = f"_{st.session_state.widget_reset_counter}"
-	
-	spec = qd.setdefault("specification", {})
+
+	configs = qd.setdefault("fan_configurations", [])
+	if not configs:
+		configs.append(_new_fan_config_entry(0))
+
+	# Ensure active_config_index is valid
+	if st.session_state.active_config_index >= len(configs):
+		st.session_state.active_config_index = 0
+
+	active_cfg = configs[st.session_state.active_config_index]
+	spec = active_cfg.setdefault("specification", {})
 	fan_node = spec.setdefault("fan", {})
-	pricing = qd.setdefault("pricing", {})
+	pricing = active_cfg.setdefault("pricing", {})
 	pricing.setdefault("component_markup", 1.0)
 
 	with st.sidebar:
+		# ---- Fan Configuration Selector ----
+		st.divider()
+		st.subheader("Fan Configurations")
+
+		config_labels = [cfg.get("label", f"Fan Config {i+1}") for i, cfg in enumerate(configs)]
+		current_label = active_cfg.get("label", f"Fan Config {st.session_state.active_config_index + 1}")
+
+		if len(configs) > 1:
+			st.selectbox(
+				"Active Configuration",
+				options=config_labels,
+				index=config_labels.index(current_label) if current_label in config_labels else 0,
+				key="widget_config_selector",
+				on_change=_handle_config_selector_change,
+			)
+
+		col_add, col_remove = st.columns(2)
+		with col_add:
+			if st.button("+ Add Config", use_container_width=True):
+				new_idx = len(configs)
+				component_markup, motor_markup = _fetch_default_markups()
+				configs.append(_new_fan_config_entry(
+					config_index=new_idx,
+					component_markup=component_markup,
+					motor_markup=motor_markup,
+				))
+				st.session_state.active_config_index = new_idx
+				st.session_state.current_fan_config = None
+				st.session_state.widget_reset_counter += 1
+				st.rerun()
+		with col_remove:
+			if len(configs) > 1:
+				if st.button("- Remove Config", use_container_width=True):
+					removed_idx = st.session_state.active_config_index
+					configs.pop(removed_idx)
+					# Re-index remaining configs
+					for i, cfg in enumerate(configs):
+						cfg["config_index"] = i
+						cfg["label"] = f"Fan Config {i + 1}"
+					st.session_state.active_config_index = min(removed_idx, len(configs) - 1)
+					# Update current_fan_config from new active
+					new_active = configs[st.session_state.active_config_index]
+					fan_cfg = new_active.get("specification", {}).get("fan", {}).get("fan_configuration", {})
+					st.session_state.current_fan_config = fan_cfg if fan_cfg else None
+					st.session_state.widget_reset_counter += 1
+					from utils import update_quote_totals
+					update_quote_totals(qd)
+					st.rerun()
+
+		# ---- Fan Quantity ----
+		st.number_input(
+			"Fan Quantity",
+			min_value=1,
+			value=int(active_cfg.get("quantity", 1)),
+			step=1,
+			key="widget_fan_quantity",
+			on_change=_handle_quantity_change,
+			help="Number of fans with this configuration.",
+		)
+
+		# ---- Base Fan Parameters ----
 		st.divider()
 		st.subheader("Base Fan Parameters")
 		all_fan_configs = get_all_fan_configs()
@@ -695,10 +852,9 @@ def render_sidebar_widgets():
 			fan_uid_options.extend([c['uid'] for c in sorted_configs])
 		else:
 			st.caption("Could not load Fan IDs from API.")
-		
-		# Get fan UID from fan_configuration or legacy uid field
+
 		fan_config_obj = fan_node.get("fan_configuration", {})
-		current_fan_uid = fan_config_obj.get("uid") if isinstance(fan_config_obj, dict) else fan_node.get("uid")
+		current_fan_uid = fan_config_obj.get("uid") if isinstance(fan_config_obj, dict) else None
 		fan_uid_idx = fan_uid_options.index(current_fan_uid) if current_fan_uid in fan_uid_options else 0
 		st.selectbox(
 			"Fan Configuration",
@@ -707,7 +863,7 @@ def render_sidebar_widgets():
 			key=f"widget_fc_fan_id{widget_key_suffix}",
 			on_change=_handle_fan_id_change,
 		)
-		
+
 		fan_config = st.session_state.get("current_fan_config")
 		blade_qty_select_options = ["N/A"]
 		blade_qty_disabled = True
@@ -721,7 +877,7 @@ def render_sidebar_widgets():
 				blade_qty_idx = blade_qty_select_options.index(current_blade_val)
 		elif existing_blade_sets:
 			blade_qty_select_options = [str(existing_blade_sets)]
-		
+
 		st.selectbox(
 			"Blade Sets",
 			options=blade_qty_select_options,
@@ -747,7 +903,7 @@ def render_sidebar_widgets():
 				st.json(fan_config)
 		else:
 			st.info("Select a Fan ID to view its configuration details.")
-		
+
 		st.divider()
 		st.subheader("Fan Components Selection")
 		component_options: List[str] = []
@@ -758,25 +914,23 @@ def render_sidebar_widgets():
 			if comps:
 				component_options = [c['name'] for c in comps]
 				is_disabled = False
-		
-		# Extract component names for multiselect from component objects
+
+		# Extract component names for multiselect from component objects in active config
 		current_selection = spec.get("components", [])
 		current_names = [c.get("name") for c in current_selection if isinstance(c, dict) and "name" in c]
 		valid_selection = [c for c in current_names if c in component_options]
 
-		# Component markup number input (v3: pricing.component_markup)
-		# Get current markup value, ensuring it's a valid float
+		# Component markup number input (per-config pricing)
 		current_component_markup = pricing.get("component_markup")
 		if current_component_markup is None:
-			# Fallback: fetch from API if missing
 			current_component_markup, _ = _fetch_default_markups()
 			pricing["component_markup"] = current_component_markup
-		
+
 		try:
 			markup_value = float(current_component_markup)
 		except (TypeError, ValueError):
-			markup_value = 1.0  # Final fallback
-			
+			markup_value = 1.0
+
 		st.number_input(
 			"Component Markup",
 			min_value=1.0,
@@ -789,21 +943,25 @@ def render_sidebar_widgets():
 			help="Markup multiplier for component pricing (default loaded from database).",
 			disabled=is_disabled,
 		)
-		
+
 		st.multiselect(
 			"Select Fan Components",
 			options=component_options,
 			default=valid_selection,
 			key=f"widget_fc_multiselect_components{widget_key_suffix}",
-		on_change=_handle_component_selection,
-		help=(
-			"Select a Fan ID to populate this list. "
-			"If ordering matters it will be handled later in the component tab."
-		),
-		disabled=is_disabled,
-	)
-	
-	# Ensure totals are calculated if component data exists
+			on_change=_handle_component_selection,
+			help=(
+				"Select a Fan ID to populate this list. "
+				"If ordering matters it will be handled later in the component tab."
+			),
+			disabled=is_disabled,
+		)
+
+	# Ensure totals are calculated if component data exists in any config
 	from utils import update_quote_totals
-	if qd.get("calculations", {}).get("components"):
+	has_components = any(
+		cfg.get("calculations", {}).get("components")
+		for cfg in configs
+	)
+	if has_components:
 		update_quote_totals(qd)

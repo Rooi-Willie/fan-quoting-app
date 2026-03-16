@@ -268,7 +268,7 @@ class Quote(Base):
     project_name = Column(String)
     project_location = Column(String)
     
-    # Summary fields
+    # Summary fields (primary fan = first fan_configurations entry)
     fan_uid = Column(String)
     fan_size_mm = Column(Integer)
     blade_sets = Column(Integer)
@@ -278,8 +278,13 @@ class Quote(Base):
     motor_supplier = Column(String)
     motor_rated_output = Column(String)
     total_price = Column(Numeric(10, 2))
-    created_by_user_name = Column(String)  # Extracted from quote_data.meta.created_by_user.full_name
-    last_modified_by_user_name = Column(String)  # Extracted from quote_data.meta.last_modified_by_user.full_name
+    created_by_user_name = Column(String)
+    last_modified_by_user_name = Column(String)
+
+    # Multi-fan-configuration summary fields (v4)
+    fan_config_count = Column(Integer, default=1)
+    fan_config_summary = Column(JSONB, comment="Compact array: [{uid, size_mm, qty}, ...]")
+    total_quantity = Column(Integer, default=1, comment="Sum of all config quantities")
     
     # Core quote data
     quote_data = Column(JSONB)

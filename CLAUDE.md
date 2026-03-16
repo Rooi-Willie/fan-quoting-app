@@ -72,17 +72,27 @@ Components use different calculator classes based on `mass_formula_type` from th
 
 Entry point: `calculate_v3_components_summary()` → `get_calculator(mass_formula_type)` → calculator class
 
-### Quote Data Schema (v3)
+### Quote Data Schema (v4 — Multi-Fan Configuration)
 Complete JSONB structure in `saved_quotes.quote_data`:
 ```
 quote_data
-├── meta              # Version, timestamps, user tracking
-├── quote             # Project & client info, reference number
-├── specification     # Technical inputs (fan, motor, components, buyouts)
-├── pricing           # Markups, overrides (keyed by component NAME, not ID)
-├── calculations      # Computed results & server summary
-└── context           # Runtime settings & rates snapshot
+├── meta                    # Version (4), timestamps, user tracking, source_quote_ids
+├── quote                   # SHARED: project & client info, reference number
+├── fan_configurations[]    # Array of per-fan config entries:
+│   ├── config_index        #   Position index
+│   ├── quantity            #   Fan quantity multiplier (≥1)
+│   ├── label               #   User-facing label ("Fan Config 1")
+│   ├── specification       #   Technical inputs (fan, motor, components, buyouts)
+│   ├── pricing             #   Markups, overrides (keyed by component NAME)
+│   └── calculations        #   Computed results, unit_total, line_total
+├── grand_totals            # Aggregated: components, motors, buyouts, grand_total
+└── context                 # SHARED: runtime settings & rates snapshot
 ```
+
+Each fan configuration is independent — different fan sizes, motors, components, and pricing.
+`unit_total` = single-fan price (components + motor + buyouts).
+`line_total` = `unit_total × quantity`.
+`grand_total` = sum of all configs' `line_total`.
 
 Full schema docs: `../Documentation/quote_data_schema_v3.md`
 
@@ -93,12 +103,25 @@ Full schema docs: `../Documentation/quote_data_schema_v3.md`
 
 ## Critical Patterns & Gotchas
 
+### v4 Multi-Config: Always Use Active Config
+```python
+# ✅ Correct — read/write per-config data via active config
+from common import get_active_config
+active_cfg = get_active_config(qd)
+spec = active_cfg["specification"]
+pricing = active_cfg["pricing"]
+calc = active_cfg["calculations"]
+
+# ❌ Wrong — top-level specification/pricing/calculations no longer exist
+spec = qd["specification"]  # KeyError in v4
+```
+
 ### Pricing Overrides Use Component Names, Not IDs
 ```python
 # ✅ Correct
-overrides = quote_data['pricing']['overrides'].get(component_name, {})
+overrides = active_cfg['pricing']['overrides'].get(component_name, {})
 # ❌ Wrong
-overrides = quote_data['pricing']['overrides'].get(component_id, {})
+overrides = active_cfg['pricing']['overrides'].get(component_id, {})
 ```
 
 ### Blade Sets Stored as String
@@ -114,9 +137,9 @@ Use `specification.motor.mount_type` (`"Foot"` or `"Flange"`) to pick the correc
 
 Always follow this sequence when components change:
 ```python
-st.session_state.quote_data["specification"]["components"] = selected_components
-update_quote_totals(st.session_state.quote_data)          # Client-side
-ensure_server_summary_up_to_date(st.session_state.quote_data)  # Server
+active_cfg["specification"]["components"] = selected_components
+update_quote_totals(st.session_state.quote_data)          # Client-side (all configs)
+ensure_server_summary_up_to_date(st.session_state.quote_data)  # Server (active config)
 st.rerun()
 ```
 
@@ -138,7 +161,7 @@ All timestamps use SAST (UTC+2). Database and Docker containers configured for `
 | `api/app/models.py` | SQLAlchemy ORM models |
 | `api/app/schemas.py` | Pydantic request/response schemas |
 | `api/app/validation.py` | Quote data validation before saving |
-| `ui/common.py` | Schema v3 initialization (`_new_quote_data()`), state management |
+| `ui/common.py` | Schema v4 initialization, config switching, sidebar |
 | `ui/utils.py` | API client wrapper, calculation helpers, totals aggregation |
 | `ui/export_utils.py` | Word document export via `docxtpl` |
 | `ui/pages/2_Create_New_Quote.py` | Main quote creation orchestrator |
@@ -153,7 +176,7 @@ Follow PEP 8. Use type hints (`typing` module). Include docstrings (PEP 257) wit
 
 **New component type**: Add to `database/data/components.csv` and `component_parameters.csv` → implement calculator class if needed in `calculation_engine.py` → update `get_calculator()` factory.
 
-**Schema changes**: Update `ui/common.py::_new_quote_data()` → update `api/app/validation.py` → increment `NEW_SCHEMA_VERSION` if breaking → update `../Documentation/quote_data_schema_v3.md`.
+**Schema changes**: Update `ui/common.py::_new_quote_data()` and `_new_fan_config_entry()` → update `api/app/validation.py` → increment `NEW_SCHEMA_VERSION` if breaking.
 
 **New API endpoint**: Define Pydantic schemas in `schemas.py` → add CRUD function in `crud.py` → create router in `api/app/routers/` → register in `main.py` with `dependencies=[Depends(verify_api_key)]`.
 

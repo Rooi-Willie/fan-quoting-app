@@ -95,29 +95,28 @@ def api_patch(endpoint: str, data: dict, **kwargs):
         return None
 
 
-def _recompute_derived_totals_from_server(qd: dict) -> dict:
-	"""Compute client-side derived_totals using current quote_data and server_summary (v3 schema).
+def _recompute_derived_totals_from_server(cfg: dict) -> dict:
+	"""Compute client-side derived_totals for a single fan configuration.
 
-	Priority order:
-	  1. calculations.server_summary.final_price (components aggregate)
-	  2. sum of calculations.components[*].total_cost_after_markup (if nested present)
-	Motor from v3 calculations.motor section, buy-outs from v3 specification.buyouts.
+	Args:
+		cfg: A single fan configuration dict from fan_configurations[].
+
+	Returns:
+		dict with components_final_price, motor_final_price, buyout_total, grand_total.
 	"""
-	if not isinstance(qd, dict):
+	if not isinstance(cfg, dict):
 		return {}
-	calc = qd.get("calculations", {}) or {}
+	calc = cfg.get("calculations", {}) or {}
 	server_summary = calc.get("server_summary") or {}
 	calculated_components = calc.get("components", {}) or {}
-	pricing_section = qd.get("pricing", {}) or {}
-	spec_section = qd.get("specification", {}) or {}
-	motor_calculation = calc.get("motor", {}) or {}  # Motor pricing moved to calculations
+	spec_section = cfg.get("specification", {}) or {}
+	motor_calculation = calc.get("motor", {}) or {}
 	buyouts = spec_section.get("buyouts", []) or []
 
 	comp_total = None
 	if isinstance(server_summary, dict):
 		comp_total = server_summary.get("final_price") or server_summary.get("total_cost_after_markup")
 	if comp_total is None:
-		# Fallback: sum calculated component values from v3 calculations
 		comp_total = 0.0
 		for name, calc_data in calculated_components.items():
 			if not isinstance(calc_data, dict):
@@ -149,36 +148,26 @@ def _recompute_derived_totals_from_server(qd: dict) -> dict:
 	}
 
 
-def update_quote_totals(qd: dict) -> None:
-	"""Update the calculations.totals and component_totals sections based on current components, motor, and buyouts.
-	
-	This function prefers backend-calculated component_totals when available (backend is authoritative),
-	and only falls back to client-side calculation when backend data is missing or incomplete.
-	UI is responsible for adding motor and buyout totals to the backend component totals.
-	
-	Performs consistency checking: if backend component_totals don't match the sum of individual 
-	components (indicating UI changes after backend caching), falls back to UI calculation.
-	
-	Logs which calculation method (BACKEND or UI FALLBACK) is used for transparency and debugging.
-	
-	ENHANCED: Now called immediately when inputs change to prevent calculation lag.
+def _update_single_config_totals(cfg: dict) -> None:
+	"""Update calculations for a single fan configuration entry.
+
+	Prefers backend-calculated component_totals when available and consistent,
+	falls back to UI calculation otherwise. Also computes unit_total and line_total.
 	"""
-	if not isinstance(qd, dict):
+	if not isinstance(cfg, dict):
 		return
-		
-	calc_section = qd.get("calculations", {})
-	spec_section = qd.get("specification", {})
-	
+
+	calc_section = cfg.setdefault("calculations", {})
+	spec_section = cfg.get("specification", {})
+
 	# Check if backend has already provided authoritative component_totals
 	existing_component_totals = calc_section.get("component_totals", {})
 	backend_has_totals = (
-		existing_component_totals and 
+		existing_component_totals and
 		existing_component_totals.get("final_price") is not None and
 		existing_component_totals.get("final_price") > 0
 	)
-	
-	# If backend has totals, verify they're consistent with individual components
-	# If not consistent, fallback to UI calculation (individual components may have been updated)
+
 	if backend_has_totals:
 		components = calc_section.get("components", {})
 		ui_calculated_total = sum(
@@ -187,47 +176,30 @@ def update_quote_totals(qd: dict) -> None:
 			if isinstance(comp_data, dict)
 		)
 		backend_total = float(existing_component_totals.get("final_price", 0))
-		
-		# Allow for small rounding differences (within 0.01)
-		totals_are_consistent = abs(ui_calculated_total - backend_total) < 0.01
-		
-		if not totals_are_consistent:
-			logger.info(f"Backend component totals ({backend_total}) inconsistent with individual components ({ui_calculated_total}). Using UI calculation.")
+		if abs(ui_calculated_total - backend_total) >= 0.01:
 			backend_has_totals = False
-		else:
-			logger.debug(f"Backend component totals ({backend_total}) consistent with individual components ({ui_calculated_total}).")
-	
+
 	if backend_has_totals:
-		# Backend is authoritative - use its component calculations
 		component_final_price = float(existing_component_totals.get("final_price", 0))
-		logger.info(f"Using BACKEND calculations for component totals. Component final price: {component_final_price}")
 	else:
-		# Fallback: Calculate component totals from individual component calculations
 		components = calc_section.get("components", {})
-		logger.info(f"Using UI FALLBACK calculations for component totals. Found {len(components)} individual components to aggregate.")
-		
 		total_length_mm = 0
 		total_mass_kg = 0
 		total_material_cost = 0
 		total_labour_cost = 0
 		subtotal_cost = 0
 		component_final_price = 0
-		
+
 		for comp_name, comp_data in components.items():
 			if not isinstance(comp_data, dict):
 				continue
-				
-			# Sum up the individual component values
 			total_length_mm += float(comp_data.get("total_length_mm", 0) or 0)
 			total_mass_kg += float(comp_data.get("real_mass_kg", 0) or 0)
 			total_material_cost += float(comp_data.get("material_cost", 0) or 0)
 			total_labour_cost += float(comp_data.get("labour_cost", 0) or 0)
 			subtotal_cost += float(comp_data.get("total_cost_before_markup", 0) or 0)
 			component_final_price += float(comp_data.get("total_cost_after_markup", 0) or 0)
-		
-		logger.info(f"UI calculated component totals - Final price: {component_final_price}, Material: {total_material_cost}, Labour: {total_labour_cost}")
-		
-		# Update component_totals section only if backend didn't provide it
+
 		calc_section.setdefault("component_totals", {}).update({
 			"total_length_mm": round(total_length_mm, 2),
 			"total_mass_kg": round(total_mass_kg, 6),
@@ -236,12 +208,12 @@ def update_quote_totals(qd: dict) -> None:
 			"subtotal_cost": round(subtotal_cost, 2),
 			"final_price": round(component_final_price, 2)
 		})
-	
-	# Get motor total from motor calculation
+
+	# Motor total
 	motor_calc = calc_section.get("motor", {})
 	motor_total = float(motor_calc.get("final_price", 0))
-	
-	# Calculate buyout total from specification buyouts
+
+	# Buyout total
 	buyouts = spec_section.get("buyouts", []) or []
 	buyout_total = 0.0
 	if isinstance(buyouts, list):
@@ -254,21 +226,62 @@ def update_quote_totals(qd: dict) -> None:
 				qty = item.get("qty") or item.get("quantity") or 0
 				subtotal = float(unit_cost) * float(qty)
 			buyout_total += float(subtotal or 0)
-	
-	# Calculate grand total using the calculated component total (backend or client-side)
-	grand_total = component_final_price + motor_total + buyout_total
-	
-	# Update totals section
+
+	# Per-config totals
+	config_grand_total = component_final_price + motor_total + buyout_total
+
 	calc_section.setdefault("totals", {}).update({
 		"components": round(component_final_price, 2),
 		"motor": round(motor_total, 2),
 		"buyouts": round(buyout_total, 2),
-		"grand_total": round(grand_total, 2)
+		"grand_total": round(config_grand_total, 2)
 	})
-	
-	# Log final calculation summary
-	calculation_method = "BACKEND" if backend_has_totals else "UI FALLBACK"
-	logger.info(f"Quote totals updated using {calculation_method} method. Components: {component_final_price}, Motor: {motor_total}, Buyouts: {buyout_total}, Grand Total: {grand_total}")
+
+	# Unit total and line total (quantity-aware)
+	unit_total = round(config_grand_total, 2)
+	qty = cfg.get("quantity", 1)
+	calc_section["unit_total"] = unit_total
+	calc_section["line_total"] = round(unit_total * qty, 2)
+
+
+def update_quote_totals(qd: dict) -> None:
+	"""Update totals for all fan configurations and compute grand totals.
+
+	For each fan config:
+	  1. Compute component/motor/buyout totals
+	  2. Set unit_total and line_total (unit_total * quantity)
+
+	Then aggregate across all configs into qd["grand_totals"].
+	"""
+	if not isinstance(qd, dict):
+		return
+
+	configs = qd.get("fan_configurations", [])
+	if not configs:
+		return
+
+	grand_components = 0.0
+	grand_motors = 0.0
+	grand_buyouts = 0.0
+
+	for cfg in configs:
+		_update_single_config_totals(cfg)
+		qty = cfg.get("quantity", 1)
+		calcs = cfg.get("calculations", {})
+		totals = calcs.get("totals", {})
+
+		grand_components += float(totals.get("components", 0)) * qty
+		grand_motors += float(totals.get("motor", 0)) * qty
+		grand_buyouts += float(totals.get("buyouts", 0)) * qty
+
+	qd["grand_totals"] = {
+		"components": round(grand_components, 2),
+		"motors": round(grand_motors, 2),
+		"buyouts": round(grand_buyouts, 2),
+		"grand_total": round(grand_components + grand_motors + grand_buyouts, 2),
+	}
+
+	logger.info(f"Quote grand totals updated. Components: {grand_components}, Motors: {grand_motors}, Buyouts: {grand_buyouts}, Grand Total: {grand_components + grand_motors + grand_buyouts}")
 
 
 def _build_rates_snapshot(summary_payload: dict) -> dict:
@@ -341,47 +354,39 @@ def fetch_components_map(fan_config_id: int) -> Dict[str, int]:
 
 
 def ensure_server_summary_up_to_date(qd: dict) -> None:
-	"""Update server-side component summary using v3 schema and persist aggregates in quote_data.
+	"""Update server-side component summary for the active fan configuration.
 
-	Responsibilities (v3 Schema):
-	1. Detect input changes and POST to /quotes/components/v3-summary.
-	2. Store raw server response in st.session_state.server_summary.
-	3. Persist a snapshot under qd["calculations"]["server_summary"].
-	4. Persist/refresh qd["calculations"]["derived_totals"] (client-side convenience).
-	5. Persist qd["calculations"]["rates_and_settings_used"] capturing pricing inputs.
-
-	Notes:
-	- Uses v3 schema structure with proper section organization
-	- Backend will still derive authoritative totals; client copy improves transparency.
-	- Idempotent: if payload unchanged, does nothing.
+	Operates on the active fan config within the v4 fan_configurations[] array.
+	Calls the existing /quotes/components/v3-summary endpoint per-config.
 	"""
 	logger.debug("ensure_server_summary_up_to_date called")
 	if not isinstance(qd, dict):
 		return
-	
-	# Get v3 schema sections (updated for new structure)
-	spec_section = qd.get("specification", {})
+
+	from common import get_active_config
+	active_cfg = get_active_config(qd)
+	if not active_cfg:
+		return
+
+	spec_section = active_cfg.get("specification", {})
 	fan_section = spec_section.get("fan", {})
 	fan_config = fan_section.get("fan_configuration", {})
-	selected_components = spec_section.get("components", [])  # This is an array in v3
-	calc_section = qd.get("calculations", {})
-	pricing_section = qd.get("pricing", {})
-	
+	selected_components = spec_section.get("components", [])
+	pricing_section = active_cfg.get("pricing", {})
+
 	fan_config_id = fan_config.get("id")
 	if not fan_config_id or not selected_components:
 		return
 
 	name_to_id = fetch_components_map(int(fan_config_id))
 
-	# In v3, overrides are in pricing.overrides, not component.overrides
 	overrides = pricing_section.get("overrides", {}) or {}
 	comp_list = []
-	
-	# Process component objects with id and name
+
 	for comp_item in selected_components:
 		comp_id = comp_item.get("id")
 		comp_name = comp_item.get("name")
-		
+
 		if comp_id and comp_name:
 			ov = overrides.get(comp_name, {})
 			comp_list.append({
@@ -394,25 +399,20 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 		"fan_configuration_id": int(fan_config_id),
 		"blade_quantity": int(fan_section.get("blade_sets") or 0),
 		"components": comp_list,
-		"markup_override": pricing_section.get("component_markup"),  # v3: component markup is in pricing
-		"motor_markup_override": pricing_section.get("motor_markup")  # v3: motor markup is also in pricing
+		"markup_override": pricing_section.get("component_markup"),
+		"motor_markup_override": pricing_section.get("motor_markup")
 	}
 
 	payload_hash = json.dumps(payload, sort_keys=True, default=str)
-	logger.debug(f"[DEBUG] New hash: {payload_hash[:30]}...")
-	logger.debug(f"[DEBUG] Old hash: {st.session_state.get('last_summary_payload_hash', 'None')[:30]}...")
 
 	if st.session_state.get("last_summary_payload_hash") == payload_hash:
-		logger.debug("[DEBUG] Skipping API call - payload unchanged")
 		# Ensure persisted structures exist even if no call needed
-		_calc = qd.setdefault("calculations", {})
-		
-		# Extract calculations from cached server summary if available
+		_calc = active_cfg.setdefault("calculations", {})
+
 		cached_response = st.session_state.get("server_summary", {})
 		calculations_from_cache = cached_response.get("calculations", {})
-		
+
 		if calculations_from_cache:
-			# Update calculations section with cached data
 			if "components" in calculations_from_cache:
 				_calc["components"] = calculations_from_cache["components"]
 			if "component_totals" in calculations_from_cache:
@@ -421,67 +421,43 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 				_calc["totals"] = calculations_from_cache["totals"]
 			if "motor" in calculations_from_cache:
 				_calc["motor"] = calculations_from_cache["motor"]
-		
+
 		_calc.setdefault("server_summary", cached_response)
-		_calc.setdefault("derived_totals", _recompute_derived_totals_from_server(qd))
+		_calc.setdefault("derived_totals", _recompute_derived_totals_from_server(active_cfg))
 		_calc.setdefault("rates_and_settings_used", _build_rates_snapshot(payload))
-		
-		# Update quote totals to ensure synchronization - this will handle consistency checking
+
 		update_quote_totals(qd)
-		
-		# Populate context data for v3 schema
 		populate_context_rates_and_settings(qd)
-		
 		return
 
-	logger.debug("[DEBUG] Making API call with payload:", payload)
 	try:
-		# Use v3 endpoint (correct path with quotes prefix)
 		resp = requests.post(f"{API_BASE_URL}/quotes/components/v3-summary", json=payload, headers=get_api_headers())
 		resp.raise_for_status()
 		api_response = resp.json() or {}
-		
-		# Extract calculations section from API response
+
 		calculations_from_api = api_response.get("calculations", {})
-		
-		# Store the API response in session state
+
 		st.session_state.server_summary = api_response
 		st.session_state.last_summary_payload_hash = payload_hash
-		
-		# Persist into nested quote_data.calculations
-		_calc = qd.setdefault("calculations", {})
-		
-		# Update calculations section with API response data
+
+		_calc = active_cfg.setdefault("calculations", {})
+
 		if calculations_from_api:
-			# Store the individual component calculations
 			if "components" in calculations_from_api:
 				_calc["components"] = calculations_from_api["components"]
-			
-			# Store the component totals
 			if "component_totals" in calculations_from_api:
 				_calc["component_totals"] = calculations_from_api["component_totals"]
-			
-			# Store the final totals (components + motor + buyouts)
 			if "totals" in calculations_from_api:
 				_calc["totals"] = calculations_from_api["totals"]
-			
-			# Store motor calculations if present
 			if "motor" in calculations_from_api:
 				_calc["motor"] = calculations_from_api["motor"]
-		
-		# Keep server_summary for reference
+
 		_calc["server_summary"] = api_response
-		_calc["derived_totals"] = _recompute_derived_totals_from_server(qd)
+		_calc["derived_totals"] = _recompute_derived_totals_from_server(active_cfg)
 		_calc["rates_and_settings_used"] = _build_rates_snapshot(payload)
-		
-		# Update quote totals to ensure synchronization
+
 		update_quote_totals(qd)
-		
-		# Populate context data
 		populate_context_rates_and_settings(qd)
-		
-		# Note: No st.rerun() needed here as this function is often called from callbacks
-		# Streamlit automatically reruns after callbacks complete
 	except requests.RequestException:
 		pass
 
@@ -524,39 +500,45 @@ def build_summary_dataframe(rows: List[Dict], currency_symbol: str) -> Styler:
 	return styler
 
 
-def get_ordered_component_names(quote_data: dict) -> List[str]:
-	"""
-	Get component names ordered by the database order_by column.
-	
-	Returns component names in the correct display order based on the fan configuration's
-	available_components API response (which respects the components.order_by column).
-	
-	This ensures consistent component ordering across all UI tables (Fan Config tab,
-	Review tab, and View Quote Details page).
-	
+def get_ordered_component_names(quote_data_or_config: dict, fan_config_entry: dict = None) -> List[str]:
+	"""Get component names ordered by the database order_by column.
+
+	Can be called with either a full quote_data dict (uses active config)
+	or with a specific fan_config_entry dict.
+
 	Args:
-		quote_data: The v3 quote_data dict
-		
+		quote_data_or_config: Either full quote_data or a single fan config entry.
+		fan_config_entry: If provided, use this config entry instead of active config.
+
 	Returns:
-		List of component names in DB order, or empty list if ordering cannot be determined
+		List of component names in DB order.
 	"""
-	from common import get_available_components
-	
-	# Get fan config ID from v3 schema
-	spec_section = quote_data.get("specification", {})
+	from common import get_available_components, get_active_config
+
+	cfg = fan_config_entry
+	if cfg is None:
+		# Try to use as quote_data with active config
+		if "fan_configurations" in quote_data_or_config:
+			cfg = get_active_config(quote_data_or_config)
+		else:
+			# Assume it's a config entry itself
+			cfg = quote_data_or_config
+
+	if not cfg:
+		return []
+
+	spec_section = cfg.get("specification", {})
 	fan_section = spec_section.get("fan", {})
 	fan_config_data = fan_section.get("fan_configuration", {})
 	fan_config_id = fan_config_data.get("id")
-	
+
 	if not fan_config_id:
 		return []
-	
-	# Get available components from API (already ordered by order_by column)
+
 	available_components = get_available_components(fan_config_id)
 	if not available_components:
 		return []
-	
-	# Extract ordered names
+
 	return [comp['name'] for comp in available_components]
 
 

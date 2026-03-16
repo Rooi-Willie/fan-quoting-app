@@ -315,6 +315,19 @@ class QuoteStatusUpdate(BaseModel):
 class QuoteRevision(BaseModel):
     original_quote_id: int
 
+class FanConfigSummaryItem(BaseModel):
+    """Compact summary of a single fan configuration for listing."""
+    uid: Optional[str] = None
+    size_mm: Optional[int] = None
+    qty: int = 1
+
+
+class CombineQuotesRequest(BaseModel):
+    """Request to combine multiple existing quotes into one."""
+    quote_ids: List[int]
+    user_id: int
+
+
 class QuoteSummary(QuoteBase):
     id: int
     revision_number: int
@@ -333,7 +346,11 @@ class QuoteSummary(QuoteBase):
     total_price: Optional[float] = None
     created_by_user_name: Optional[str] = None
     last_modified_by_user_name: Optional[str] = None
-    
+    # Multi-fan-configuration fields (v4)
+    fan_config_count: Optional[int] = 1
+    fan_config_summary: Optional[List[FanConfigSummaryItem]] = None
+    total_quantity: Optional[int] = 1
+
     class Config:
         orm_mode = True
 

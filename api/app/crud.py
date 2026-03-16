@@ -11,67 +11,82 @@ from .validation import validate_quote_data
 
 # ===================== QUOTEDATA SUMMARY EXTRACTION ====================
 def _extract_summary_from_quote_data(qd: Dict[str, Any]) -> Dict[str, Any]:
-    """Extract summary fields from quote_data structure for database storage."""
+    """Extract summary fields from v4 quote_data structure for database storage.
+
+    The v4 schema stores per-fan data in a fan_configurations[] array.
+    Primary fan (for scalar summary fields) = fan_configurations[0].
+    Multi-config fields aggregate across all configs.
+    """
+    defaults = {
+        "fan_uid": None, "fan_size_mm": None, "blade_sets": None,
+        "component_list": [], "component_markup": None, "motor_markup": None,
+        "total_price": None, "motor_supplier": None, "motor_rated_output": None,
+        "created_by_user_name": None, "last_modified_by_user_name": None,
+        "fan_config_count": 1, "fan_config_summary": None, "total_quantity": 1,
+    }
     if not isinstance(qd, dict):
-        return {"fan_uid": None, "fan_size_mm": None, "blade_sets": None, "component_list": [],
-                "component_markup": None, "motor_markup": None, "total_price": None, "motor_supplier": None, 
-                "motor_rated_output": None, "created_by_user_name": None, "last_modified_by_user_name": None}
+        return defaults
 
-    # Extract from structure
     meta = qd.get("meta", {}) or {}
-    quote = qd.get("quote", {}) or {}
-    spec = qd.get("specification", {}) or {}
-    pricing = qd.get("pricing", {}) or {}
-    calculations = qd.get("calculations", {}) or {}
-
-    # Fan info from specification
-    fan_section = spec.get("fan", {}) or {}
-    fan_config = fan_section.get("fan_configuration", {}) or {}
-    fan_uid = fan_config.get("uid")
-    fan_size_mm = fan_config.get("fan_size_mm")
-    blade_sets = fan_section.get("blade_sets")
-
-    # Components list - extract name field from component objects
-    component_list = [comp.get("name") for comp in spec.get("components", []) if comp.get("name")]
-
-    # Pricing info - extract both component and motor markup
-    component_markup = pricing.get("component_markup")
-    motor_markup = pricing.get("motor_markup")
-    
-    # Motor info from specification
-    motor_section = spec.get("motor", {}) or {}
-    motor_details = motor_section.get("motor_details", {}) or {}
-    motor_supplier = motor_details.get("supplier_name")
-    motor_rated_output = str(motor_details.get("rated_output")) if motor_details.get("rated_output") else None
 
     # User info from meta
     created_by_user = meta.get("created_by_user", {}) or {}
     last_modified_by_user = meta.get("last_modified_by_user", {}) or {}
-    
     created_by_user_name = created_by_user.get("full_name") or created_by_user.get("username")
     last_modified_by_user_name = last_modified_by_user.get("full_name") or last_modified_by_user.get("username")
 
-    # Calculate total price from calculations
-    component_totals = calculations.get("component_totals", {}) or {}
-    motor_calculations = calculations.get("motor", {}) or {}
-    buyout_total = sum(item.get("subtotal", 0) for item in pricing.get("buy_out_items", []))
+    configs = qd.get("fan_configurations", [])
+    if not configs:
+        defaults["created_by_user_name"] = created_by_user_name
+        defaults["last_modified_by_user_name"] = last_modified_by_user_name
+        return defaults
 
-    components_final_price = component_totals.get("final_price", 0)
-    motor_final_price = motor_calculations.get("final_price", 0)
-    total_price = float(components_final_price) + float(motor_final_price) + float(buyout_total)
+    # Primary fan = first config
+    primary = configs[0]
+    primary_spec = primary.get("specification", {}) or {}
+    primary_fan = primary_spec.get("fan", {}) or {}
+    primary_fan_config = primary_fan.get("fan_configuration", {}) or {}
+    primary_motor = primary_spec.get("motor", {}).get("motor_details", {}) or {}
+    primary_pricing = primary.get("pricing", {}) or {}
+
+    # Aggregate across all configs
+    fan_config_summary = []
+    total_quantity = 0
+    all_components = set()
+
+    for cfg in configs:
+        cfg_spec = cfg.get("specification", {}) or {}
+        cfg_fan = cfg_spec.get("fan", {}).get("fan_configuration", {}) or {}
+        qty = cfg.get("quantity", 1)
+        total_quantity += qty
+        fan_config_summary.append({
+            "uid": cfg_fan.get("uid"),
+            "size_mm": cfg_fan.get("fan_size_mm"),
+            "qty": qty,
+        })
+        for comp in cfg_spec.get("components", []):
+            if isinstance(comp, dict) and comp.get("name"):
+                all_components.add(comp["name"])
+
+    # Total price from grand_totals
+    grand_totals = qd.get("grand_totals", {}) or {}
+    total_price = grand_totals.get("grand_total", 0)
 
     return {
-        "fan_uid": fan_uid,
-        "fan_size_mm": fan_size_mm,
-        "blade_sets": blade_sets,
-        "component_list": component_list,
-        "component_markup": component_markup,
-        "motor_markup": motor_markup,
-        "motor_supplier": motor_supplier,
-        "motor_rated_output": motor_rated_output,
-        "total_price": total_price,
+        "fan_uid": primary_fan_config.get("uid"),
+        "fan_size_mm": primary_fan_config.get("fan_size_mm"),
+        "blade_sets": primary_fan.get("blade_sets"),
+        "component_list": sorted(all_components),
+        "component_markup": primary_pricing.get("component_markup"),
+        "motor_markup": primary_pricing.get("motor_markup"),
+        "motor_supplier": primary_motor.get("supplier_name"),
+        "motor_rated_output": str(primary_motor.get("rated_output")) if primary_motor.get("rated_output") else None,
+        "total_price": float(total_price) if total_price else 0,
         "created_by_user_name": created_by_user_name,
         "last_modified_by_user_name": last_modified_by_user_name,
+        "fan_config_count": len(configs),
+        "fan_config_summary": fan_config_summary,
+        "total_quantity": total_quantity,
     }
 
 
@@ -642,7 +657,10 @@ def update_quote(
     db_quote.total_price = summary.get("total_price")
     db_quote.created_by_user_name = summary.get("created_by_user_name")
     db_quote.last_modified_by_user_name = summary.get("last_modified_by_user_name")
-    
+    db_quote.fan_config_count = summary.get("fan_config_count", 1)
+    db_quote.fan_config_summary = summary.get("fan_config_summary")
+    db_quote.total_quantity = summary.get("total_quantity", 1)
+
     # Update the last_modified_by_user_id
     db_quote.last_modified_by_user_id = user_id
     
@@ -658,6 +676,109 @@ def update_quote_status(db: Session, quote_id: int, status: str):
         return None
     
     db_quote.status = status
+    db.commit()
+    db.refresh(db_quote)
+    return db_quote
+
+
+def combine_quotes(db: Session, quote_ids: List[int], user_id: int):
+    """Combine multiple existing quotes into a new quote with merged fan_configurations.
+
+    Each source quote's fan_configurations are appended (with re-indexed config_index).
+    The new quote gets a fresh reference and records source_quote_ids in meta.
+    Original quotes are NOT modified.
+    """
+    import copy
+    import datetime as _dt
+
+    if len(quote_ids) < 2:
+        raise HTTPException(status_code=400, detail="At least 2 quotes are required to combine")
+
+    source_quotes = []
+    for qid in quote_ids:
+        q = get_quote(db, qid)
+        if not q:
+            raise HTTPException(status_code=404, detail=f"Quote {qid} not found")
+        source_quotes.append(q)
+
+    # Merge fan_configurations from all sources
+    merged_configs = []
+    idx = 0
+    for sq in source_quotes:
+        qd = sq.quote_data or {}
+        for cfg in qd.get("fan_configurations", []):
+            new_cfg = copy.deepcopy(cfg)
+            new_cfg["config_index"] = idx
+            idx += 1
+            merged_configs.append(new_cfg)
+
+    if not merged_configs:
+        raise HTTPException(status_code=400, detail="No fan configurations found in source quotes")
+
+    # Build new quote_data (v4)
+    first_qd = source_quotes[0].quote_data or {}
+    first_quote_section = first_qd.get("quote", {})
+
+    # Get user info
+    user = get_user(db, user_id)
+
+    sast_tz = _dt.timezone(_dt.timedelta(hours=2))
+    now_sast = _dt.datetime.now(sast_tz).isoformat()
+
+    user_info = {}
+    if user:
+        user_info = {
+            "id": user.id,
+            "username": user.username,
+            "full_name": user.full_name,
+            "email": user.email,
+        }
+
+    source_refs = [sq.quote_ref for sq in source_quotes]
+    new_ref = generate_next_quote_ref(db, None)
+
+    # Compute grand totals
+    from .logic.calculation_engine import compute_grand_totals
+    grand_totals = compute_grand_totals(merged_configs)
+
+    new_qd = {
+        "meta": {
+            "version": 4,
+            "created_at": now_sast,
+            "updated_at": now_sast,
+            "created_by": user_info.get("username", ""),
+            "created_by_user": user_info,
+            "source_quote_ids": quote_ids,
+        },
+        "quote": {
+            "reference": new_ref,
+            "client": first_quote_section.get("client", ""),
+            "project": first_quote_section.get("project", ""),
+            "location": first_quote_section.get("location", ""),
+            "notes": f"Combined from: {', '.join(source_refs)}",
+        },
+        "fan_configurations": merged_configs,
+        "grand_totals": grand_totals,
+        "context": first_qd.get("context", {"rates_and_settings": {}}),
+    }
+
+    # Validate and save
+    _validation_issues = validate_quote_data(new_qd)
+    if _validation_issues:
+        raise HTTPException(status_code=422, detail={"errors": _validation_issues})
+
+    summary_fields = _extract_summary_from_quote_data(new_qd)
+
+    db_quote = models.Quote(
+        quote_ref=new_ref,
+        client_name=first_quote_section.get("client", ""),
+        project_name=first_quote_section.get("project", ""),
+        project_location=first_quote_section.get("location", ""),
+        user_id=user_id,
+        quote_data=new_qd,
+        **summary_fields,
+    )
+    db.add(db_quote)
     db.commit()
     db.refresh(db_quote)
     return db_quote

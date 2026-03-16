@@ -10,8 +10,15 @@ def render_main_content():
         st.session_state.quote_data = _new_quote_data()
     
     qd = st.session_state.quote_data
-    spec_section = qd.setdefault("specification", {})
-    
+
+    from common import get_active_config
+    active_cfg = get_active_config(qd)
+    if not active_cfg:
+        st.warning("No fan configuration available. Please add one from the sidebar.")
+        return
+
+    spec_section = active_cfg.setdefault("specification", {})
+
     # Buy-out items in specification section
     buy_list = spec_section.setdefault("buyouts", [])
 
