@@ -95,7 +95,9 @@ def render_main_content():
     st.session_state.available_motors_df = motors_df
     
     # Check if user has made a new selection from the table
-    has_new_selection = bool(st.session_state.get("motor_selection_df", {}).get("selection", {}).get("rows"))
+    # Key includes widget_key_suffix so selection resets on config switch
+    motor_df_key = f"motor_selection_df{widget_key_suffix}"
+    has_new_selection = bool(st.session_state.get(motor_df_key, {}).get("selection", {}).get("rows"))
 
     # --- Handle motor deselection ---
     def _clear_motor_selection():
@@ -110,8 +112,8 @@ def render_main_content():
             "notes": ""
         }
         # Clear the dataframe selection state so it doesn't re-trigger
-        if "motor_selection_df" in st.session_state:
-            del st.session_state["motor_selection_df"]
+        if motor_df_key in st.session_state:
+            del st.session_state[motor_df_key]
         if "last_confirmed_motor_supplier" in st.session_state:
             del st.session_state["last_confirmed_motor_supplier"]
         # Recalculate totals
@@ -218,7 +220,7 @@ def render_main_content():
     st.write("Please select a motor from the list below:")
     st.dataframe(
         display_df_final,
-        key="motor_selection_df",
+        key=motor_df_key,
         on_select="rerun", # Rerun the script when a row is selected
         selection_mode="single-row",
         hide_index=True,
@@ -226,7 +228,7 @@ def render_main_content():
     )
 
     # --- 4. Handle the selection and finalize ---
-    selection = st.session_state.get("motor_selection_df", {}).get("selection", {})
+    selection = st.session_state.get(motor_df_key, {}).get("selection", {})
     
     if selection.get("rows"):
         selected_index = selection["rows"][0]
@@ -292,8 +294,8 @@ def render_main_content():
         # Get current applied discount (user may have overridden)
         current_discount = discount_data.get('applied_discount', default_discount)
         
-        # CRITICAL: Use supplier-specific widget key to force reset when supplier changes
-        widget_key = f"widget_motor_supplier_discount_{new_supplier}"
+        # CRITICAL: Use supplier-specific AND config-specific widget key
+        widget_key = f"widget_motor_supplier_discount_{new_supplier}{widget_key_suffix}"
         
         discount_col1, discount_col2 = st.columns([2, 1])
         with discount_col1:

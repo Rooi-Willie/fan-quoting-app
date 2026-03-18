@@ -19,17 +19,21 @@ def render_main_content():
 
     spec_section = active_cfg.setdefault("specification", {})
 
+    # Dynamic widget key suffix for config-aware widget keys
+    widget_reset_counter = st.session_state.get("widget_reset_counter", 0)
+    widget_key_suffix = f"_{widget_reset_counter}"
+
     # Buy-out items in specification section
     buy_list = spec_section.setdefault("buyouts", [])
 
     st.subheader("Add New Buy-out Item")
-    with st.form("new_buyout_item_form", clear_on_submit=True):
-        new_desc = st.text_input("Description", key="bo_new_desc")
+    with st.form(f"new_buyout_item_form{widget_key_suffix}", clear_on_submit=True):
+        new_desc = st.text_input("Description", key=f"bo_new_desc{widget_key_suffix}")
         cols_buyout = st.columns(2)
         with cols_buyout[0]:
-            new_cost = st.number_input(f"Unit Cost ({CURRENCY_SYMBOL})", min_value=0.0, step=10.0, format="%.2f", key="bo_new_cost")
+            new_cost = st.number_input(f"Unit Cost ({CURRENCY_SYMBOL})", min_value=0.0, step=10.0, format="%.2f", key=f"bo_new_cost{widget_key_suffix}")
         with cols_buyout[1]:
-            new_qty = st.number_input("Quantity", min_value=1, step=1, value=1, key="bo_new_qty")
+            new_qty = st.number_input("Quantity", min_value=1, step=1, value=1, key=f"bo_new_qty{widget_key_suffix}")
         add_item_submitted = st.form_submit_button("Add Item")
 
         if add_item_submitted and new_desc:
@@ -64,7 +68,7 @@ def render_main_content():
             with cols_item[3]:
                 st.write(f"{CURRENCY_SYMBOL} {item.get('subtotal',0):.2f}")
             with cols_item[4]:
-                if st.button("✖️", key=f"remove_bo_{item['id']}", help="Remove item"):
+                if st.button("✖️", key=f"remove_bo_{item['id']}{widget_key_suffix}", help="Remove item"):
                     buy_list.pop(i)
                     st.rerun()
             if i < len(buy_list) - 1:

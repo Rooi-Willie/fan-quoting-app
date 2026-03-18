@@ -10,6 +10,7 @@ from pages.quote_creation_tabs import (
 )
 from common import (
     render_sidebar_widgets,  # Shared sidebar renderer
+    update_sidebar_deferred,  # Deferred sidebar content (summary, grand total)
     _new_quote_data,
     NEW_SCHEMA_VERSION,
     initialize_session_state_from_quote_data,
@@ -133,6 +134,10 @@ with tab_buyout:
 
 with tab_review:
     review_quote_tab.render_main_content()
+
+# Fill deferred sidebar placeholders now that all tabs have rendered
+# and quote_data reflects the latest motor/component/pricing changes.
+update_sidebar_deferred()
 
 # The "Start New Quote / Reset Form" button is already in the sidebar from earlier.
 # The st.sidebar.divider() and st.sidebar.json() are also managed above.

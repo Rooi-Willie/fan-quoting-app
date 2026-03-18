@@ -723,23 +723,42 @@ def _clear_widget_state():
 
 
 def _handle_config_selector_change():
-	"""Handle fan configuration selector change in the sidebar."""
-	widget_key = "widget_config_selector"
+	"""Handle fan configuration selector change in the sidebar.
+
+	Uses widget_reset_counter in the widget key (same pattern as all other
+	sidebar widgets) so the key resets cleanly when configs are added/removed.
+	"""
+	widget_reset_counter = st.session_state.get("widget_reset_counter", 0)
+	widget_key = f"widget_config_selector_{widget_reset_counter}"
 	if widget_key not in st.session_state:
 		return
-	selected_label = st.session_state[widget_key]
+	raw_value = st.session_state[widget_key]
+	# Value should be an int index, but Streamlit can return the
+	# format_func string on stale reruns — parse safely.
+	if isinstance(raw_value, int):
+		selected_idx = raw_value
+	elif isinstance(raw_value, str):
+		import re
+		m = re.match(r"Config\s+(\d+)", raw_value)
+		selected_idx = int(m.group(1)) - 1 if m else st.session_state.get("active_config_index", 0)
+	else:
+		selected_idx = st.session_state.get("active_config_index", 0)
+	# Guard: if index hasn't actually changed, do nothing — avoids the
+	# "one step behind" bug where format_func label changes (e.g. quantity
+	# update) would spuriously trigger a full widget state reset.
+	if selected_idx == st.session_state.get("active_config_index", 0):
+		return
 	qd = st.session_state.get("quote_data", {})
 	configs = qd.get("fan_configurations", [])
-	for i, cfg in enumerate(configs):
-		if cfg.get("label") == selected_label:
-			st.session_state.active_config_index = i
-			# Update current_fan_config from the newly active config
-			fan_cfg = cfg.get("specification", {}).get("fan", {}).get("fan_configuration", {})
-			st.session_state.current_fan_config = fan_cfg if fan_cfg else None
-			break
+	if 0 <= selected_idx < len(configs):
+		st.session_state.active_config_index = selected_idx
+		cfg = configs[selected_idx]
+		# Update current_fan_config from the newly active config
+		fan_cfg = cfg.get("specification", {}).get("fan", {}).get("fan_configuration", {})
+		st.session_state.current_fan_config = fan_cfg if fan_cfg else None
 	# Clear all widget state so they recreate from new config data
 	_clear_widget_state()
-	st.session_state.widget_reset_counter = st.session_state.get("widget_reset_counter", 0) + 1
+	st.session_state.widget_reset_counter = widget_reset_counter + 1
 
 
 def _handle_quantity_change():
@@ -754,6 +773,56 @@ def _handle_quantity_change():
 		active_cfg["quantity"] = int(st.session_state[widget_key])
 		from utils import update_quote_totals
 		update_quote_totals(qd)
+
+
+def _get_config_summary_text(cfg: Dict) -> str:
+	"""Build a short summary string for a fan configuration.
+
+	Args:
+		cfg: A single fan configuration dict from fan_configurations[].
+
+	Returns:
+		Summary like 'Ø762-Ø472 · Actom 22 kW, 2P' or 'Not configured'.
+	"""
+	spec = cfg.get("specification", {})
+	fan_uid = spec.get("fan", {}).get("fan_configuration", {}).get("uid")
+	if not fan_uid:
+		return "Not configured"
+
+	parts = [fan_uid]
+
+	motor_details = spec.get("motor", {}).get("motor_details", {})
+	if motor_details and motor_details.get("supplier_name"):
+		motor_str = (
+			f"{motor_details.get('supplier_name')} "
+			f"{motor_details.get('rated_output', '')} "
+			f"{motor_details.get('rated_output_unit', 'kW')}, "
+			f"{motor_details.get('poles', '')}P"
+		)
+		parts.append(motor_str)
+
+	return " · ".join(parts)
+
+
+def _get_config_dropdown_label(cfg: Dict, index: int) -> str:
+	"""Build a descriptive label for the config selector dropdown.
+
+	Quantity is intentionally omitted here — Streamlit caches selectbox
+	display text by widget key + value, so including a changing quantity
+	would show stale text.  The summary paragraph above the dropdown
+	already shows quantity.
+
+	Args:
+		cfg: A single fan configuration dict from fan_configurations[].
+		index: Zero-based index of this config.
+
+	Returns:
+		Label like 'Config 1: Ø762-Ø472' or 'Config 1: Not configured'.
+	"""
+	spec = cfg.get("specification", {})
+	fan_uid = spec.get("fan", {}).get("fan_configuration", {}).get("uid")
+	desc = fan_uid if fan_uid else "Not configured"
+	return f"Config {index + 1}: {desc}"
 
 
 def render_sidebar_widgets():
@@ -803,15 +872,23 @@ def render_sidebar_widgets():
 		st.divider()
 		st.subheader("Fan Configurations")
 
-		config_labels = [cfg.get("label", f"Fan Config {i+1}") for i, cfg in enumerate(configs)]
-		current_label = active_cfg.get("label", f"Fan Config {st.session_state.active_config_index + 1}")
+		# -- Deferred placeholders for summary & grand total --
+		# These are filled AFTER all tabs render via update_sidebar_deferred()
+		# so they reflect the latest data (motor selection, etc.).
+		_sidebar_summary_placeholder = st.empty()
 
+		# -- Config selector dropdown (only when multiple configs) --
+		active_idx = st.session_state.active_config_index
 		if len(configs) > 1:
+			config_indices = list(range(len(configs)))
 			st.selectbox(
 				"Active Configuration",
-				options=config_labels,
-				index=config_labels.index(current_label) if current_label in config_labels else 0,
-				key="widget_config_selector",
+				options=config_indices,
+				index=active_idx if active_idx < len(configs) else 0,
+				format_func=lambda idx: _get_config_dropdown_label(
+					configs[idx], idx
+				),
+				key=f"widget_config_selector{widget_key_suffix}",
 				on_change=_handle_config_selector_change,
 			)
 
@@ -830,8 +907,6 @@ def render_sidebar_widgets():
 				# Clear ALL widget state so they recreate fresh for new config
 				_clear_widget_state()
 				st.session_state.widget_reset_counter += 1
-				# Also clear the config selector so it picks up the new index
-				st.session_state.pop("widget_config_selector", None)
 				st.rerun()
 		with col_remove:
 			if len(configs) > 1:
@@ -850,7 +925,6 @@ def render_sidebar_widgets():
 					# Clear ALL widget state so they recreate for the remaining config
 					_clear_widget_state()
 					st.session_state.widget_reset_counter += 1
-					st.session_state.pop("widget_config_selector", None)
 					from utils import update_quote_totals
 					update_quote_totals(qd)
 					st.rerun()
@@ -865,6 +939,14 @@ def render_sidebar_widgets():
 			on_change=_handle_quantity_change,
 			help="Number of fans with this configuration.",
 		)
+
+		# -- Deferred grand total placeholder --
+		st.divider()
+		_sidebar_grand_total_placeholder = st.empty()
+
+		# Store placeholders for deferred update after tabs render
+		st.session_state._sidebar_summary_ph = _sidebar_summary_placeholder
+		st.session_state._sidebar_grand_total_ph = _sidebar_grand_total_placeholder
 
 		# ---- Base Fan Parameters ----
 		st.divider()
@@ -989,3 +1071,47 @@ def render_sidebar_widgets():
 	)
 	if has_components:
 		update_quote_totals(qd)
+
+
+def update_sidebar_deferred():
+	"""Fill the deferred sidebar placeholders with current data.
+
+	Call this AFTER all tabs have rendered so the summary and grand total
+	reflect changes made during the current render pass (e.g. motor
+	selection, component changes).
+	"""
+	qd = st.session_state.get("quote_data", {})
+	configs = qd.get("fan_configurations", [])
+	active_idx = st.session_state.get("active_config_index", 0)
+
+	# Recalculate totals to capture any changes from tabs
+	from utils import update_quote_totals
+	update_quote_totals(qd)
+
+	# -- Summary paragraph --
+	summary_ph = st.session_state.get("_sidebar_summary_ph")
+	if summary_ph is not None:
+		summary_lines = []
+		for i, cfg in enumerate(configs):
+			qty = cfg.get("quantity", 1)
+			desc = _get_config_summary_text(cfg)
+			if i == active_idx:
+				summary_lines.append(
+					f"▸ **Config {i + 1} (×{qty}):** {desc}"
+				)
+			else:
+				summary_lines.append(
+					f"&ensp; Config {i + 1} (×{qty}): {desc}"
+				)
+		summary_ph.caption("\n\n".join(summary_lines))
+
+	# -- Grand total --
+	grand_total_ph = st.session_state.get("_sidebar_grand_total_ph")
+	if grand_total_ph is not None:
+		from config import CURRENCY_SYMBOL
+		grand_totals = qd.get("grand_totals", {})
+		grand_total = grand_totals.get("grand_total", 0.0)
+		grand_total_ph.metric(
+			"Grand Total",
+			f"{CURRENCY_SYMBOL} {float(grand_total):,.2f}",
+		)

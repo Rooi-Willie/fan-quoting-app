@@ -79,6 +79,10 @@ def render_main_content():
         st.warning("No fan configuration available. Please add one from the sidebar.")
         return
 
+    # Dynamic widget key suffix for config-aware widget keys
+    widget_reset_counter = st.session_state.get("widget_reset_counter", 0)
+    widget_key_suffix = f"_{widget_reset_counter}"
+
     # Extract sections from active config
     spec_section = active_cfg.setdefault("specification", {})
     pricing_section = active_cfg.setdefault("pricing", {})
@@ -197,7 +201,7 @@ def render_main_content():
 
         for comp_idx, comp_name in enumerate(ordered_selected_components):
             with param_row_cols[comp_idx + 1]:
-                widget_key = f"fc_{comp_name}_{row_label.replace(' ', '_')}"
+                widget_key = f"fc_{comp_name}_{row_label.replace(' ', '_')}{widget_key_suffix}"
                 api_value = component_calcs.get(comp_name, {}).get(api_field)
 
                 # IMPORTANT: fetch per-component overrides INSIDE loop.

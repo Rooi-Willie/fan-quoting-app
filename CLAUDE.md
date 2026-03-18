@@ -144,7 +144,7 @@ st.rerun()
 ```
 
 ### Widget State Reset
-Increment `st.session_state.widget_reset_counter` to force all widgets to recreate with new keys.
+Increment `st.session_state.widget_reset_counter` to force all widgets to recreate with new keys. See `ui/CLAUDE.md` for detailed Streamlit widget patterns including deferred sidebar placeholders, callback guards, `format_func` caching gotchas, and selectbox type safety.
 
 ### API Client Wrapper
 Use `api_get()` / `api_post()` from `ui/utils.py` instead of raw `requests` calls — handles auth headers and error logging.
