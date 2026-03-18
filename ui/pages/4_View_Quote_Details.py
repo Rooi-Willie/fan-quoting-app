@@ -590,6 +590,7 @@ with action_cols[0]:
         st.session_state.quote_data = quote_data
         st.session_state.editing_quote_id = quote_id
         st.session_state.active_config_index = 0
+        st.session_state._quote_data_initialized = False
         st.switch_page("pages/2_Create_New_Quote.py")
     
     # Download Word Document button

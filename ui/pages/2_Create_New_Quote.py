@@ -62,9 +62,12 @@ else:
             user_session=_get_user_session()
         )
     else:
-        # If quote_data exists and is v3, initialize session state from it
-        # This handles the case where a quote was loaded for editing
-        initialize_session_state_from_quote_data(st.session_state.quote_data)
+        # Only initialize session state from quote_data ONCE when a quote is
+        # first loaded for editing.  Running this on every rerun was resetting
+        # active_config_index back to 0, breaking multi-config switching.
+        if not st.session_state.get("_quote_data_initialized"):
+            initialize_session_state_from_quote_data(st.session_state.quote_data)
+            st.session_state._quote_data_initialized = True
 
 # Ensure totals are calculated if component data exists
 from utils import update_quote_totals

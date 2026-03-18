@@ -707,6 +707,21 @@ def recompute_all_components(request_func) -> None:
 	st.session_state.quote_data = qd
 
 
+def _clear_widget_state():
+	"""Remove ALL widget_* keys from session state except protected ones.
+
+	This forces Streamlit to recreate all widgets from scratch on the next
+	render, reading default values from the active config's data.
+	"""
+	protected = {"widget_reset_counter", "widget_config_selector"}
+	keys_to_remove = [
+		k for k in st.session_state
+		if k.startswith("widget_") and k not in protected
+	]
+	for k in keys_to_remove:
+		del st.session_state[k]
+
+
 def _handle_config_selector_change():
 	"""Handle fan configuration selector change in the sidebar."""
 	widget_key = "widget_config_selector"
@@ -722,13 +737,15 @@ def _handle_config_selector_change():
 			fan_cfg = cfg.get("specification", {}).get("fan", {}).get("fan_configuration", {})
 			st.session_state.current_fan_config = fan_cfg if fan_cfg else None
 			break
-	# Force widget recreation when switching configs
+	# Clear all widget state so they recreate from new config data
+	_clear_widget_state()
 	st.session_state.widget_reset_counter = st.session_state.get("widget_reset_counter", 0) + 1
 
 
 def _handle_quantity_change():
 	"""Handle fan quantity change for the active config."""
-	widget_key = "widget_fan_quantity"
+	widget_reset_counter = st.session_state.get("widget_reset_counter", 0)
+	widget_key = f"widget_fan_quantity_{widget_reset_counter}"
 	if widget_key not in st.session_state:
 		return
 	qd = st.session_state.get("quote_data", {})
@@ -810,7 +827,11 @@ def render_sidebar_widgets():
 				))
 				st.session_state.active_config_index = new_idx
 				st.session_state.current_fan_config = None
+				# Clear ALL widget state so they recreate fresh for new config
+				_clear_widget_state()
 				st.session_state.widget_reset_counter += 1
+				# Also clear the config selector so it picks up the new index
+				st.session_state.pop("widget_config_selector", None)
 				st.rerun()
 		with col_remove:
 			if len(configs) > 1:
@@ -826,7 +847,10 @@ def render_sidebar_widgets():
 					new_active = configs[st.session_state.active_config_index]
 					fan_cfg = new_active.get("specification", {}).get("fan", {}).get("fan_configuration", {})
 					st.session_state.current_fan_config = fan_cfg if fan_cfg else None
+					# Clear ALL widget state so they recreate for the remaining config
+					_clear_widget_state()
 					st.session_state.widget_reset_counter += 1
+					st.session_state.pop("widget_config_selector", None)
 					from utils import update_quote_totals
 					update_quote_totals(qd)
 					st.rerun()
@@ -837,7 +861,7 @@ def render_sidebar_widgets():
 			min_value=1,
 			value=int(active_cfg.get("quantity", 1)),
 			step=1,
-			key="widget_fan_quantity",
+			key=f"widget_fan_quantity{widget_key_suffix}",
 			on_change=_handle_quantity_change,
 			help="Number of fans with this configuration.",
 		)

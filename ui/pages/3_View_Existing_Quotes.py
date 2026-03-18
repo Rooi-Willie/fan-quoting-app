@@ -247,6 +247,7 @@ else:
                 st.session_state.quote_data = combined.get("quote_data") or {}
                 st.session_state.editing_quote_id = combined_id
                 st.session_state.active_config_index = 0
+                st.session_state._quote_data_initialized = False
                 st.switch_page("pages/2_Create_New_Quote.py")
             except Exception as e:
                 st.error(f"Error combining quotes: {str(e)}")
@@ -283,6 +284,8 @@ else:
                     # Store the quote ID for editing (enables UPDATE instead of CREATE)
                     st.session_state.editing_quote_id = quote_id
                     st.session_state.active_config_index = 0
+                    # Reset init flag so the quote page re-initializes from the loaded data
+                    st.session_state._quote_data_initialized = False
 
                     # Redirect to quote creation page
                     st.switch_page("pages/2_Create_New_Quote.py")

@@ -2,4 +2,11 @@
 -- This ensures all timestamps are displayed in South African time
 -- File starts with 00- to run before other init scripts
 
-ALTER DATABASE fan_quoting SET timezone TO 'Africa/Johannesburg';
+SET timezone TO 'Africa/Johannesburg';
+
+-- Dynamically alter the current database's default timezone
+DO $$
+BEGIN
+  EXECUTE format('ALTER DATABASE %I SET timezone TO %L', current_database(), 'Africa/Johannesburg');
+END
+$$;
