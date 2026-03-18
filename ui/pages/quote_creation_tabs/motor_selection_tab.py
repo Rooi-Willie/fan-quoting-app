@@ -96,7 +96,28 @@ def render_main_content():
     
     # Check if user has made a new selection from the table
     has_new_selection = bool(st.session_state.get("motor_selection_df", {}).get("selection", {}).get("rows"))
-    
+
+    # --- Handle motor deselection ---
+    def _clear_motor_selection():
+        """Clear the current motor selection and reset related pricing data."""
+        motor_spec.update({"mount_type": None, "motor_details": {}})
+        motor_calc.update({"base_price": 0.0, "final_price": 0.0})
+        pricing_section['motor_supplier_discount'] = {
+            "supplier_name": None,
+            "discount_percentage": 0.0,
+            "is_override": False,
+            "applied_discount": 0.0,
+            "notes": ""
+        }
+        # Clear the dataframe selection state so it doesn't re-trigger
+        if "motor_selection_df" in st.session_state:
+            del st.session_state["motor_selection_df"]
+        if "last_confirmed_motor_supplier" in st.session_state:
+            del st.session_state["last_confirmed_motor_supplier"]
+        # Recalculate totals
+        from utils import update_quote_totals
+        update_quote_totals(qd)
+
     # Check if a motor is already selected in quote_data (for loaded quotes)
     # Only show this if there's NO new selection from the table
     existing_motor = motor_spec.get('motor_details')
@@ -160,6 +181,10 @@ def render_main_content():
                 st.metric("Final Price", f"{currency} {float(motor_final_price):,.2f}")
         
         st.caption("Select a different motor from the table below to change the selection, or keep the current motor.")
+        if st.button("Clear Motor Selection", key=f"clear_motor_existing{widget_key_suffix}",
+                      help="Remove the current motor selection from this configuration."):
+            _clear_motor_selection()
+            st.rerun()
         st.divider()
 
     # Prepare a user-friendly dataframe for display
@@ -359,6 +384,11 @@ def render_main_content():
         else:
             st.metric("Final Motor Price", "N/A")
 
+        st.divider()
+        if st.button("Clear Motor Selection", key=f"clear_motor_new{widget_key_suffix}",
+                      help="Remove the current motor selection from this configuration."):
+            _clear_motor_selection()
+            st.rerun()
         st.divider()
         with st.expander("Show all selected motor data"):
             st.json(motor_spec['motor_details'])
