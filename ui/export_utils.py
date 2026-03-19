@@ -82,12 +82,16 @@ def get_rotor_assembly_components(config: Dict[str, Any]) -> str:
         return "N/A"
 
 
-def prepare_component_pricing_table(config: Dict[str, Any]) -> List[Dict[str, Any]]:
+def prepare_component_pricing_table(
+    config: Dict[str, Any],
+    quantity: int = 1,
+) -> List[Dict[str, Any]]:
     """
     Prepare component pricing data for a single fan configuration.
 
     Parameters:
         config (dict): A single fan configuration entry
+        quantity (int): Number of fans in this configuration
 
     Returns:
         list: List of dicts with keys: name, unit_price, qty, total_price
@@ -111,15 +115,14 @@ def prepare_component_pricing_table(config: Dict[str, Any]) -> List[Dict[str, An
             if not isinstance(comp_data, dict):
                 continue
 
-            unit_price = comp_data.get("total_cost_after_markup", 0)
-            qty = 1
-            total_price = unit_price
+            unit_price = float(comp_data.get("total_cost_after_markup", 0))
+            total_price = unit_price * quantity
 
             component_rows.append({
                 "name": comp_data.get("name", comp_name),
-                "unit_price": f"{float(unit_price):,.2f}",
-                "qty": str(qty),
-                "total_price": f"{float(total_price):,.2f}",
+                "unit_price": f"{unit_price:,.2f}",
+                "qty": str(quantity),
+                "total_price": f"{total_price:,.2f}",
             })
 
     except Exception as e:
@@ -128,12 +131,16 @@ def prepare_component_pricing_table(config: Dict[str, Any]) -> List[Dict[str, An
     return component_rows
 
 
-def prepare_buyout_items_table(config: Dict[str, Any]) -> List[Dict[str, Any]]:
+def prepare_buyout_items_table(
+    config: Dict[str, Any],
+    fan_quantity: int = 1,
+) -> List[Dict[str, Any]]:
     """
     Prepare buyout items data for a single fan configuration.
 
     Parameters:
         config (dict): A single fan configuration entry
+        fan_quantity (int): Number of fans in this configuration
 
     Returns:
         list: List of dicts with keys: name, unit_price, qty, total_price
@@ -151,15 +158,16 @@ def prepare_buyout_items_table(config: Dict[str, Any]) -> List[Dict[str, Any]]:
                 continue
 
             description = item.get("description", "Buyout Item")
-            unit_cost = item.get("unit_cost", 0)
-            quantity = item.get("qty", item.get("quantity", 1))
-            total_cost = float(unit_cost) * float(quantity)
+            unit_cost = float(item.get("unit_cost", 0))
+            item_qty = int(item.get("qty", item.get("quantity", 1)))
+            total_qty = item_qty * fan_quantity
+            total_cost = unit_cost * total_qty
 
             buyout_rows.append({
                 "name": description,
-                "unit_price": f"{float(unit_cost):,.2f}",
-                "qty": str(quantity),
-                "total_price": f"{float(total_cost):,.2f}",
+                "unit_price": f"{unit_cost:,.2f}",
+                "qty": str(total_qty),
+                "total_price": f"{total_cost:,.2f}",
             })
 
     except Exception as e:
@@ -188,17 +196,23 @@ def _prepare_single_config_context(cfg: Dict[str, Any], index: int) -> Dict[str,
         if isinstance(comp, dict)
     ]
 
-    component_pricing = prepare_component_pricing_table(cfg)
-    buyout_items = prepare_buyout_items_table(cfg)
+    component_pricing = prepare_component_pricing_table(cfg, quantity)
+    buyout_items = prepare_buyout_items_table(cfg, quantity)
 
     unit_total = calcs.get("unit_total", 0)
     line_total = calcs.get("line_total", 0)
 
-    motor_price = float(calcs.get("motor", {}).get("final_price", 0) or 0)
+    motor_unit_price = float(
+        calcs.get("motor", {}).get("final_price", 0) or 0
+    )
+    motor_total_price = motor_unit_price * quantity
+
+    component_subtotal = float(totals.get('components', 0)) * quantity
 
     return {
         "label": label,
         "quantity": quantity,
+        "config_number": index + 1,
         "fan_uid": fan_config.get("uid", "N/A"),
         "fan_size_mm": str(fan_config.get("fan_size_mm", "N/A")),
         "blade_sets": str(fan_section.get("blade_sets", "N/A")),
@@ -211,10 +225,10 @@ def _prepare_single_config_context(cfg: Dict[str, Any], index: int) -> Dict[str,
         "motor_speed": str(motor_details.get("speed", "N/A")),
         "rotor_assembly_components": get_rotor_assembly_components(cfg),
         "component_pricing": component_pricing,
-        "component_subtotal": f"{float(totals.get('components', 0)):,.2f}",
-        "motor_unit_price": f"{motor_price:,.2f}",
-        "motor_qty": "1",
-        "motor_total_price": f"{motor_price:,.2f}",
+        "component_subtotal": f"{component_subtotal:,.2f}",
+        "motor_unit_price": f"{motor_unit_price:,.2f}",
+        "motor_qty": str(quantity),
+        "motor_total_price": f"{motor_total_price:,.2f}",
         "buyout_items": buyout_items,
         "unit_total": f"{float(unit_total):,.2f}",
         "line_total": f"{float(line_total):,.2f}",
@@ -260,6 +274,16 @@ def prepare_quote_context(quote_data: Dict[str, Any]) -> Dict[str, Any]:
     ]
     is_multi_config = len(fan_configs) > 1
 
+    # Build subject line fan sizes string (e.g. "915mm ×4, 762mm ×2")
+    subject_parts = []
+    for fc in fan_configs:
+        size_str = f"{fc['fan_size_mm']}mm"
+        qty = fc.get("quantity", 1)
+        if qty > 1:
+            size_str += f" \u00d7{qty}"
+        subject_parts.append(size_str)
+    subject_fan_sizes = ", ".join(subject_parts) if subject_parts else "N/A"
+
     # For single-config quotes, also expose flat variables for backwards-compatible templates
     primary = fan_configs[0] if fan_configs else {}
 
@@ -280,6 +304,7 @@ def prepare_quote_context(quote_data: Dict[str, Any]) -> Dict[str, Any]:
         # Multi-config support
         "fan_configs": fan_configs,
         "is_multi_config": is_multi_config,
+        "subject_fan_sizes": subject_fan_sizes,
 
         # Grand totals
         "grand_total_components": f"{float(grand_totals.get('components', 0)):,.2f}",
