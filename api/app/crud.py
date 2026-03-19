@@ -57,14 +57,33 @@ def _extract_summary_from_quote_data(qd: Dict[str, Any]) -> Dict[str, Any]:
     for cfg in configs:
         cfg_spec = cfg.get("specification", {}) or {}
         cfg_fan = cfg_spec.get("fan", {}).get("fan_configuration", {}) or {}
+        cfg_motor = cfg_spec.get("motor", {}).get("motor_details", {}) or {}
+        cfg_components = cfg_spec.get("components", [])
         qty = cfg.get("quantity", 1)
         total_quantity += qty
+
+        # Build motor display string
+        motor_output = cfg_motor.get("rated_output")
+        motor_supplier = cfg_motor.get("supplier_name")
+        if motor_output:
+            motor_str = f"{motor_output}kW ({motor_supplier})" if motor_supplier else f"{motor_output}kW"
+        else:
+            motor_str = None
+
+        # Count components
+        comp_count = sum(
+            1 for comp in cfg_components
+            if isinstance(comp, dict) and comp.get("name")
+        )
+
         fan_config_summary.append({
             "uid": cfg_fan.get("uid"),
             "size_mm": cfg_fan.get("fan_size_mm"),
             "qty": qty,
+            "motor": motor_str,
+            "component_count": comp_count,
         })
-        for comp in cfg_spec.get("components", []):
+        for comp in cfg_components:
             if isinstance(comp, dict) and comp.get("name"):
                 all_components.add(comp["name"])
 

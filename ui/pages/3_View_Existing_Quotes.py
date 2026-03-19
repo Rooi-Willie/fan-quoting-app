@@ -136,7 +136,38 @@ else:
         # Extract user information from summary fields
         created_by_name = q.get("created_by_user_name") or "-"
         last_modified_by_name = q.get("last_modified_by_user_name") or "-"
-        
+
+        # Build per-config display strings from fan_config_summary
+        config_summary = q.get("fan_config_summary") or []
+        if config_summary:
+            fan_parts = []
+            motor_parts = []
+            comp_parts = []
+            for i, cs in enumerate(config_summary):
+                uid = cs.get("uid") or "—"
+                qty = cs.get("qty", 1)
+                fan_parts.append(f"{uid} ×{qty}")
+                motor_parts.append(cs.get("motor") or "—")
+                comp_parts.append(f"C{i + 1}: {cs.get('component_count', 0)}")
+            fans_display = ", ".join(fan_parts)
+            motors_display = ", ".join(motor_parts)
+            comps_display = ", ".join(comp_parts)
+        else:
+            # Fallback for older quotes without fan_config_summary
+            fans_display = q.get("fan_uid") or "-"
+            motors_display = (
+                f"{q['motor_rated_output']} ({q['motor_supplier']})"
+                if q.get("motor_rated_output") else "-"
+            )
+            comps_display = (
+                str(len(q["component_list"]))
+                if q.get("component_list") else "0"
+            )
+
+        # Format total price
+        total_price = q.get("total_price")
+        price_display = f"R {total_price:,.2f}" if total_price else "-"
+
         # Create row with new column order
         df_data.append({
             "ID": q["id"],
@@ -145,12 +176,11 @@ else:
             "Client": q["client_name"],
             "Project": q["project_name"],
             "Date": formatted_date,
-            "Fan": q["fan_uid"],
-            "Motor": f"{q['motor_rated_output']} ({q['motor_supplier']})" if q["motor_rated_output"] else "-",
-            "Price": f"R {q['total_price']:,.2f}" if q["total_price"] else "-",
-            "Components": "\n".join([f"• {comp}" for comp in q["component_list"]]) if q.get("component_list") else "-",
-            "Comp. Markup": f"{((q.get('component_markup', 1.0) - 1) * 100):.1f}%" if q.get("component_markup") else "-",
-            "Motor Markup": f"{((q.get('motor_markup', 1.0) - 1) * 100):.1f}%" if q.get("motor_markup") else "-",
+            "Fan(s)": fans_display,
+            "Motor(s)": motors_display,
+            "Components": comps_display,
+            "Total Qty": q.get("total_quantity", 1),
+            "Total Price": price_display,
             "Status": q["status"].capitalize(),
             "Created By": created_by_name,
             "Last Mod. By": last_modified_by_name
@@ -160,16 +190,6 @@ else:
     # Initialize selected_row in session state if not present
     if 'selected_row' not in st.session_state:
         st.session_state.selected_row = None
-
-    # Add Configs and Total Qty columns from v4 summary fields
-    for row in df_data:
-        q_match = next((q for q in quotes if q["id"] == row["ID"]), None)
-        if q_match:
-            row["Configs"] = q_match.get("fan_config_count", 1)
-            row["Total Qty"] = q_match.get("total_quantity", 1)
-        else:
-            row["Configs"] = 1
-            row["Total Qty"] = 1
 
     df = pd.DataFrame(df_data)
 
@@ -184,14 +204,11 @@ else:
             "Client": st.column_config.TextColumn("Client"),
             "Project": st.column_config.TextColumn("Project"),
             "Date": st.column_config.TextColumn("Date"),
-            "Fan": st.column_config.TextColumn("Fan"),
-            "Motor": st.column_config.TextColumn("Motor"),
-            "Price": st.column_config.TextColumn("Price"),
-            "Components": st.column_config.TextColumn("Components", width="medium", help="List of components in this quote"),
-            "Comp. Markup": st.column_config.TextColumn("Comp. Markup", width="small"),
-            "Motor Markup": st.column_config.TextColumn("Motor Markup", width="small"),
-            "Configs": st.column_config.NumberColumn("Configs", format="%d", help="Number of fan configurations"),
+            "Fan(s)": st.column_config.TextColumn("Fan(s)", help="Fan UID × quantity per config"),
+            "Motor(s)": st.column_config.TextColumn("Motor(s)", help="Motor per config"),
+            "Components": st.column_config.TextColumn("Components", help="Component count per config (C1, C2, ...)"),
             "Total Qty": st.column_config.NumberColumn("Total Qty", format="%d", help="Total fan quantity across all configs"),
+            "Total Price": st.column_config.TextColumn("Total Price"),
             "Status": st.column_config.TextColumn("Status"),
             "Created By": st.column_config.TextColumn("Created By"),
             "Last Mod. By": st.column_config.TextColumn("Last Mod. By")
@@ -253,10 +270,12 @@ else:
                 st.error(f"Error combining quotes: {str(e)}")
 
     # Action buttons below the table
+    # Disable single-quote actions when multiple quotes are selected
+    multi_selected = len(selected_rows) > 1
     col1, col2, col3, col4 = st.columns(4)
-    
+
     with col1:
-        if st.button("View Quote", use_container_width=True):
+        if st.button("View Quote", use_container_width=True, disabled=multi_selected):
             # Get selected row (if any)
             if "selected_row" in st.session_state and st.session_state.selected_row is not None:
                 quote_id = st.session_state.selected_row["ID"]
@@ -266,7 +285,7 @@ else:
                 st.warning("Please select a quote to view.")
     
     with col2:
-        if st.button("Edit Quote", use_container_width=True):
+        if st.button("Edit Quote", use_container_width=True, disabled=multi_selected):
             # Check if a row is selected
             if "selected_row" in st.session_state and st.session_state.selected_row is not None:
                 quote_id = st.session_state.selected_row["ID"]
@@ -295,7 +314,7 @@ else:
                 st.warning("Please select a quote to edit.")
     
     with col3:
-        if st.button("Create New Revision", use_container_width=True):
+        if st.button("Create New Revision", use_container_width=True, disabled=multi_selected):
             # Check if a row is selected
             if "selected_row" in st.session_state and st.session_state.selected_row is not None:
                 quote_id = st.session_state.selected_row["ID"]

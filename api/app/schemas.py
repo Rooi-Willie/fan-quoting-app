@@ -320,6 +320,8 @@ class FanConfigSummaryItem(BaseModel):
     uid: Optional[str] = None
     size_mm: Optional[int] = None
     qty: int = 1
+    motor: Optional[str] = None
+    component_count: int = 0
 
 
 class CombineQuotesRequest(BaseModel):
