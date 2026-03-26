@@ -3,7 +3,7 @@ User Management Router
 Provides endpoints for user authentication and profile management
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime, timezone, timedelta
@@ -141,3 +141,29 @@ def deactivate_user(user_id: int, db: Session = Depends(get_db)):
     db.commit()
     
     return {"message": "User deactivated", "user_id": user_id}
+
+
+@router.patch("/{user_id}/reset-password")
+def reset_password(
+    user_id: int,
+    new_password: str = Body(..., embed=True),
+    db: Session = Depends(get_db),
+):
+    """Reset a user's password (admin only).
+
+    Args:
+        user_id: ID of user whose password is being reset.
+        new_password: The new plain-text password (will be hashed).
+    """
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    user.password_hash = crud.hash_password(new_password)
+    user.updated_at = get_sast_now()
+    db.commit()
+
+    return {"message": "Password reset successfully", "user_id": user_id}

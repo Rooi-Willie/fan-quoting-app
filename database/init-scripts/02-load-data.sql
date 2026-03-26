@@ -50,3 +50,7 @@ COPY fan_component_parameters(fan_configuration_id, component_id, length_mm, sti
 
 -- Load users data
 COPY users(id, username, email, password_hash, full_name, phone, department, job_title, role, is_active, external_id, created_at, last_login) FROM '/csv_data/users.csv' WITH (FORMAT csv, HEADER true, NULL '');
+
+-- Reset auto-increment sequences after COPY with explicit IDs
+SELECT setval('users_id_seq', (SELECT COALESCE(MAX(id), 1) FROM users));
+SELECT setval('components_id_seq', (SELECT COALESCE(MAX(id), 1) FROM components));

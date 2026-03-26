@@ -50,7 +50,7 @@ Streamlit UI (8501) → FastAPI API (8080) → PostgreSQL (5432/5433)
 ```
 
 - **`api/`**: FastAPI backend — routers, calculation engine, ORM models, Pydantic schemas, CRUD layer
-- **`ui/`**: Streamlit multi-page app — quote creation (5 tabs), quote listing, quote detail/edit, Word export
+- **`ui/`**: Streamlit multi-page app — quote creation (5 tabs), quote listing, quote detail/edit/delete, Word export, user management (admin)
 - **`database/`**: PostgreSQL init scripts and CSV master data files
 - **`deploy/`**: GCP deployment automation scripts
 
@@ -101,6 +101,20 @@ Full schema docs: `../Documentation/quote_data_schema_v3.md`
 - **UI**: Dual auth — Google OAuth (restricted to `@airblowfans.co.za`) + database username/password (bcrypt)
 - **Roles**: admin, engineer, sales, user, guest
 
+### Role-Based Access Control
+
+| Action | admin | engineer | sales | user | guest |
+|--------|-------|----------|-------|------|-------|
+| Delete any quote | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Delete own quotes | ✅ | ✅ | ✅ | ❌ | ❌ |
+| User management | ✅ | ❌ | ❌ | ❌ | ❌ |
+
+### Quote Soft Delete
+Quotes use soft delete (`is_deleted`, `deleted_at`, `deleted_by_user_id` columns on the `quotes` table). Deleted quotes are filtered out of all list/get queries via `is_deleted == False`. Deleting a specific revision does **not** cascade to other revisions of the same `quote_ref`.
+
+### User Management
+Admin-only page (`ui/pages/6_User_Management.py`). Create users, edit profiles, reset passwords, activate/deactivate accounts. Users are soft-deactivated (`is_active = False`), never hard-deleted. Admins cannot change their own role or deactivate themselves.
+
 ## Critical Patterns & Gotchas
 
 ### v4 Multi-Config: Always Use Active Config
@@ -147,7 +161,7 @@ st.rerun()
 Increment `st.session_state.widget_reset_counter` to force all widgets to recreate with new keys. See `ui/CLAUDE.md` for detailed Streamlit widget patterns including deferred sidebar placeholders, callback guards, `format_func` caching gotchas, and selectbox type safety.
 
 ### API Client Wrapper
-Use `api_get()` / `api_post()` from `ui/utils.py` instead of raw `requests` calls — handles auth headers and error logging.
+Use `api_get()` / `api_post()` / `api_patch()` / `api_delete()` from `ui/utils.py` instead of raw `requests` calls — handles auth headers and error logging.
 
 ### Timezone
 All timestamps use SAST (UTC+2). Database and Docker containers configured for `Africa/Johannesburg`.
@@ -165,7 +179,9 @@ All timestamps use SAST (UTC+2). Database and Docker containers configured for `
 | `ui/utils.py` | API client wrapper, calculation helpers, totals aggregation |
 | `ui/export_utils.py` | Word document export via `docxtpl` |
 | `ui/pages/2_Create_New_Quote.py` | Main quote creation orchestrator |
-| `ui/pages/4_View_Quote_Details.py` | View/edit saved quotes |
+| `ui/pages/4_View_Quote_Details.py` | View/edit saved quotes, delete quotes |
+| `ui/pages/6_User_Management.py` | Admin-only user CRUD, password reset |
+| `api/app/routers/users.py` | User API endpoints (CRUD, password reset) |
 | `api/tests/conftest.py` | Dual-database test fixtures |
 
 ## Coding Standards
