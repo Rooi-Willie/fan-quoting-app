@@ -5,7 +5,7 @@ import requests
 from config import APP_TITLE
 import datetime
 from common import _new_quote_data
-from utils import get_api_headers
+from utils import get_api_headers, api_delete
 
 # South Africa timezone (UTC+2 / SAST)
 SAST_TZ = datetime.timezone(datetime.timedelta(hours=2))
@@ -272,7 +272,7 @@ else:
     # Action buttons below the table
     # Disable single-quote actions when multiple quotes are selected
     multi_selected = len(selected_rows) > 1
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
         if st.button("View Quote", use_container_width=True, disabled=multi_selected):
@@ -372,3 +372,54 @@ else:
             
             # Redirect to quote creation page
             st.switch_page("pages/2_Create_New_Quote.py")
+
+    with col5:
+        user_role = st.session_state.get("user_role", "guest")
+        current_user_id = st.session_state.get("user_id")
+
+        # Determine if user can delete the selected quote
+        can_delete = False
+        selected_quote_id = None
+        if (
+            not multi_selected
+            and "selected_row" in st.session_state
+            and st.session_state.selected_row is not None
+        ):
+            selected_quote_id = st.session_state.selected_row["ID"]
+            if user_role == "admin":
+                can_delete = True
+            elif user_role in ("engineer", "sales"):
+                # Check ownership — Created By column contains the username
+                created_by = st.session_state.selected_row.get("Created By", "")
+                can_delete = created_by == st.session_state.get("username", "")
+
+        if st.session_state.get("confirm_delete_list_quote") == selected_quote_id and selected_quote_id is not None:
+            quote_ref = st.session_state.selected_row.get("Quote Ref", "")
+            st.warning(f"Delete **{quote_ref}**?")
+            cdel_yes, cdel_no = st.columns(2)
+            with cdel_yes:
+                if st.button("Yes", type="primary", use_container_width=True):
+                    result = api_delete(
+                        f"/saved-quotes/{selected_quote_id}",
+                        data={
+                            "user_id": current_user_id,
+                            "user_role": user_role,
+                        },
+                    )
+                    if result:
+                        st.success(result["message"])
+                        st.session_state.pop("confirm_delete_list_quote", None)
+                        st.session_state.pop("selected_row", None)
+                        st.rerun()
+            with cdel_no:
+                if st.button("No", use_container_width=True):
+                    st.session_state.pop("confirm_delete_list_quote", None)
+                    st.rerun()
+        else:
+            delete_disabled = multi_selected or not can_delete
+            if st.button("Delete Quote", use_container_width=True, disabled=delete_disabled):
+                if selected_quote_id is not None:
+                    st.session_state["confirm_delete_list_quote"] = selected_quote_id
+                    st.rerun()
+                else:
+                    st.warning("Please select a quote to delete.")

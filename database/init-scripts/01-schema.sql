@@ -189,11 +189,17 @@ CREATE TABLE IF NOT EXISTS quotes (
     fan_config_summary JSONB,
     total_quantity INTEGER DEFAULT 1,
 
+    -- Soft-delete fields
+    is_deleted BOOLEAN DEFAULT FALSE NOT NULL,
+    deleted_at TIMESTAMPTZ,
+    deleted_by_user_id INTEGER,
+
     -- Core quote data storage
     quote_data JSONB NOT NULL,
-    
+
     FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (original_quote_id) REFERENCES quotes(id)
+    FOREIGN KEY (original_quote_id) REFERENCES quotes(id),
+    FOREIGN KEY (deleted_by_user_id) REFERENCES users(id)
 );
 
 -- Create indices for common lookups
@@ -203,6 +209,7 @@ CREATE INDEX idx_quotes_creation_date ON quotes(creation_date);
 CREATE INDEX idx_quotes_status ON quotes(status);
 CREATE INDEX idx_quotes_client_name ON quotes(client_name);
 CREATE INDEX idx_quotes_fan_uid ON quotes(fan_uid);
+CREATE INDEX idx_quotes_is_deleted ON quotes(is_deleted);
 -- Indexes for new user columns are created in 03-add-user-columns.sql
 -- CREATE INDEX idx_quotes_created_by_user_name ON quotes(created_by_user_name)
 -- CREATE INDEX idx_quotes_last_modified_by_user_name ON quotes(last_modified_by_user_name)

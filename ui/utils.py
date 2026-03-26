@@ -95,6 +95,29 @@ def api_patch(endpoint: str, data: dict, **kwargs):
         return None
 
 
+def api_delete(endpoint: str, data: dict = None, **kwargs):
+    """Make DELETE request to API with authentication.
+
+    Args:
+        endpoint: API endpoint path (e.g. '/saved-quotes/123').
+        data: Optional JSON body to send with the request.
+
+    Returns:
+        Parsed JSON response, or None on failure.
+    """
+    url = f"{API_BASE_URL}{endpoint}"
+    headers = get_api_headers()
+
+    try:
+        response = requests.delete(url, json=data, headers=headers, **kwargs)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        logger.error(f"API DELETE request failed: {e}")
+        st.error(f"Failed to connect to API: {e}")
+        return None
+
+
 def _recompute_derived_totals_from_server(cfg: dict) -> dict:
 	"""Compute client-side derived_totals for a single fan configuration.
 

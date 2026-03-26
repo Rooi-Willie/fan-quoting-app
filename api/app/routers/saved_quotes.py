@@ -111,11 +111,11 @@ def read_quotes(
     db: Session = Depends(get_db)
 ):
     """Get a list of quotes with optional filtering"""
-    query = db.query(models.Quote)
-    
+    query = db.query(models.Quote).filter(models.Quote.is_deleted == False)
+
     if user_id:
         query = query.filter(models.Quote.user_id == user_id)
-        
+
     if client_name:
         query = query.filter(models.Quote.client_name.ilike(f"%{client_name}%"))
     
@@ -151,8 +151,11 @@ def update_quote(quote_id: int, quote_update: schemas.QuoteUpdate, db: Session =
 @router.get("/{quote_ref}/revisions", response_model=List[schemas.QuoteSummary])
 def read_quote_revisions(quote_ref: str, db: Session = Depends(get_db)):
     """Get all revisions of a quote by reference"""
-    # Get all quotes with this reference
-    quotes = db.query(models.Quote).filter(models.Quote.quote_ref == quote_ref).order_by(models.Quote.revision_number).all()
+    # Get all quotes with this reference (excluding deleted)
+    quotes = db.query(models.Quote).filter(
+        models.Quote.quote_ref == quote_ref,
+        models.Quote.is_deleted == False
+    ).order_by(models.Quote.revision_number).all()
     
     if not quotes:
         raise HTTPException(status_code=404, detail="Quote not found")
@@ -186,3 +189,22 @@ def update_status(quote_id: int, status_update: schemas.QuoteStatusUpdate, db: S
     if not updated_quote:
         raise HTTPException(status_code=404, detail="Quote not found")
     return updated_quote
+
+@router.delete("/{quote_id}", response_model=schemas.QuoteDeleteResponse)
+def delete_quote(
+    quote_id: int,
+    request: schemas.QuoteDeleteRequest,
+    db: Session = Depends(get_db)
+):
+    """Soft-delete a quote. Access controlled by role.
+
+    - admin: can delete any quote
+    - engineer, sales: can delete own quotes only
+    - user, guest: cannot delete
+    """
+    return crud.soft_delete_quote(
+        db=db,
+        quote_id=quote_id,
+        user_id=request.user_id,
+        user_role=request.user_role,
+    )

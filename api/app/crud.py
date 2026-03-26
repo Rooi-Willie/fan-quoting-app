@@ -5,6 +5,7 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from . import models, schemas
+from .models import get_sast_now
 from fastapi import HTTPException
 from .validation import validate_quote_data
 
@@ -480,16 +481,27 @@ def get_or_create_user(db: Session, email: str, name: Optional[str] = None):
 
 # Quote CRUD operations
 def get_quote(db: Session, quote_id: int):
-    return db.query(models.Quote).filter(models.Quote.id == quote_id).first()
+    return db.query(models.Quote).filter(
+        models.Quote.id == quote_id,
+        models.Quote.is_deleted == False
+    ).first()
 
 def get_quotes(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Quote).order_by(models.Quote.creation_date.desc()).offset(skip).limit(limit).all()
+    return db.query(models.Quote).filter(
+        models.Quote.is_deleted == False
+    ).order_by(models.Quote.creation_date.desc()).offset(skip).limit(limit).all()
 
 def get_quotes_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 100):
-    return db.query(models.Quote).filter(models.Quote.user_id == user_id).order_by(models.Quote.creation_date.desc()).offset(skip).limit(limit).all()
+    return db.query(models.Quote).filter(
+        models.Quote.user_id == user_id,
+        models.Quote.is_deleted == False
+    ).order_by(models.Quote.creation_date.desc()).offset(skip).limit(limit).all()
 
 def get_quote_revisions(db: Session, original_quote_id: int):
-    return db.query(models.Quote).filter(models.Quote.original_quote_id == original_quote_id).order_by(models.Quote.revision_number).all()
+    return db.query(models.Quote).filter(
+        models.Quote.original_quote_id == original_quote_id,
+        models.Quote.is_deleted == False
+    ).order_by(models.Quote.revision_number).all()
 
 def is_quote_ref_available(db: Session, quote_ref: str) -> bool:
     """Check if a quote reference is available (not used by any original quote).
@@ -801,6 +813,56 @@ def combine_quotes(db: Session, quote_ids: List[int], user_id: int):
     db.commit()
     db.refresh(db_quote)
     return db_quote
+
+
+def soft_delete_quote(
+    db: Session, quote_id: int, user_id: int, user_role: str
+) -> dict:
+    """Soft-delete a single quote by setting is_deleted=True.
+
+    Args:
+        db: Database session.
+        quote_id: ID of the quote to delete.
+        user_id: ID of the user requesting deletion.
+        user_role: Role of the requesting user.
+
+    Returns:
+        dict with deleted_quote_id and quote_ref.
+
+    Raises:
+        HTTPException: 404 if not found, 403 if access denied.
+    """
+    quote = db.query(models.Quote).filter(
+        models.Quote.id == quote_id,
+        models.Quote.is_deleted == False
+    ).first()
+
+    if not quote:
+        raise HTTPException(status_code=404, detail="Quote not found")
+
+    # Access control: admin can delete any, engineer/sales can delete own only
+    if user_role not in ("admin", "engineer", "sales"):
+        raise HTTPException(
+            status_code=403,
+            detail="Your role does not have permission to delete quotes"
+        )
+
+    if user_role != "admin" and quote.user_id != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only delete your own quotes"
+        )
+
+    quote.is_deleted = True
+    quote.deleted_at = get_sast_now()
+    quote.deleted_by_user_id = user_id
+    db.commit()
+
+    return {
+        "message": "Quote deleted successfully",
+        "deleted_quote_id": quote.id,
+        "quote_ref": quote.quote_ref,
+    }
 
 
 # ============================= USER CRUD OPERATIONS =============================

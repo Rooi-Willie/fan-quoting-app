@@ -286,11 +286,16 @@ class Quote(Base):
     fan_config_summary = Column(JSONB, comment="Compact array: [{uid, size_mm, qty}, ...]")
     total_quantity = Column(Integer, default=1, comment="Sum of all config quantities")
     
+    # Soft-delete fields
+    is_deleted = Column(Boolean, default=False, index=True)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    deleted_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
     # Core quote data
     quote_data = Column(JSONB)
-    
+
     # Relationships
-    user = relationship("User", back_populates="quotes")
+    user = relationship("User", back_populates="quotes", foreign_keys=[user_id])
     revisions = relationship("Quote", 
                             backref=backref("original_quote", remote_side=[id]),
                             foreign_keys=[original_quote_id])
@@ -313,5 +318,6 @@ class SettingsAuditLog(Base):
     changed_at = Column(DateTime(timezone=True), default=get_sast_now)
 
 
-# Add the relationship to User class
-User.quotes = relationship("Quote", back_populates="user")
+# Add the relationship to User class (explicit foreign_keys needed
+# because Quote has two FKs to User: user_id and deleted_by_user_id)
+User.quotes = relationship("Quote", back_populates="user", foreign_keys=[Quote.user_id])

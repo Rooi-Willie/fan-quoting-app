@@ -364,6 +364,19 @@ class Quote(QuoteSummary):
         orm_mode = True
 
 
+class QuoteDeleteRequest(BaseModel):
+    """Request to soft-delete a quote."""
+    user_id: int
+    user_role: str
+
+
+class QuoteDeleteResponse(BaseModel):
+    """Response after soft-deleting a quote."""
+    message: str
+    deleted_quote_id: int
+    quote_ref: str
+
+
 # ======================= QUOTE DATA V3 SCHEMA MODELS ======================
 
 class QuoteMetaV3(BaseModel):

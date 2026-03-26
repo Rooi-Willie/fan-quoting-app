@@ -6,7 +6,7 @@ import os
 from config import APP_TITLE
 from common import _new_quote_data
 from export_utils import generate_docx, generate_filename
-from utils import get_api_headers
+from utils import get_api_headers, api_delete
 
 # API_BASE_URL should be configured, e.g., via environment variable
 # Fallback is provided for local development.
@@ -582,7 +582,7 @@ st.divider()
 # Enhanced actions section
 st.markdown("### ⚡ Actions")
 
-action_cols = st.columns([2, 1, 1, 2])
+action_cols = st.columns([2, 1, 1, 2, 1.5])
 
 with action_cols[0]:
     st.markdown("**Quote Management**")
@@ -668,3 +668,50 @@ with action_cols[3]:
             st.rerun()
         except Exception as e:
             st.error(f"Error creating revision: {str(e)}")
+
+with action_cols[4]:
+    st.markdown("**Danger Zone**")
+    user_role = st.session_state.get("user_role", "guest")
+    current_user_id = st.session_state.get("user_id")
+    quote_owner_id = quote.get("user_id")
+
+    can_delete = (
+        user_role == "admin"
+        or (user_role in ("engineer", "sales") and current_user_id == quote_owner_id)
+    )
+
+    if can_delete:
+        if st.session_state.get("confirm_delete_quote") == quote_id:
+            st.warning(
+                f"Delete **{quote['quote_ref']}** (Rev {quote.get('revision_number', 1)})? "
+                "This cannot be undone easily."
+            )
+            col_yes, col_no = st.columns(2)
+            with col_yes:
+                if st.button("Yes, Delete", type="primary", use_container_width=True):
+                    result = api_delete(
+                        f"/saved-quotes/{quote_id}",
+                        data={
+                            "user_id": current_user_id,
+                            "user_role": user_role,
+                        },
+                    )
+                    if result:
+                        st.success(result["message"])
+                        st.session_state.pop("confirm_delete_quote", None)
+                        st.session_state.pop("viewing_quote_id", None)
+                        st.switch_page("pages/3_View_Existing_Quotes.py")
+            with col_no:
+                if st.button("Cancel", use_container_width=True):
+                    st.session_state.pop("confirm_delete_quote", None)
+                    st.rerun()
+        else:
+            if st.button("🗑️ Delete Quote", use_container_width=True):
+                st.session_state["confirm_delete_quote"] = quote_id
+                st.rerun()
+    else:
+        st.button("🗑️ Delete Quote", use_container_width=True, disabled=True)
+        if user_role in ("user", "guest"):
+            st.caption("No permission to delete quotes")
+        else:
+            st.caption("You can only delete your own quotes")
