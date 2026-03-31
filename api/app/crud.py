@@ -916,3 +916,40 @@ def list_users(db: Session, skip: int = 0, limit: int = 100, active_only: bool =
     if active_only:
         query = query.filter(models.User.is_active == True)
     return query.offset(skip).limit(limit).all()
+
+
+def get_buyout_catalog(
+    db: Session,
+    manufacturer: Optional[str] = None,
+    voltage_v: Optional[int] = None,
+) -> List[models.BuyoutCatalogItem]:
+    """Return active buyout catalog items, optionally filtered by manufacturer and voltage.
+
+    Parameters
+    ----------
+    db:
+        SQLAlchemy database session.
+    manufacturer:
+        If provided, return only items from this manufacturer.
+    voltage_v:
+        If provided, return only items matching this voltage (in Volts).
+        Pass None to return items regardless of voltage (includes NULL voltage_v).
+
+    Returns
+    -------
+    List[models.BuyoutCatalogItem]
+        Active catalog items ordered by manufacturer, category, voltage_v, and description.
+    """
+    query = db.query(models.BuyoutCatalogItem).filter(
+        models.BuyoutCatalogItem.is_active == True
+    )
+    if manufacturer is not None:
+        query = query.filter(models.BuyoutCatalogItem.manufacturer == manufacturer)
+    if voltage_v is not None:
+        query = query.filter(models.BuyoutCatalogItem.voltage_v == voltage_v)
+    return query.order_by(
+        models.BuyoutCatalogItem.manufacturer,
+        models.BuyoutCatalogItem.category,
+        models.BuyoutCatalogItem.voltage_v,
+        models.BuyoutCatalogItem.id,
+    ).all()

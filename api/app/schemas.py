@@ -177,6 +177,21 @@ class FanConfiguration(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class BuyoutCatalogItemResponse(BaseModel):
+    """Schema for a single item in the buyout catalog."""
+
+    id: int
+    manufacturer: str
+    category: str
+    description: str
+    voltage_v: Optional[int] = None
+    unit_price: Optional[Decimal] = None
+    is_por: bool
+    currency: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # ======================= SCHEMAS FOR QUOTE CALCULATION ======================
 
 class ComponentQuoteRequest(BaseModel):

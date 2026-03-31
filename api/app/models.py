@@ -318,6 +318,22 @@ class SettingsAuditLog(Base):
     changed_at = Column(DateTime(timezone=True), default=get_sast_now)
 
 
+class BuyoutCatalogItem(Base):
+    """Supplier price list items available for selection in the buyout tab."""
+
+    __tablename__ = "buyout_catalog"
+
+    id = Column(Integer, primary_key=True, index=True)
+    manufacturer = Column(String(100), nullable=False)
+    category = Column(String(200), nullable=False)
+    description = Column(String(255), nullable=False)
+    voltage_v = Column(Integer, nullable=True)
+    unit_price = Column(Numeric(12, 2), nullable=True)
+    is_por = Column(Boolean, default=False)
+    currency = Column(String(3), default="ZAR")
+    is_active = Column(Boolean, default=True)
+
+
 # Add the relationship to User class (explicit foreign_keys needed
 # because Quote has two FKs to User: user_id and deleted_by_user_id)
 User.quotes = relationship("Quote", back_populates="user", foreign_keys=[Quote.user_id])

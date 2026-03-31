@@ -1,7 +1,7 @@
 # We simplify main.py to be the central point that ties everything together.
 
 from fastapi import FastAPI, Depends
-from .routers import fans, motors, quotes, settings, saved_quotes, users
+from .routers import buyouts, fans, motors, quotes, settings, saved_quotes, users
 from .middleware import add_security_middleware
 from .auth import verify_api_key
 from .config import settings as app_settings
@@ -16,6 +16,7 @@ app = FastAPI(
 app = add_security_middleware(app)
 
 # Include the routers (all protected by API key)
+app.include_router(buyouts.router, dependencies=[Depends(verify_api_key)])
 app.include_router(fans.router, dependencies=[Depends(verify_api_key)])
 app.include_router(motors.router, dependencies=[Depends(verify_api_key)])
 app.include_router(quotes.router, dependencies=[Depends(verify_api_key)])
