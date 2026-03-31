@@ -54,3 +54,7 @@ COPY users(id, username, email, password_hash, full_name, phone, department, job
 -- Reset auto-increment sequences after COPY with explicit IDs
 SELECT setval('users_id_seq', (SELECT COALESCE(MAX(id), 1) FROM users));
 SELECT setval('components_id_seq', (SELECT COALESCE(MAX(id), 1) FROM components));
+
+-- Load buyout catalog data
+COPY buyout_catalog(manufacturer, category, description, voltage_v, unit_price, is_por, currency)
+FROM '/csv_data/buyout_catalog.csv' WITH (FORMAT csv, HEADER true, NULL '');

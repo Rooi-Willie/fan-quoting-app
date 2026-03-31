@@ -1,6 +1,7 @@
 -- This script creates all tables.
 
 -- Drop existing tables in reverse order of dependency to avoid errors
+DROP TABLE IF EXISTS buyout_catalog;
 DROP TABLE IF EXISTS fan_component_parameters;
 DROP TABLE IF EXISTS component_parameters;
 DROP TABLE IF EXISTS global_settings;
@@ -215,6 +216,19 @@ CREATE INDEX idx_quotes_is_deleted ON quotes(is_deleted);
 -- CREATE INDEX idx_quotes_last_modified_by_user_name ON quotes(last_modified_by_user_name)
 
 -- Ensure quote_ref is unique for original quotes (revisions can share the same ref)
-CREATE UNIQUE INDEX unique_original_quote_ref 
-ON quotes(quote_ref) 
+CREATE UNIQUE INDEX unique_original_quote_ref
+ON quotes(quote_ref)
 WHERE original_quote_id IS NULL;
+
+-- ================== BUYOUT CATALOG TABLE ==================
+CREATE TABLE buyout_catalog (
+    id SERIAL PRIMARY KEY,
+    manufacturer VARCHAR(100) NOT NULL,
+    category VARCHAR(200) NOT NULL,
+    description VARCHAR(255) NOT NULL,
+    voltage_v INTEGER,          -- NULL for non-electrical items
+    unit_price NUMERIC(12, 2),  -- NULL when is_por = TRUE
+    is_por BOOLEAN DEFAULT FALSE,
+    currency VARCHAR(3) DEFAULT 'ZAR',
+    is_active BOOLEAN DEFAULT TRUE
+);
