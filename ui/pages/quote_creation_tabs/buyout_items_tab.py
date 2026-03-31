@@ -1,6 +1,15 @@
 import streamlit as st
 from config import CURRENCY_SYMBOL
 from common import _new_quote_data, NEW_SCHEMA_VERSION
+from utils import api_get
+
+
+@st.cache_data(ttl=300)
+def _fetch_buyout_catalog() -> list:
+    """Fetch all active buyout catalog items from the API (cached 5 min)."""
+    result = api_get("/buyout-catalog")
+    return result if isinstance(result, list) else []
+
 
 def render_main_content():
     st.header("4. Buy-out Items / Additional Costs")
@@ -8,7 +17,7 @@ def render_main_content():
     # Ensure quote_data present
     if "quote_data" not in st.session_state or not isinstance(st.session_state.quote_data, dict):
         st.session_state.quote_data = _new_quote_data()
-    
+
     qd = st.session_state.quote_data
 
     from common import get_active_config
@@ -26,6 +35,98 @@ def render_main_content():
     # Buy-out items in specification section
     buy_list = spec_section.setdefault("buyouts", [])
 
+    # ------------------------------------------------------------------ #
+    # SELECT FROM CATALOG                                                  #
+    # ------------------------------------------------------------------ #
+    with st.expander("Select from Catalog", expanded=False):
+        catalog_items = _fetch_buyout_catalog()
+
+        if not catalog_items:
+            st.info("Catalog is unavailable. Use the manual form below.")
+        else:
+            # Distinct manufacturers
+            manufacturers = sorted({item["manufacturer"] for item in catalog_items})
+            selected_manufacturer = st.selectbox(
+                "Manufacturer",
+                options=manufacturers,
+                key=f"bo_cat_manufacturer{widget_key_suffix}",
+            )
+
+            # Filter items by selected manufacturer
+            mfr_items = [i for i in catalog_items if i["manufacturer"] == selected_manufacturer]
+
+            # Voltage options — only show if catalog items for this manufacturer have voltages
+            voltages = sorted({i["voltage_v"] for i in mfr_items if i.get("voltage_v") is not None})
+            if voltages:
+                voltage_labels = {v: f"{v} V AC" for v in voltages}
+                selected_voltage = st.selectbox(
+                    "Voltage",
+                    options=voltages,
+                    format_func=lambda v: voltage_labels[v],
+                    key=f"bo_cat_voltage{widget_key_suffix}",
+                )
+                filtered_items = [i for i in mfr_items if i.get("voltage_v") == selected_voltage]
+            else:
+                selected_voltage = None
+                filtered_items = mfr_items
+
+            # Build display options
+            def _item_label(item: dict) -> str:
+                if item.get("is_por"):
+                    return f"{item['description']}  —  Price on Request"
+                price = item.get("unit_price")
+                return f"{item['description']}  —  {CURRENCY_SYMBOL} {float(price):,.2f}"
+
+            item_options = list(range(len(filtered_items)))
+            selected_item_idx = st.selectbox(
+                "Item",
+                options=item_options,
+                format_func=lambda idx: _item_label(filtered_items[idx]),
+                key=f"bo_cat_item{widget_key_suffix}",
+            )
+
+            cat_qty = st.number_input(
+                "Quantity",
+                min_value=1,
+                step=1,
+                value=1,
+                key=f"bo_cat_qty{widget_key_suffix}",
+            )
+
+            selected_item = filtered_items[selected_item_idx] if filtered_items else None
+            is_por = selected_item and selected_item.get("is_por", False)
+
+            if is_por:
+                st.warning(
+                    "This item is **Price on Request** — contact the supplier for a quote, "
+                    "then add it manually using the form below."
+                )
+
+            add_from_catalog = st.button(
+                "Add to Quote",
+                key=f"bo_cat_add{widget_key_suffix}",
+                disabled=(not selected_item or is_por),
+            )
+
+            if add_from_catalog and selected_item and not is_por:
+                unit_cost = float(selected_item["unit_price"])
+                item_id = f"item_{len(buy_list)}_{selected_item['description'][:5]}"
+                new_item = {
+                    "id": item_id,
+                    "description": selected_item["description"],
+                    "unit_cost": unit_cost,
+                    "qty": int(cat_qty),
+                    "subtotal": unit_cost * int(cat_qty),
+                }
+                buy_list.append(new_item)
+                st.success(f"Added: {selected_item['description']}")
+                st.rerun()
+
+    st.divider()
+
+    # ------------------------------------------------------------------ #
+    # MANUAL ENTRY FORM                                                    #
+    # ------------------------------------------------------------------ #
     st.subheader("Add New Buy-out Item")
     with st.form(f"new_buyout_item_form{widget_key_suffix}", clear_on_submit=True):
         new_desc = st.text_input("Description", key=f"bo_new_desc{widget_key_suffix}")
