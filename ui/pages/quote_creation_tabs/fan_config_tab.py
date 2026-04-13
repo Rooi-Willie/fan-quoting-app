@@ -178,8 +178,8 @@ def render_main_content():
         ("Feedstock Mass", "feedstock_mass_kg", "kg"),
         ("Material Cost", "material_cost", CURRENCY_SYMBOL),
         ("Labour Cost", "labour_cost", CURRENCY_SYMBOL),
-        ("Cost Before Markup", "total_cost_before_markup", CURRENCY_SYMBOL),
-        ("Cost After Markup", "total_cost_after_markup", CURRENCY_SYMBOL),
+        ("Base Cost", "total_cost_before_markup", CURRENCY_SYMBOL),
+        ("Selling Price", "total_cost_after_markup", CURRENCY_SYMBOL),
     ]
     # dividers = [3, 7]
     dividers = [8]
@@ -280,7 +280,7 @@ def render_main_content():
     total_labour_cost = _sum_field("labour_cost")
     subtotal_cost = _sum_field("total_cost_before_markup")
     final_price = _sum_field("total_cost_after_markup")
-    markup_pct = ((final_price / subtotal_cost) - 1) * 100 if subtotal_cost > 0 else 0.0
+    margin_pct = (1 - subtotal_cost / final_price) * 100 if final_price > 0 else 0.0
 
     # Prefer authoritative server totals when available
     server_summary = st.session_state.get("server_summary") or {}
@@ -295,10 +295,10 @@ def render_main_content():
 
         markup_applied = server_summary.get("markup_applied")
         if isinstance(markup_applied, (int, float)):
-            # markup_applied is a multiplier (e.g., 1.40) -> convert to %
-            markup_pct = (markup_applied - 1.0) * 100.0
+            # markup_applied is a multiplier (e.g., 1.40) -> convert to gross margin %
+            margin_pct = (1 - 1/markup_applied) * 100.0 if markup_applied > 0 else 0.0
         else:
-            markup_pct = ((final_price / subtotal_cost) - 1) * 100 if subtotal_cost > 0 else 0.0
+            margin_pct = (1 - subtotal_cost / final_price) * 100 if final_price > 0 else 0.0
 
     # KPI display (unchanged UI, now prefers server totals if present)
     kpi_col_1, kpi_col_2, kpi_col_3 = st.columns(3)
@@ -316,11 +316,11 @@ def render_main_content():
     # Pricing row
     price_col_1, price_col_2, price_col_3 = st.columns(3)
     with price_col_1:
-        st.metric("Subtotal (before markup)", f"{CURRENCY_SYMBOL} {subtotal_cost:.2f}")
+        st.metric("Subtotal", f"{CURRENCY_SYMBOL} {subtotal_cost:.2f}")
     with price_col_2:
-        st.metric("Final Price (after markup)", f"{CURRENCY_SYMBOL} {final_price:.2f}")
+        st.metric("Final Price", f"{CURRENCY_SYMBOL} {final_price:.2f}")
     with price_col_3:
-        st.metric("Markup Applied", f"{markup_pct:.1f}%")
+        st.metric("Gross Margin", f"{margin_pct:.1f}%")
 
     st.divider()
     st.caption("Provisional totals calculated from the component results currently in the UI. Backend calculations are automatically preferred when available.")

@@ -515,8 +515,8 @@ def build_summary_dataframe(rows: List[Dict], currency_symbol: str) -> Styler:
 		"Real Mass (kg)": _safe_sum("Real Mass (kg)"),
 		"Material Cost": _safe_sum("Material Cost"),
 		"Labour Cost": _safe_sum("Labour Cost"),
-		"Cost Before Markup": _safe_sum("Cost Before Markup"),
-		"Cost After Markup": _safe_sum("Cost After Markup"),
+		"Base Cost": _safe_sum("Base Cost"),
+		"Selling Price": _safe_sum("Selling Price"),
 	}
 	df = pd.concat([df, pd.DataFrame([totals_row])], ignore_index=True, sort=False).fillna(0)
 
@@ -534,8 +534,8 @@ def build_summary_dataframe(rows: List[Dict], currency_symbol: str) -> Styler:
 		"Real Mass (kg)": _fmt_float2,
 		"Material Cost": _fmt_currency,
 		"Labour Cost": _fmt_currency,
-		"Cost Before Markup": _fmt_currency,
-		"Cost After Markup": _fmt_currency,
+		"Base Cost": _fmt_currency,
+		"Selling Price": _fmt_currency,
 	})
 	return styler
 
@@ -606,7 +606,7 @@ def build_ordered_component_rows(component_calcs: Dict, ordered_names: List[str]
 				"Real Mass (kg)": c.get("real_mass_kg"),
 				"Material Cost": c.get("material_cost"),
 				"Labour Cost": c.get("labour_cost"),
-				"Cost Before Markup": c.get("total_cost_before_markup"),
-				"Cost After Markup": c.get("total_cost_after_markup"),
+				"Base Cost": c.get("total_cost_before_markup"),
+				"Selling Price": c.get("total_cost_after_markup"),
 			})
 	return rows

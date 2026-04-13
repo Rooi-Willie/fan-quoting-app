@@ -404,6 +404,36 @@ def update_quote_data_with_recalc(path: List[str], widget_sstate_key: str):
         update_quote_totals(qd)
 
 
+def update_component_margin_with_recalc(widget_sstate_key: str):
+    """Convert gross margin % from widget to a multiplier and store in pricing.
+
+    The sidebar component margin input stores a gross margin percentage (e.g. 28.6).
+    This callback converts it to the multiplier format used internally (e.g. 1.4)
+    before writing to pricing['component_markup'] and triggering recalculation.
+    """
+    if "quote_data" not in st.session_state:
+        return
+    if widget_sstate_key not in st.session_state:
+        return
+    margin_pct = st.session_state[widget_sstate_key]
+    try:
+        margin_pct = float(margin_pct)
+    except (TypeError, ValueError):
+        margin_pct = 0.0
+    multiplier = 1 / (1 - margin_pct / 100) if margin_pct < 100 else 1.0
+
+    qd = st.session_state.quote_data
+    active_cfg = get_active_config(qd)
+    if not active_cfg:
+        return
+    active_cfg.setdefault("pricing", {})["component_markup"] = multiplier
+
+    from utils import update_quote_totals, ensure_server_summary_up_to_date
+    if active_cfg.get("calculations", {}).get("components"):
+        ensure_server_summary_up_to_date(qd)
+    update_quote_totals(qd)
+
+
 ## Legacy update_component_detail_from_widget_state removed (nested overrides used directly)
 
 
@@ -1026,27 +1056,33 @@ def render_sidebar_widgets():
 		current_names = [c.get("name") for c in current_selection if isinstance(c, dict) and "name" in c]
 		valid_selection = [c for c in current_names if c in component_options]
 
-		# Component markup number input (per-config pricing)
+		# Component gross margin input (per-config pricing)
 		current_component_markup = pricing.get("component_markup")
 		if current_component_markup is None:
 			current_component_markup, _ = _fetch_default_markups()
 			pricing["component_markup"] = current_component_markup
 
 		try:
-			markup_value = float(current_component_markup)
+			multiplier_value = float(current_component_markup)
 		except (TypeError, ValueError):
-			markup_value = 1.0
+			multiplier_value = 1.0
+
+		margin_value = (
+			(1 - 1 / multiplier_value) * 100
+			if multiplier_value > 0 else 0.0
+		)
 
 		st.number_input(
-			"Component Markup",
-			min_value=1.0,
-			value=markup_value,
-			step=0.01,
-			format="%.2f",
+			"Component Gross Margin %",
+			min_value=0.0,
+			max_value=99.9,
+			value=margin_value,
+			step=0.5,
+			format="%.1f",
 			key=f"widget_markup_override{widget_key_suffix}",
-			on_change=update_quote_data_with_recalc,
-			args=(["pricing", "component_markup"], f"widget_markup_override{widget_key_suffix}"),
-			help="Markup multiplier for component pricing (default loaded from database).",
+			on_change=update_component_margin_with_recalc,
+			args=(f"widget_markup_override{widget_key_suffix}",),
+			help="Gross margin % for component pricing (default loaded from database).",
 			disabled=is_disabled,
 		)
 

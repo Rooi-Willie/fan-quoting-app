@@ -81,8 +81,8 @@ def _render_pricing_card(
                     delta=f"-{discount_percentage:.1f}%",
                 )
             with cols[2]:
-                markup_pct = (motor_markup - 1) * 100
-                st.metric("Markup", f"{markup_pct:.1f}%")
+                margin_pct = (1 - 1/motor_markup) * 100 if motor_markup > 0 else 0.0
+                st.metric("Gross Margin", f"{margin_pct:.1f}%")
             with cols[3]:
                 st.metric(
                     "Final Price", f"{currency} {final_price:,.2f}"
@@ -92,8 +92,8 @@ def _render_pricing_card(
             with cols[0]:
                 st.metric("Base Price", f"{currency} {base_price:,.2f}")
             with cols[1]:
-                markup_pct = (motor_markup - 1) * 100
-                st.metric("Markup", f"{markup_pct:.1f}%")
+                margin_pct = (1 - 1/motor_markup) * 100 if motor_markup > 0 else 0.0
+                st.metric("Gross Margin", f"{margin_pct:.1f}%")
             with cols[2]:
                 st.metric(
                     "Final Price", f"{currency} {final_price:,.2f}"
@@ -406,20 +406,32 @@ def render_main_content():
                 except (TypeError, ValueError):
                     initial_markup_val = float(default_motor_markup)
 
-                motor_markup = st.number_input(
-                    "Motor Markup",
-                    min_value=1.0,
-                    value=initial_markup_val,
-                    step=0.01,
-                    format="%.2f",
+                default_margin_pct = (
+                    (1 - 1/default_motor_markup) * 100
+                    if default_motor_markup > 0 else 0.0
+                )
+                initial_margin_pct = (
+                    (1 - 1/initial_markup_val) * 100
+                    if initial_markup_val > 0 else 0.0
+                )
+                motor_margin_pct = st.number_input(
+                    "Motor Gross Margin %",
+                    min_value=0.0,
+                    max_value=99.9,
+                    value=initial_margin_pct,
+                    step=0.5,
+                    format="%.1f",
                     key=f"widget_motor_markup_override{widget_key_suffix}",
                     help=(
-                        f"Markup multiplier for motor pricing "
-                        f"(default: {default_motor_markup:.2f} from database)."
+                        f"Gross margin % for motor pricing "
+                        f"(default: {default_margin_pct:.1f}% from database)."
                     ),
                 )
-                markup_pct = (motor_markup - 1) * 100
-                st.caption(f"Markup: {markup_pct:.1f}%")
+                st.caption(f"Gross Margin: {motor_margin_pct:.1f}%")
+                motor_markup = (
+                    1 / (1 - motor_margin_pct / 100)
+                    if motor_margin_pct < 100 else 1.0
+                )
 
         # Update discount data
         discount_changed = (

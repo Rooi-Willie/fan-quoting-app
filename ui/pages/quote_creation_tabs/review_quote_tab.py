@@ -127,7 +127,7 @@ def _render_motor_card(spec_section, pricing_section, calc_section):
             supplier_discount = discount_data.get("applied_discount", 0.0)
 
             motor_markup = float(pricing_section.get("motor_markup") or 1.0)
-            motor_markup_pct = (motor_markup - 1) * 100
+            motor_margin_pct = (1 - 1/motor_markup) * 100 if motor_markup > 0 else 0.0
 
             final_price = motor_calc.get("final_price")
 
@@ -135,7 +135,7 @@ def _render_motor_card(spec_section, pricing_section, calc_section):
             price_parts = [f"**Base:** {_fmt_currency(base_price)}"]
             if supplier_discount > 0:
                 price_parts.append(f"**Discount:** {supplier_discount:.1f}%")
-            price_parts.append(f"**Markup:** {motor_markup_pct:.1f}%")
+            price_parts.append(f"**Gross Margin:** {motor_margin_pct:.1f}%")
 
             st.markdown(" | ".join(price_parts))
             if final_price is not None:
@@ -303,8 +303,8 @@ def _render_config_section(cfg):
             )
         with col3:
             comp_markup = pricing_section.get("component_markup", 1.0)
-            comp_markup_pct = (float(comp_markup) - 1) * 100
-            st.markdown(f"**Component Markup:** {comp_markup_pct:.1f}%")
+            comp_margin_pct = (1 - 1/float(comp_markup)) * 100 if float(comp_markup) > 0 else 0.0
+            st.markdown(f"**Component Margin:** {comp_margin_pct:.1f}%")
 
     # Motor card
     _render_motor_card(spec_section, pricing_section, calc_section)

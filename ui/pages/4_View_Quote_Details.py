@@ -309,8 +309,8 @@ for cfg_idx, cfg in enumerate(fan_configurations):
                 )
             with col3:
                 st.markdown(
-                    f"**Component Markup:** {((float(component_markup) - 1) * 100):.0f}%  \n"
-                    f"**Motor Markup:** {((float(motor_markup) - 1) * 100):.0f}%  \n"
+                    f"**Component Margin:** {((1 - 1/float(component_markup)) * 100 if float(component_markup) > 0 else 0.0):.1f}%  \n"
+                    f"**Motor Margin:** {((1 - 1/float(motor_markup)) * 100 if float(motor_markup) > 0 else 0.0):.1f}%  \n"
                     f"**Quantity:** {cfg_quantity}"
                 )
 
@@ -329,7 +329,7 @@ for cfg_idx, cfg in enumerate(fan_configurations):
             poles = motor.get("poles", "N/A")
             base_price = motor_calc.get("base_price", 0)
             final_price = motor_calc.get("final_price", 0)
-            markup_pct = (float(motor_markup) - 1) * 100
+            margin_pct = (1 - 1/float(motor_markup)) * 100 if float(motor_markup) > 0 else 0.0
             discount_data = cfg_pricing.get('motor_supplier_discount', {})
             supplier_discount = discount_data.get('applied_discount', 0.0)
 
@@ -356,7 +356,7 @@ for cfg_idx, cfg in enumerate(fan_configurations):
                                 f"R {discounted_price:,.2f}  \n"
                             )
                         price_lines += (
-                            f"**Markup:** {markup_pct:.0f}%  \n"
+                            f"**Gross Margin:** {margin_pct:.1f}%  \n"
                             f"**Final Price:** R {float(final_price):,.2f}"
                         )
                     else:
