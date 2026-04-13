@@ -13,6 +13,8 @@ DROP TABLE IF EXISTS motors_staging;
 DROP TABLE IF EXISTS motors;
 DROP TABLE IF EXISTS labour_rates;
 DROP TABLE IF EXISTS materials;
+DROP TABLE IF EXISTS quotes CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
 
 
 -- ================================= CORE DATA TABLES ==============================
@@ -140,7 +142,7 @@ CREATE TABLE global_settings (
 );
 
 -- ================== QUOTE SAVING TABLES ==================
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -158,7 +160,7 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS quotes (
+CREATE TABLE quotes (
     id SERIAL PRIMARY KEY,
     quote_ref VARCHAR(50) NOT NULL,
     original_quote_id INTEGER,

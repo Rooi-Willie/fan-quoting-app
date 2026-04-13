@@ -4,9 +4,5 @@
 
 SET timezone TO 'Africa/Johannesburg';
 
--- Dynamically alter the current database's default timezone
-DO $$
-BEGIN
-  EXECUTE format('ALTER DATABASE %I SET timezone TO %L', current_database(), 'Africa/Johannesburg');
-END
-$$;
+-- Persist timezone as the database-level default
+ALTER DATABASE fan_quoting SET timezone TO 'Africa/Johannesburg';
