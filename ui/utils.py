@@ -1,3 +1,4 @@
+import math
 import os
 import json
 from typing import Dict, List, Optional
@@ -36,6 +37,22 @@ except (KeyError, AttributeError):
 # Log what was loaded (for debugging)
 logger.info(f"API_BASE_URL: {API_BASE_URL}")
 logger.info(f"API_KEY loaded: {bool(API_KEY)} (length: {len(API_KEY)})")
+
+
+def sanitize_for_json(obj):
+    """Recursively replace non-JSON-compliant float values (nan, inf, -inf) with None.
+
+    Pandas .to_dict() can produce float('nan') for missing numeric fields, which
+    Python's json module rejects. Call this before passing any pandas-derived dict
+    to requests.post/put(..., json=...).
+    """
+    if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+        return None
+    if isinstance(obj, dict):
+        return {k: sanitize_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [sanitize_for_json(v) for v in obj]
+    return obj
 
 
 def get_api_headers():

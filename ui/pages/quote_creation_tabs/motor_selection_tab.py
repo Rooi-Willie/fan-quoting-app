@@ -1,9 +1,10 @@
+import math
 import streamlit as st
 import os
 import requests
 import pandas as pd
 from typing import Optional, List, Dict
-from utils import get_api_headers
+from utils import get_api_headers, sanitize_for_json
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://api:8080")
 
@@ -308,10 +309,11 @@ def render_main_content():
         if old_supplier != new_supplier:
             st.session_state['last_confirmed_motor_supplier'] = new_supplier
 
-        # Store the full motor details
-        motor_spec['motor_details'] = selected_motor.to_dict()
+        # Store the full motor details — sanitize NaN/Inf from pandas Series
+        motor_spec['motor_details'] = sanitize_for_json(selected_motor.to_dict())
         motor_spec['mount_type'] = "Flange"
-        motor_calc['base_price'] = selected_motor['flange_price']
+        raw_flange_price = selected_motor['flange_price']
+        motor_calc['base_price'] = None if (isinstance(raw_flange_price, float) and (math.isnan(raw_flange_price) or math.isinf(raw_flange_price))) else raw_flange_price
 
         # Motor summary card
         _render_motor_summary_card(

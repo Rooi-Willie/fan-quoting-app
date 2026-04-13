@@ -9,6 +9,7 @@ from utils import (
     get_ordered_component_names,
     build_ordered_component_rows,
     get_api_headers,
+    sanitize_for_json,
 )
 from common import _new_quote_data
 from export_utils import generate_docx, generate_filename
@@ -496,6 +497,9 @@ def save_quote():
         quote_section = qd.get("quote", {})
 
         editing_quote_id = st.session_state.get("editing_quote_id")
+
+        # Sanitize NaN/Inf floats (e.g. from pandas motor data) before JSON serialisation
+        qd = sanitize_for_json(qd)
 
         if editing_quote_id:
             # UPDATE existing quote
