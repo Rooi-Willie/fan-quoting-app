@@ -1,3 +1,4 @@
+import contextlib
 import streamlit as st
 import requests
 import datetime
@@ -266,237 +267,189 @@ for cfg_idx, cfg in enumerate(fan_configurations):
     components_node = cfg_spec.get("components", [])
 
     if is_multi_config:
-        st.markdown(f"### {cfg_label}{qty_badge}")
-
-    # Fan configuration section
-    st.markdown("### ⚙️ Fan Configuration")
-
-    config_id = fan_config.get("uid", "N/A")
-    blade_sets = str(fan_node.get("blade_sets") or "N/A")
-    fan_size = fan_config.get("fan_size_mm") or "N/A"
-    hub_size = fan_config.get("hub_size_mm") or "N/A"
-    component_markup = cfg_pricing.get('component_markup', 1.4)
-    motor_markup = cfg_pricing.get('motor_markup', 1.2)
-
-    fan_html = f"""<div style='background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 1.5rem; border-radius: 0.5rem; color: white; margin-bottom: 1rem;'>
-<div style='display: flex; align-items: center; margin-bottom: 1rem;'>
-<div style='background: rgba(255,255,255,0.2); width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin-right: 1.5rem;'>⚙️</div>
-<div><h3 style='margin: 0; font-size: 1.5rem;'>{config_id}</h3>
-<p style='margin: 0; font-size: 0.875rem; opacity: 0.9;'>Fan Configuration{qty_badge}</p></div>
-</div>
-<div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;'>
-<div style='background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 0.375rem;'>
-<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Blade Sets</p>
-<p style='margin: 0.25rem 0 0 0; font-size: 1.5rem; font-weight: bold;'>{blade_sets}</p>
-</div>
-<div style='background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 0.375rem;'>
-<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Fan Size</p>
-<p style='margin: 0.25rem 0 0 0; font-size: 1.5rem; font-weight: bold;'>{fan_size}{'mm' if fan_size != 'N/A' else ''}</p>
-</div>
-<div style='background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 0.375rem;'>
-<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Hub Size</p>
-<p style='margin: 0.25rem 0 0 0; font-size: 1.5rem; font-weight: bold;'>{hub_size}{'mm' if hub_size != 'N/A' else ''}</p>
-</div>
-<div style='background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 0.375rem;'>
-<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Component Markup</p>
-<p style='margin: 0.25rem 0 0 0; font-size: 1.5rem; font-weight: bold;'>{((float(component_markup) - 1) * 100):.0f}%</p>
-</div>
-<div style='background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 0.375rem;'>
-<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Motor Markup</p>
-<p style='margin: 0.25rem 0 0 0; font-size: 1.5rem; font-weight: bold;'>{((float(motor_markup) - 1) * 100):.0f}%</p>
-</div>
-</div>
-</div>"""
-
-    st.markdown(fan_html, unsafe_allow_html=True)
-
-    st.divider()
-
-    # Motor information section
-    motor_calc = cfg_calc.get("motor", {})
-    if motor_node.get("motor_details") or motor_calc:
-        st.markdown("### 🔌 Motor Information")
-        motor = motor_node.get("motor_details", {})
-
-        supplier = motor.get("supplier_name", "Not specified")
-        mount_type = motor_node.get("mount_type", "Not specified")
-        product_range = motor.get("product_range", "Not specified")
-        output = motor.get("rated_output", "N/A")
-        output_unit = motor.get("rated_output_unit", "")
-        speed = motor.get("speed", "N/A")
-        speed_unit = motor.get("speed_unit", "")
-        poles = motor.get("poles", "N/A")
-        base_price = motor_calc.get("base_price", 0)
-        final_price = motor_calc.get("final_price", 0)
-        markup_pct = (float(motor_markup) - 1) * 100
-
-        motor_html = f"""<div style='background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 1.5rem; border-radius: 0.5rem; color: white; margin-bottom: 1rem;'>
-<div style='display: flex; align-items: center; margin-bottom: 1rem;'>
-<div style='background: rgba(255,255,255,0.2); width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin-right: 1.5rem;'>🔌</div>
-<div><h3 style='margin: 0; font-size: 1.5rem;'>{supplier}</h3>
-<p style='margin: 0; font-size: 0.875rem; opacity: 0.9;'>{product_range}</p></div>
-</div>
-<div style='display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1rem;'>
-<div style='background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 0.375rem;'>
-<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Mount Type</p>
-<p style='margin: 0.25rem 0 0 0; font-size: 1.2rem; font-weight: bold;'>{mount_type}</p>
-</div>
-<div style='background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 0.375rem;'>
-<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Poles</p>
-<p style='margin: 0.25rem 0 0 0; font-size: 1.2rem; font-weight: bold;'>{poles}</p>
-</div>
-<div style='background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 0.375rem;'>
-<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Rated Output</p>
-<p style='margin: 0.25rem 0 0 0; font-size: 1.2rem; font-weight: bold;'>{output} {output_unit}</p>
-</div>
-<div style='background: rgba(255,255,255,0.1); padding: 1rem; border-radius: 0.375rem;'>
-<p style='margin: 0; font-size: 0.75rem; opacity: 0.8; text-transform: uppercase;'>Speed</p>
-<p style='margin: 0.25rem 0 0 0; font-size: 1.2rem; font-weight: bold;'>{speed} {speed_unit}</p>
-</div>
-</div>"""
-
-        st.markdown(motor_html, unsafe_allow_html=True)
-
-        discount_data = cfg_pricing.get('motor_supplier_discount', {})
-        supplier_discount = discount_data.get('applied_discount', 0.0)
-
-        if base_price > 0:
-            pricing_html = f"""<div style='background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 0.375rem;'>
-<p style='margin: 0 0 0.5rem 0; font-size: 0.875rem; opacity: 0.9; font-weight: 600;'>PRICING BREAKDOWN</p>
-<div style='display: flex; justify-content: space-between; margin-bottom: 0.5rem;'>
-<span>Base Price:</span>
-<span style='font-weight: bold;'>R {float(base_price):,.2f}</span>
-</div>"""
-
-            if supplier_discount > 0:
-                discount_multiplier = 1.0 - (supplier_discount / 100.0)
-                discounted_price = float(base_price) * discount_multiplier
-                pricing_html += f"""<div style='display: flex; justify-content: space-between; margin-bottom: 0.5rem;'>
-<span>Supplier Discount ({supplier_discount:.2f}%):</span>
-<span style='font-weight: bold;'>R {discounted_price:,.2f}</span>
-</div>"""
-
-            pricing_html += f"""<div style='display: flex; justify-content: space-between; margin-bottom: 0.5rem;'>
-<span>Markup ({markup_pct:.0f}%):</span>
-<span style='font-weight: bold;'>Applied</span>
-</div>
-<div style='border-top: 2px solid rgba(255,255,255,0.3); margin-top: 0.5rem; padding-top: 0.5rem;'>
-<div style='display: flex; justify-content: space-between;'>
-<span style='font-size: 1.1rem; font-weight: bold;'>Final Price:</span>
-<span style='font-size: 1.3rem; font-weight: bold;'>R {float(final_price):,.2f}</span>
-</div>
-</div>
-</div>"""
+        fan_size_val = fan_config.get("fan_size_mm")
+        hub_size_val = fan_config.get("hub_size_mm")
+        if fan_size_val and hub_size_val:
+            size_desc = f"Ø{fan_size_val}-Ø{hub_size_val}"
+        elif fan_size_val:
+            size_desc = f"Ø{fan_size_val}"
         else:
-            pricing_html = f"""<div style='background: rgba(255,255,255,0.15); padding: 1rem; border-radius: 0.375rem;'>
-<p style='margin: 0 0 0.5rem 0; font-size: 0.875rem; opacity: 0.9; font-weight: 600;'>PRICING</p>
-<div style='display: flex; justify-content: space-between;'>
-<span style='font-size: 1.1rem; font-weight: bold;'>Final Price:</span>
-<span style='font-size: 1.3rem; font-weight: bold;'>R {float(final_price):,.2f}</span>
-</div>
-</div>"""
+            uid_val = fan_config.get("uid")
+            size_desc = str(uid_val) if uid_val else "N/A"
+        line_total_hdr = float(cfg_calc.get("line_total", 0.0) or 0.0)
+        total_text = f" | R {line_total_hdr:,.2f}" if line_total_hdr else ""
+        header_text = (
+            f"Config {cfg_idx + 1}{qty_badge}: {size_desc}{total_text}"
+        )
+        ctx = st.expander(header_text, expanded=True)
+    else:
+        ctx = contextlib.nullcontext()
 
-        st.markdown(pricing_html + "</div>", unsafe_allow_html=True)
+    with ctx:
+        # Fan configuration section
+        config_id = fan_config.get("uid", "N/A")
+        blade_sets = str(fan_node.get("blade_sets") or "N/A")
+        fan_size = fan_config.get("fan_size_mm") or "N/A"
+        hub_size = fan_config.get("hub_size_mm") or "N/A"
+        component_markup = cfg_pricing.get('component_markup', 1.4)
+        motor_markup = cfg_pricing.get('motor_markup', 1.2)
 
-        st.divider()
+        with st.container(border=True):
+            st.markdown("##### ⚙️ Fan Specification")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.markdown(
+                    f"**Fan ID:** {config_id}  \n"
+                    f"**Fan Size:** {fan_size}{'mm' if fan_size != 'N/A' else ''}"
+                )
+            with col2:
+                st.markdown(
+                    f"**Blade Sets:** {blade_sets}  \n"
+                    f"**Hub Size:** {hub_size}{'mm' if hub_size != 'N/A' else ''}"
+                )
+            with col3:
+                st.markdown(
+                    f"**Component Markup:** {((float(component_markup) - 1) * 100):.0f}%  \n"
+                    f"**Motor Markup:** {((float(motor_markup) - 1) * 100):.0f}%  \n"
+                    f"**Quantity:** {cfg_quantity}"
+                )
 
-    # Components section
-    if isinstance(components_node, list) and components_node:
-        st.markdown("### 🔧 Component Breakdown")
+        # Motor information section
+        motor_calc = cfg_calc.get("motor", {})
+        if motor_node.get("motor_details") or motor_calc:
+            motor = motor_node.get("motor_details", {})
 
-        components_calc = cfg_calc.get("components", {})
-        component_totals = cfg_calc.get("component_totals", {})
+            supplier = motor.get("supplier_name", "Not specified")
+            mount_type = motor_node.get("mount_type", "Not specified")
+            product_range = motor.get("product_range", "Not specified")
+            output = motor.get("rated_output", "N/A")
+            output_unit = motor.get("rated_output_unit", "")
+            speed = motor.get("speed", "N/A")
+            speed_unit = motor.get("speed_unit", "")
+            poles = motor.get("poles", "N/A")
+            base_price = motor_calc.get("base_price", 0)
+            final_price = motor_calc.get("final_price", 0)
+            markup_pct = (float(motor_markup) - 1) * 100
+            discount_data = cfg_pricing.get('motor_supplier_discount', {})
+            supplier_discount = discount_data.get('applied_discount', 0.0)
 
-        if component_totals:
-            summary_cols = st.columns(4)
-            with summary_cols[0]:
-                total_mass = component_totals.get("total_mass_kg", 0)
-                st.metric("Total Mass", f"{float(total_mass):.2f} kg")
-            with summary_cols[1]:
-                mat_cost = component_totals.get("total_material_cost", 0)
-                st.metric("Material Cost", f"R {float(mat_cost):,.2f}")
-            with summary_cols[2]:
-                lab_cost = component_totals.get("total_labour_cost", 0)
-                st.metric("Labour Cost", f"R {float(lab_cost):,.2f}")
-            with summary_cols[3]:
-                comp_final = component_totals.get("final_price", 0)
-                st.metric("Final Price", f"R {float(comp_final):,.2f}")
+            with st.container(border=True):
+                st.markdown("##### 🔌 Motor")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown(
+                        f"**Supplier:** {supplier}  \n"
+                        f"**Product Range:** {product_range}  \n"
+                        f"**Rated Output:** {output} {output_unit}  \n"
+                        f"**Poles:** {poles}  \n"
+                        f"**Mount Type:** {mount_type}  \n"
+                        f"**Speed:** {speed} {speed_unit}"
+                    )
+                with col2:
+                    if base_price > 0:
+                        price_lines = f"**Base Price:** R {float(base_price):,.2f}  \n"
+                        if supplier_discount > 0:
+                            discount_multiplier = 1.0 - (supplier_discount / 100.0)
+                            discounted_price = float(base_price) * discount_multiplier
+                            price_lines += (
+                                f"**Supplier Discount ({supplier_discount:.2f}%):** "
+                                f"R {discounted_price:,.2f}  \n"
+                            )
+                        price_lines += (
+                            f"**Markup:** {markup_pct:.0f}%  \n"
+                            f"**Final Price:** R {float(final_price):,.2f}"
+                        )
+                    else:
+                        price_lines = f"**Final Price:** R {float(final_price):,.2f}"
+                    st.markdown(price_lines)
 
-        st.markdown("**Fan Component Cost & Mass Summary**")
+        # Components section
+        if isinstance(components_node, list) and components_node:
+            st.markdown("##### 🔧 Component Breakdown")
 
-        if components_calc:
-            ordered_names = get_ordered_component_names(cfg)
-            rows = build_ordered_component_rows(components_calc, ordered_names)
+            components_calc = cfg_calc.get("components", {})
+            component_totals = cfg_calc.get("component_totals", {})
 
-            if rows:
-                styler = build_summary_dataframe(rows, "R")
-                st.write(styler)
+            if component_totals:
+                summary_cols = st.columns(4)
+                with summary_cols[0]:
+                    total_mass = component_totals.get("total_mass_kg", 0)
+                    st.metric("Total Mass", f"{float(total_mass):.2f} kg")
+                with summary_cols[1]:
+                    mat_cost = component_totals.get("total_material_cost", 0)
+                    st.metric("Material Cost", f"R {float(mat_cost):,.2f}")
+                with summary_cols[2]:
+                    lab_cost = component_totals.get("total_labour_cost", 0)
+                    st.metric("Labour Cost", f"R {float(lab_cost):,.2f}")
+                with summary_cols[3]:
+                    comp_final = component_totals.get("final_price", 0)
+                    st.metric("Final Price", f"R {float(comp_final):,.2f}")
+
+            st.markdown("**Fan Component Cost & Mass Summary**")
+
+            if components_calc:
+                ordered_names = get_ordered_component_names(cfg)
+                rows = build_ordered_component_rows(components_calc, ordered_names)
+
+                if rows:
+                    styler = build_summary_dataframe(rows, "R")
+                    st.write(styler)
+                else:
+                    st.info("No components selected for this configuration.")
             else:
                 st.info("No components selected for this configuration.")
-        else:
-            st.info("No components selected for this configuration.")
 
-        st.divider()
+        # Buy-out items section for this config
+        buyout_items_cfg = cfg_spec.get("buyouts", [])
+        if buyout_items_cfg:
+            st.markdown("##### 📦 Buy-out Items")
 
-    # Buy-out items section for this config
-    buyout_items_cfg = cfg_spec.get("buyouts", [])
-    if buyout_items_cfg:
-        st.markdown("### 📦 Buy-out Items")
+            buyout_data = []
+            total_buyout_cost = 0
 
-        buyout_data = []
-        total_buyout_cost = 0
+            for item in buyout_items_cfg:
+                subtotal = item.get("subtotal")
+                if subtotal is None:
+                    unit_cost = float(item.get("unit_cost", item.get("cost", 0)))
+                    qty = float(item.get("qty", item.get("quantity", 0)))
+                    subtotal = unit_cost * qty
 
-        for item in buyout_items_cfg:
-            subtotal = item.get("subtotal")
-            if subtotal is None:
-                unit_cost = float(item.get("unit_cost", item.get("cost", 0)))
-                qty = float(item.get("qty", item.get("quantity", 0)))
-                subtotal = unit_cost * qty
+                total_buyout_cost += float(subtotal)
 
-            total_buyout_cost += float(subtotal)
+                buyout_data.append({
+                    "Description": item.get("description", "Unnamed item"),
+                    "Quantity": int(item.get("qty", item.get("quantity", 0))),
+                    "Unit Cost": f"R {float(item.get('unit_cost', item.get('cost', 0))):,.2f}",
+                    "Subtotal": f"R {float(subtotal):,.2f}",
+                    "Notes": item.get("notes", "")
+                })
 
-            buyout_data.append({
-                "Description": item.get("description", "Unnamed item"),
-                "Quantity": int(item.get("qty", item.get("quantity", 0))),
-                "Unit Cost": f"R {float(item.get('unit_cost', item.get('cost', 0))):,.2f}",
-                "Subtotal": f"R {float(subtotal):,.2f}",
-                "Notes": item.get("notes", "")
-            })
+            st.metric("Total Buy-out Cost", f"R {total_buyout_cost:,.2f}")
 
-        st.metric("Total Buy-out Cost", f"R {total_buyout_cost:,.2f}")
+            st.dataframe(
+                buyout_data,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Description": st.column_config.TextColumn("Description", width="large"),
+                    "Quantity": st.column_config.NumberColumn("Qty", width="small"),
+                    "Unit Cost": st.column_config.TextColumn("Unit Cost", width="medium"),
+                    "Subtotal": st.column_config.TextColumn("Subtotal", width="medium"),
+                    "Notes": st.column_config.TextColumn("Notes", width="medium")
+                }
+            )
 
-        st.dataframe(
-            buyout_data,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Description": st.column_config.TextColumn("Description", width="large"),
-                "Quantity": st.column_config.NumberColumn("Qty", width="small"),
-                "Unit Cost": st.column_config.TextColumn("Unit Cost", width="medium"),
-                "Subtotal": st.column_config.TextColumn("Subtotal", width="medium"),
-                "Notes": st.column_config.TextColumn("Notes", width="medium")
-            }
-        )
-
-        st.divider()
-
-    # Per-config line total (if quantity > 1)
-    unit_total = cfg_calc.get("unit_total", 0)
-    line_total = cfg_calc.get("line_total", 0)
-    if cfg_quantity > 1:
-        lt_cols = st.columns(2)
-        with lt_cols[0]:
-            st.metric("Unit Total (1 fan)", f"R {float(unit_total):,.2f}")
-        with lt_cols[1]:
-            st.metric(f"Line Total ({cfg_quantity} fans)", f"R {float(line_total):,.2f}")
-        st.divider()
-
-    if is_multi_config and cfg_idx < len(fan_configurations) - 1:
-        st.markdown("---")
+        # Per-config line total (if quantity > 1)
+        unit_total = cfg_calc.get("unit_total", 0)
+        line_total = cfg_calc.get("line_total", 0)
+        if cfg_quantity > 1:
+            lt_cols = st.columns(2)
+            with lt_cols[0]:
+                st.metric("Unit Total (1 fan)", f"R {float(unit_total):,.2f}")
+            with lt_cols[1]:
+                st.metric(f"Line Total ({cfg_quantity} fans)", f"R {float(line_total):,.2f}")
 
 # Grand totals pricing summary
-st.markdown("### 💰 Pricing Summary")
-
 grand_totals = quote_data.get("grand_totals", {})
 gt_components = float(grand_totals.get("components", 0))
 gt_motors = float(grand_totals.get("motors", 0))
@@ -504,33 +457,18 @@ gt_buyouts = float(grand_totals.get("buyouts", 0))
 gt_grand_total = float(grand_totals.get("grand_total", 0))
 total_cost = quote.get('total_price') or gt_grand_total
 
-cost_breakdown_cols = st.columns(4)
+with st.container(border=True):
+    st.markdown("### 💰 Pricing Summary")
+    cols = st.columns(4)
+    with cols[0]:
+        st.metric("Components", f"R {gt_components:,.2f}")
+    with cols[1]:
+        st.metric("Motors", f"R {gt_motors:,.2f}")
+    with cols[2]:
+        st.metric("Buy-outs", f"R {gt_buyouts:,.2f}")
+    with cols[3]:
+        st.metric("Grand Total", f"R {float(total_cost):,.2f}")
 
-with cost_breakdown_cols[0]:
-    st.markdown("**Components**")
-    st.markdown(f"<div style='background: #f3f4f6; padding: 1rem; border-radius: 0.5rem; text-align: center;'>"
-               f"<p style='font-size: 1.5rem; font-weight: bold; margin: 0; color: #3b82f6;'>R {gt_components:,.0f}</p>"
-               f"</div>", unsafe_allow_html=True)
-
-with cost_breakdown_cols[1]:
-    st.markdown("**Motors**")
-    st.markdown(f"<div style='background: #f3f4f6; padding: 1rem; border-radius: 0.5rem; text-align: center;'>"
-               f"<p style='font-size: 1.5rem; font-weight: bold; margin: 0; color: #10b981;'>R {gt_motors:,.0f}</p>"
-               f"</div>", unsafe_allow_html=True)
-
-with cost_breakdown_cols[2]:
-    st.markdown("**Buy-outs**")
-    st.markdown(f"<div style='background: #f3f4f6; padding: 1rem; border-radius: 0.5rem; text-align: center;'>"
-               f"<p style='font-size: 1.5rem; font-weight: bold; margin: 0; color: #f59e0b;'>R {gt_buyouts:,.0f}</p>"
-               f"</div>", unsafe_allow_html=True)
-
-with cost_breakdown_cols[3]:
-    st.markdown("**Grand Total**")
-    st.markdown(f"<div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1rem; border-radius: 0.5rem; text-align: center;'>"
-               f"<p style='font-size: 1.8rem; font-weight: bold; margin: 0; color: white;'>R {float(total_cost):,.0f}</p>"
-               f"<p style='margin: 0; color: rgba(255,255,255,0.8); font-size: 0.875rem;'>Final price</p>"
-               f"</div>", unsafe_allow_html=True)
-    
 st.divider()
 
 # Enhanced revision history

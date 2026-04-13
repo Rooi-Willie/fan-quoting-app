@@ -199,14 +199,27 @@ def _render_cost_breakdown(cfg):
         breakdown_rows.append(
             {"Item Type": "Motor", "Item": motor_name, "Cost": motor_price}
         )
+        breakdown_rows.append(
+            {"Item Type": "Subtotal", "Item": "Motor Subtotal", "Cost": motor_price}
+        )
 
-    # Buyouts
+    # Buyouts — individual items then subtotal
     buyout_items = spec_section.get("buyouts", [])
     buyout_total = 0.0
     if isinstance(buyout_items, list) and buyout_items:
         for bi in buyout_items:
-            buyout_total += float(
+            item_cost = float(
                 bi.get("subtotal") or (bi.get("unit_cost", 0) * bi.get("qty", 0))
+            )
+            buyout_total += item_cost
+            desc = bi.get("description", "Unnamed item")
+            qty = bi.get("qty", 1)
+            breakdown_rows.append(
+                {
+                    "Item Type": "Buyout",
+                    "Item": f"  {desc} (×{qty})",
+                    "Cost": item_cost,
+                }
             )
         breakdown_rows.append(
             {
@@ -220,7 +233,7 @@ def _render_cost_breakdown(cfg):
     if unit_total:
         breakdown_rows.append(
             {
-                "Item Type": "Subtotal",
+                "Item Type": "UnitTotal",
                 "Item": "Unit Total (1 fan)",
                 "Cost": unit_total,
             }
@@ -246,6 +259,11 @@ def _render_cost_breakdown(cfg):
             if df.loc[row.name, "Item Type"] == "Subtotal":
                 style = (
                     "font-weight: bold; border-top: 1px solid; color: #1E88E5"
+                )
+            elif df.loc[row.name, "Item Type"] == "UnitTotal":
+                style = (
+                    "font-weight: bold; border-top: 2px solid #E65100; "
+                    "color: #E65100"
                 )
             elif df.loc[row.name, "Item Type"] == "Total":
                 style = (
