@@ -172,7 +172,9 @@ def render_main_content():
         )
         return
 
-    motors_df = pd.DataFrame(motors_list)
+    motors_df = pd.DataFrame(motors_list).sort_values(
+        'rated_output', ascending=False
+    ).reset_index(drop=True)
     st.session_state.available_motors_df = motors_df
 
     # Check if user has made a new selection from the table
