@@ -259,6 +259,8 @@ def prepare_quote_context(quote_data: Dict[str, Any]) -> Dict[str, Any]:
 
     client_name = quote_section.get("client", "")
     project_name = quote_section.get("project", "")
+    attention_to = quote_section.get("attention_to", "")
+    delivery_time = quote_section.get("delivery_time", "4 - 6 weeks")
     quote_heading = f"{client_name} - {project_name}" if client_name and project_name else (client_name or project_name or "Quote")
 
     created_by_user = meta_section.get("created_by_user", {})
@@ -291,6 +293,8 @@ def prepare_quote_context(quote_data: Dict[str, Any]) -> Dict[str, Any]:
         # Header and project information
         "quote_heading": quote_heading,
         "client_name": client_name or "N/A",
+        "attention_to": attention_to or "N/A",
+        "delivery_time": delivery_time or "4 - 6 weeks",
         "quote_ref": quote_section.get("reference", "N/A"),
         "quote_date": current_date,
         "project_location": quote_section.get("location", "N/A"),

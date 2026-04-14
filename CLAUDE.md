@@ -166,6 +166,12 @@ Use `api_get()` / `api_post()` / `api_patch()` / `api_delete()` from `ui/utils.p
 ### Timezone
 All timestamps use SAST (UTC+2). Database and Docker containers configured for `Africa/Johannesburg`.
 
+### `quote` Section Fields
+`quote_data.quote` holds shared project info: `reference`, `client`, `attention_to`, `project`, `location`, `delivery_time`, `notes`. To add a new field: initialize it in `ui/common.py::_new_quote_data()`, add a widget in `ui/pages/quote_creation_tabs/project_info_tab.py`, and expose it in `ui/export_utils.py::prepare_quote_context()`. No DB migration needed — stored in JSONB.
+
+### Word Template (`ui/templates/quote_template.docx`)
+Uses `docxtpl` (Jinja2). Paragraph-level loops require `{%p for x in list %}` / `{%p endfor %}` — not inline `{% %}`. Per-config context (e.g. `fan_config.buyout_items`, `fan_config.component_pricing`) is built in `_prepare_single_config_context()` in `export_utils.py`. Edit the `.docx` directly in Word — insert `{{ variable_name }}` tags wherever needed.
+
 ## Key Files
 
 | File | Purpose |

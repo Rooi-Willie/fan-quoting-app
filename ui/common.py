@@ -316,8 +316,10 @@ def _new_quote_data(username: str | None = None, user_session: Dict | None = Non
         "quote": {
             "reference": quote_ref,
             "client": "",
+            "attention_to": "",
             "project": "",
             "location": "",
+            "delivery_time": "4 - 6 weeks",
             "notes": "",
         },
         "fan_configurations": [

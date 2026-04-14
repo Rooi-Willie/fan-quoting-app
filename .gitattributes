@@ -1,0 +1,6 @@
+*.docx binary
+*.docx -diff
+*.xlsx binary
+*.xlsx -diff
+*.pptx binary
+*.pptx -diff

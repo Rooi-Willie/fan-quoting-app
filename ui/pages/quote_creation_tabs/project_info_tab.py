@@ -23,6 +23,11 @@ def render_main_content():
             value=quote_section.get("client", ""),
             key=f"widget_client_name{widget_key_suffix}",
         )
+        quote_section["attention_to"] = st.text_input(
+            "Attention To",
+            value=quote_section.get("attention_to", ""),
+            key=f"widget_attention_to{widget_key_suffix}",
+        )
     with cols[1]:
         # Check if editing an existing quote - if so, make quote_ref read-only
         is_editing = st.session_state.get("editing_quote_id") is not None
@@ -49,6 +54,11 @@ def render_main_content():
             "Project Location / Site",
             value=quote_section.get("location", ""),
             key=f"widget_proj_loc{widget_key_suffix}",
+        )
+        quote_section["delivery_time"] = st.text_input(
+            "Delivery Time",
+            value=quote_section.get("delivery_time", "4 - 6 weeks"),
+            key=f"widget_delivery_time{widget_key_suffix}",
         )
     # Add more project info fields as needed
     quote_section["notes"] = st.text_area(
