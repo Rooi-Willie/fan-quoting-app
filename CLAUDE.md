@@ -172,6 +172,12 @@ All timestamps use SAST (UTC+2). Database and Docker containers configured for `
 ### Word Template (`ui/templates/quote_template.docx`)
 Uses `docxtpl` (Jinja2). Paragraph-level loops require `{%p for x in list %}` / `{%p endfor %}` — not inline `{% %}`. Per-config context (e.g. `fan_config.buyout_items`, `fan_config.component_pricing`) is built in `_prepare_single_config_context()` in `export_utils.py`. Edit the `.docx` directly in Word — insert `{{ variable_name }}` tags wherever needed.
 
+### Component Names in Database
+Component names use hyphens, not spaces (e.g., `Inlet-Track`, not `Inlet Track`). When matching by name in export or calculation logic, verify the exact name against `database/data/components.csv` — do not assume spacing.
+
+### Word Export Component Grouping
+`ui/export_utils.py::_GROUPED_COMPONENT_NAMES` — frozenset of lowercase component names collapsed into a single lump-sum row when "Grouped components" is selected at export time. Silencers and SCD are always individual rows (not in this set).
+
 ## Key Files
 
 | File | Purpose |

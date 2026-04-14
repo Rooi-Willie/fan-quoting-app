@@ -424,11 +424,19 @@ def render_main_content():
     # --- Export and Save buttons ---
     st.subheader("Export & Save Quote")
 
+    group_components = st.radio(
+        "Component display",
+        options=["Individual line items", "Grouped components"],
+        index=0,
+        horizontal=True,
+        key="export_group_components_review",
+    ) == "Grouped components"
+
     export_col1, export_col2, export_col3 = st.columns(3)
 
     with export_col1:
         try:
-            docx_bytes = generate_docx(qd)
+            docx_bytes = generate_docx(qd, group_components=group_components)
             filename = generate_filename(qd, extension="docx")
 
             st.download_button(

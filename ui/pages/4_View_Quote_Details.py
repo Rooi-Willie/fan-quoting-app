@@ -532,8 +532,16 @@ with action_cols[0]:
         st.switch_page("pages/2_Create_New_Quote.py")
     
     # Download Word Document button
+    group_components = st.radio(
+        "Component display",
+        options=["Individual line items", "Grouped components"],
+        index=0,
+        horizontal=True,
+        key="export_group_components_details",
+    ) == "Grouped components"
+
     try:
-        docx_bytes = generate_docx(quote_data)
+        docx_bytes = generate_docx(quote_data, group_components=group_components)
         filename = generate_filename(quote_data, extension="docx")
         
         st.download_button(

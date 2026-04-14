@@ -17,6 +17,19 @@ try:
 except ImportError:
     DocxTemplate = None
 
+# Components collapsed into a single lump-sum row when grouping is enabled.
+# Matching is case-insensitive against comp_data["name"].
+_GROUPED_COMPONENT_NAMES: frozenset = frozenset({
+    "screen inlet inside",
+    "screen inlet outside",
+    "conical inlet",
+    "inlet track",
+    "inlet-track",
+    "rotor",
+    "motor barrel",
+    "diffuser",
+})
+
 
 def get_template_path(template_name: str = "quote_template.docx") -> str:
     """
@@ -85,6 +98,7 @@ def get_rotor_assembly_components(config: Dict[str, Any]) -> str:
 def prepare_component_pricing_table(
     config: Dict[str, Any],
     quantity: int = 1,
+    group_components: bool = False,
 ) -> List[Dict[str, Any]]:
     """
     Prepare component pricing data for a single fan configuration.
@@ -92,6 +106,10 @@ def prepare_component_pricing_table(
     Parameters:
         config (dict): A single fan configuration entry
         quantity (int): Number of fans in this configuration
+        group_components (bool): When True, components listed in
+            _GROUPED_COMPONENT_NAMES are merged into a single lump-sum row
+            with a comma-separated description. All other components (including
+            silencers and SCD) remain as individual rows.
 
     Returns:
         list: List of dicts with keys: name, unit_price, qty, total_price
@@ -107,23 +125,63 @@ def prepare_component_pricing_table(
         from utils import get_ordered_component_names
         ordered_names = get_ordered_component_names(config)
 
-        for comp_name in ordered_names:
-            if comp_name not in components_calc:
-                continue
+        if not group_components:
+            for comp_name in ordered_names:
+                if comp_name not in components_calc:
+                    continue
 
-            comp_data = components_calc[comp_name]
-            if not isinstance(comp_data, dict):
-                continue
+                comp_data = components_calc[comp_name]
+                if not isinstance(comp_data, dict):
+                    continue
 
-            unit_price = float(comp_data.get("total_cost_after_markup", 0))
-            total_price = unit_price * quantity
+                unit_price = float(comp_data.get("total_cost_after_markup", 0))
+                total_price = unit_price * quantity
 
-            component_rows.append({
-                "name": comp_data.get("name", comp_name),
-                "unit_price": f"{unit_price:,.2f}",
-                "qty": str(quantity),
-                "total_price": f"{total_price:,.2f}",
-            })
+                component_rows.append({
+                    "name": comp_data.get("name", comp_name),
+                    "unit_price": f"{unit_price:,.2f}",
+                    "qty": str(quantity),
+                    "total_price": f"{total_price:,.2f}",
+                })
+        else:
+            # Collect grouped components into a single combined row; keep all
+            # others (silencers, SCD, etc.) as individual rows.
+            grouped_buffer: List[tuple] = []  # (display_name, unit_price)
+            grouped_insert_pos: Optional[int] = None
+
+            for comp_name in ordered_names:
+                if comp_name not in components_calc:
+                    continue
+
+                comp_data = components_calc[comp_name]
+                if not isinstance(comp_data, dict):
+                    continue
+
+                display_name = comp_data.get("name", comp_name)
+                unit_price = float(comp_data.get("total_cost_after_markup", 0))
+
+                if display_name.lower() in _GROUPED_COMPONENT_NAMES:
+                    if grouped_insert_pos is None:
+                        grouped_insert_pos = len(component_rows)
+                    grouped_buffer.append((display_name, unit_price))
+                else:
+                    component_rows.append({
+                        "name": display_name,
+                        "unit_price": f"{unit_price:,.2f}",
+                        "qty": str(quantity),
+                        "total_price": f"{unit_price * quantity:,.2f}",
+                    })
+
+            if grouped_buffer:
+                sum_unit = sum(price for _, price in grouped_buffer)
+                group_name = ", ".join(name for name, _ in grouped_buffer)
+                insert_pos = grouped_insert_pos if grouped_insert_pos is not None else 0
+                component_rows.insert(insert_pos, {
+                    "name": group_name,
+                    "unit_price": f"{sum_unit:,.2f}",
+                    "qty": str(quantity),
+                    "total_price": f"{sum_unit * quantity:,.2f}",
+                })
 
     except Exception as e:
         print(f"Error preparing component pricing table: {e}")
@@ -176,7 +234,11 @@ def prepare_buyout_items_table(
     return buyout_rows
 
 
-def _prepare_single_config_context(cfg: Dict[str, Any], index: int) -> Dict[str, Any]:
+def _prepare_single_config_context(
+    cfg: Dict[str, Any],
+    index: int,
+    group_components: bool = False,
+) -> Dict[str, Any]:
     """Build template context for a single fan configuration."""
     spec = cfg.get("specification", {})
     pricing = cfg.get("pricing", {})
@@ -196,7 +258,7 @@ def _prepare_single_config_context(cfg: Dict[str, Any], index: int) -> Dict[str,
         if isinstance(comp, dict)
     ]
 
-    component_pricing = prepare_component_pricing_table(cfg, quantity)
+    component_pricing = prepare_component_pricing_table(cfg, quantity, group_components)
     buyout_items = prepare_buyout_items_table(cfg, quantity)
 
     unit_total = calcs.get("unit_total", 0)
@@ -235,7 +297,10 @@ def _prepare_single_config_context(cfg: Dict[str, Any], index: int) -> Dict[str,
     }
 
 
-def prepare_quote_context(quote_data: Dict[str, Any]) -> Dict[str, Any]:
+def prepare_quote_context(
+    quote_data: Dict[str, Any],
+    group_components: bool = False,
+) -> Dict[str, Any]:
     """
     Transform v4 quote_data into a context dictionary for the Word template.
 
@@ -244,6 +309,8 @@ def prepare_quote_context(quote_data: Dict[str, Any]) -> Dict[str, Any]:
 
     Parameters:
         quote_data (dict): The v4 quote data structure
+        group_components (bool): When True, selected mechanical components are
+            merged into a single lump-sum row in the pricing table.
 
     Returns:
         dict: Context dictionary with all template variables
@@ -271,7 +338,7 @@ def prepare_quote_context(quote_data: Dict[str, Any]) -> Dict[str, Any]:
 
     # Build per-config contexts
     fan_configs = [
-        _prepare_single_config_context(cfg, idx)
+        _prepare_single_config_context(cfg, idx, group_components)
         for idx, cfg in enumerate(fan_configurations)
     ]
     is_multi_config = len(fan_configs) > 1
@@ -344,7 +411,8 @@ def prepare_quote_context(quote_data: Dict[str, Any]) -> Dict[str, Any]:
 
 def generate_docx(
     quote_data: Dict[str, Any],
-    template_name: str = "quote_template.docx"
+    template_name: str = "quote_template.docx",
+    group_components: bool = False,
 ) -> BytesIO:
     """
     Generate a Word document from quote data using a docxtpl template.
@@ -352,6 +420,8 @@ def generate_docx(
     Parameters:
         quote_data (dict): The v4 quote data structure
         template_name (str): Name of the template file to use
+        group_components (bool): When True, selected mechanical components are
+            merged into a single lump-sum row in the pricing table.
 
     Returns:
         BytesIO: In-memory byte stream of the generated Word document
@@ -368,7 +438,7 @@ def generate_docx(
     try:
         template_path = get_template_path(template_name)
         doc = DocxTemplate(template_path)
-        context = prepare_quote_context(quote_data)
+        context = prepare_quote_context(quote_data, group_components)
         doc.render(context)
 
         output = BytesIO()
