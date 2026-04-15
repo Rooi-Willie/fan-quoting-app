@@ -172,6 +172,8 @@ All timestamps use SAST (UTC+2). Database and Docker containers configured for `
 ### Word Template (`ui/templates/quote_template.docx`)
 Uses `docxtpl` (Jinja2). Paragraph-level loops require `{%p for x in list %}` / `{%p endfor %}` — not inline `{% %}`. Per-config context (e.g. `fan_config.buyout_items`, `fan_config.component_pricing`) is built in `_prepare_single_config_context()` in `export_utils.py`. Edit the `.docx` directly in Word — insert `{{ variable_name }}` tags wherever needed.
 
+**Adding a new top-level template variable** (e.g. `{{ blade_spec }}`): add it to BOTH `_prepare_single_config_context()` (per-config dict) AND the `context.update({...})` block in `prepare_quote_context()` (top-level hoist for single-config templates). Missing the second step silently omits the variable.
+
 ### Component Names in Database
 Component names use hyphens, not spaces (e.g., `Inlet-Track`, not `Inlet Track`). When matching by name in export or calculation logic, verify the exact name against `database/data/components.csv` — do not assume spacing.
 
