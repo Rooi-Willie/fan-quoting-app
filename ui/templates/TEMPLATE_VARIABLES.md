@@ -14,6 +14,7 @@ This document provides a quick reference for mapping template variables in the W
 | `{{ fan_uid }}` | `specification.fan.fan_configuration.uid` | Text (e.g., "Ø915-Ø625") |
 | `{{ fan_size_mm }}` | `specification.fan.fan_configuration.fan_size_mm` | Number as string |
 | `{{ blade_sets }}` | `specification.fan.blade_sets` | Number as string |
+| `{{ blade_spec }}` | `specification.fan.fan_configuration.blade_material` | Material + "cast blade" (e.g., "Aluminium cast blade") |
 | `{{ total_mass_kg }}` | `calculations.component_totals.total_mass_kg` | Formatted number (e.g., "1,138.01") |
 | `{{ total_length }}` | `calculations.component_totals.total_length_mm` | Formatted number |
 | `{{ motor_output }}` | `specification.motor.motor_details.rated_output` | Number as string |

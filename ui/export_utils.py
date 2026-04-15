@@ -278,9 +278,14 @@ def _prepare_single_config_context(
         "fan_uid": fan_config.get("uid", "N/A"),
         "fan_size_mm": str(fan_config.get("fan_size_mm", "N/A")),
         "blade_sets": str(fan_section.get("blade_sets", "N/A")),
+        "blade_spec": (
+            f"{fan_config.get('blade_material')} cast blade"
+            if fan_config.get("blade_material")
+            else "N/A"
+        ),
         "components": component_names,
         "total_mass_kg": f"{float(component_totals.get('total_mass_kg', 0)):,.2f}",
-        "total_length": f"{float(component_totals.get('total_length_mm', 0)):,.2f}",
+        "total_length": f"{float(component_totals.get('total_length_mm', 0)):,.0f}",
         "motor_output": str(motor_details.get("rated_output", "N/A")),
         "motor_product_range": motor_details.get("product_range", "N/A"),
         "motor_pole": str(motor_details.get("poles", "N/A")),
@@ -390,6 +395,7 @@ def prepare_quote_context(
             "fan_uid": primary.get("fan_uid", "N/A"),
             "fan_size_mm": primary.get("fan_size_mm", "N/A"),
             "blade_sets": primary.get("blade_sets", "N/A"),
+            "blade_spec": primary.get("blade_spec", "N/A"),
             "components": primary.get("components", []),
             "total_mass_kg": primary.get("total_mass_kg", "0.00"),
             "total_length": primary.get("total_length", "0.00"),
