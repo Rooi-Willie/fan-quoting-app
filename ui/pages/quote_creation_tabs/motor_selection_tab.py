@@ -173,7 +173,7 @@ def render_main_content():
         return
 
     motors_df = pd.DataFrame(motors_list).sort_values(
-        'rated_output', ascending=False
+        'rated_output', ascending=True
     ).reset_index(drop=True)
     st.session_state.available_motors_df = motors_df
 
