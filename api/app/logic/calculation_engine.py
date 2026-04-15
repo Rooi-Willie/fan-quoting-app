@@ -14,6 +14,41 @@ from .. import crud, schemas, models
     endpoint will call. It fetches all the data, loops through the requested components, uses 
     the factory to get the right calculator for each, and aggregates the results."""
 
+# Components that represent multiple physical units in a standard installation.
+# The calculation engine multiplies all cost/mass/length fields by this factor.
+_COMPONENT_UNIT_QUANTITIES: dict = {
+    "Screen Inlet Inside": 2,  # One on the inlet side, one on the outlet side.
+}
+
+
+def _apply_unit_quantity(result_dict: dict) -> dict:
+    """
+    Multiply cost/mass/length fields by the component's unit quantity.
+
+    Most components have an implicit quantity of 1 (no-op). Components listed
+    in ``_COMPONENT_UNIT_QUANTITIES`` are multiplied accordingly so that the
+    calculated totals reflect the true number of units in a standard build.
+
+    Parameters:
+        result_dict (dict): Per-component result dict returned by a calculator.
+
+    Returns:
+        dict: The same dict, with numeric fields scaled by the unit quantity.
+    """
+    qty = _COMPONENT_UNIT_QUANTITIES.get(result_dict.get("name", ""), 1)
+    if qty == 1:
+        return result_dict
+    for field in (
+        "ideal_mass_kg", "real_mass_kg", "feedstock_mass_kg",
+        "material_cost", "labour_cost",
+        "total_cost_before_markup", "total_cost_after_markup",
+        "total_length_mm",
+    ):
+        if field in result_dict:
+            result_dict[field] *= qty
+    return result_dict
+
+
 # ==============================================================================
 # PART 0: THE "PRE-CALCULATION" HELPER FUNCTION
 # ==============================================================================
@@ -451,7 +486,8 @@ def calculate_single_component_details(db: Session, request: schemas.ComponentCa
 
     # 6. Apply markup and format response
     result_dict["total_cost_after_markup"] = result_dict["total_cost_before_markup"] * markup
-    
+    result_dict = _apply_unit_quantity(result_dict)
+
     return schemas.CalculatedComponent(**result_dict)
 
 def calculate_full_quote(db: Session, request: schemas.QuoteRequest) -> schemas.QuoteResponse:
@@ -516,7 +552,7 @@ def calculate_full_quote(db: Session, request: schemas.QuoteRequest) -> schemas.
 
         # Add the final markup calculation to the dictionary
         result_dict["total_cost_after_markup"] = result_dict["total_cost_before_markup"] * markup
-        
+        result_dict = _apply_unit_quantity(result_dict)
         calculated_components_details.append(result_dict)
 
     # --- 3. Aggregate final totals from the detailed list ---
@@ -716,6 +752,7 @@ def calculate_components_summary(db: Session, request: schemas.QuoteRequest) -> 
 
         result_dict = calculator.calculate(request_params, resolved_params, rates_and_settings)
         result_dict["total_cost_after_markup"] = result_dict["total_cost_before_markup"] * markup
+        result_dict = _apply_unit_quantity(result_dict)
         calculated_components_details.append(result_dict)
 
     # --- Aggregate component totals ---
@@ -790,6 +827,7 @@ def calculate_v3_components_summary(db: Session, request: schemas.QuoteRequest) 
 
         result_dict = calculator.calculate(request_params, resolved_params, rates_and_settings)
         result_dict["total_cost_after_markup"] = result_dict["total_cost_before_markup"] * markup
+        result_dict = _apply_unit_quantity(result_dict)
         calculated_components_details.append(result_dict)
 
     # Build v3 calculations section
