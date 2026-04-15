@@ -4,7 +4,7 @@ import pandas as pd  # Keep for potential future use
 from typing import Optional, List, Dict
 import requests
 from config import COMPONENT_IMAGES, CURRENCY_SYMBOL
-from utils import ensure_server_summary_up_to_date, build_summary_dataframe, get_ordered_component_names, build_ordered_component_rows, get_api_headers
+from utils import ensure_server_summary_up_to_date, build_summary_dataframe, get_ordered_component_names, build_ordered_component_rows, get_api_headers, parse_blade_quantity
 from common import recompute_all_components
 from common import (
     get_available_components,
@@ -129,7 +129,7 @@ def render_main_content():
         request_payload = {
             "fan_configuration_id": fan_config_id,
             "component_id": component_id,
-            "blade_quantity": int(fan_config.get("blade_sets") or 0),
+            "blade_quantity": parse_blade_quantity(fan_config.get("blade_sets")),
             "thickness_mm_override": overrides.get("material_thickness_mm"),
             "fabrication_waste_factor_override": fabrication_waste_factor,
             "markup_override": pricing_section.get("component_markup")  # v3: component markup location

@@ -13,6 +13,14 @@ import logging
 # South Africa timezone (UTC+2 / SAST)
 SAST_TZ = datetime.timezone(datetime.timedelta(hours=2))
 
+def parse_blade_quantity(value) -> int:
+    """Parse blade_sets to int, tolerating None, floats, and non-numeric strings (e.g. 'N/A')."""
+    try:
+        return int(float(value or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
 def get_sast_now():
     """Return current datetime in South Africa timezone (UTC+2 / SAST)"""
     return datetime.datetime.now(SAST_TZ)
@@ -437,7 +445,7 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 
 	payload = {
 		"fan_configuration_id": int(fan_config_id),
-		"blade_quantity": int(fan_section.get("blade_sets") or 0),
+		"blade_quantity": parse_blade_quantity(fan_section.get("blade_sets")),
 		"components": comp_list,
 		"markup_override": pricing_section.get("component_markup"),
 		"motor_markup_override": pricing_section.get("motor_markup")

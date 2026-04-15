@@ -19,7 +19,7 @@ from typing import Optional, List, Dict
 import requests
 import streamlit as st
 
-from utils import ensure_server_summary_up_to_date, get_api_headers
+from utils import ensure_server_summary_up_to_date, get_api_headers, parse_blade_quantity
 
 def _get_user_session_data() -> Dict | None:
     """Extract user session data from st.session_state if logged in.
@@ -723,7 +723,7 @@ def recompute_all_components(request_func) -> None:
 		request_payload = {
 			"fan_configuration_id": fan_config_id,
 			"component_id": comp_id,
-			"blade_quantity": int(fan_section.get("blade_sets") or 0),
+			"blade_quantity": parse_blade_quantity(fan_section.get("blade_sets")),
 			"thickness_mm_override": comp_overrides.get("material_thickness_mm"),
 			"fabrication_waste_factor_override": fabrication_waste_factor,
 			"markup_override": markup_override,
