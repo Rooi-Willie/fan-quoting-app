@@ -638,6 +638,7 @@ def _handle_fan_id_change():
         # Clear any cached API responses
         st.session_state.pop("server_summary", None)
         st.session_state.pop("last_summary_payload_hash", None)
+        st.session_state.pop("last_summary_hash_timestamp", None)
         st.session_state.pop("last_confirmed_motor_supplier", None)
 
     # Ensure pricing section exists with defaults

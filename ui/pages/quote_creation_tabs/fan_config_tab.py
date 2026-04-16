@@ -34,11 +34,13 @@ if "callback_counters" not in st.session_state:
 
 ## Removed duplicated cached API helpers (now provided in pages.common)
 
-@st.cache_data
+@st.cache_data(ttl=60)
 def get_component_details(request_payload_tuple: tuple) -> Optional[Dict]:
     """
     Posts a request to the single-component calculation endpoint.
     The request body dictionary is passed as a tuple to make it hashable for caching.
+    Cache expires after 60 seconds so rate changes (e.g. labour rates) are reflected
+    without requiring a full component payload change.
     """
     if not request_payload_tuple:
         return None

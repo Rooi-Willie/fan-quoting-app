@@ -453,7 +453,17 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 
 	payload_hash = json.dumps(payload, sort_keys=True, default=str)
 
-	if st.session_state.get("last_summary_payload_hash") == payload_hash:
+	# Consider the cache stale if it is older than 60 seconds so that rate
+	# changes (e.g. updated welder rate) are picked up even when the
+	# calculation inputs (fan config, components, markups) haven't changed.
+	_CACHE_TTL_SECONDS = 60
+	last_hash_ts = st.session_state.get("last_summary_hash_timestamp")
+	cache_expired = (
+		last_hash_ts is None
+		or (datetime.datetime.now(tz=datetime.timezone.utc) - last_hash_ts).total_seconds() > _CACHE_TTL_SECONDS
+	)
+
+	if st.session_state.get("last_summary_payload_hash") == payload_hash and not cache_expired:
 		# Ensure persisted structures exist even if no call needed
 		_calc = active_cfg.setdefault("calculations", {})
 
@@ -487,6 +497,7 @@ def ensure_server_summary_up_to_date(qd: dict) -> None:
 
 		st.session_state.server_summary = api_response
 		st.session_state.last_summary_payload_hash = payload_hash
+		st.session_state.last_summary_hash_timestamp = datetime.datetime.now(tz=datetime.timezone.utc)
 
 		_calc = active_cfg.setdefault("calculations", {})
 
